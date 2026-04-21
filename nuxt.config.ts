@@ -10,6 +10,23 @@ export default defineNuxtConfig({
   },
   css: ["./public/tailwind.css"],
 
+  fonts: {
+    throwOnError: true,
+    devtools: true,
+    experimental: {
+      disableLocalFallbacks: true,
+    },
+    families: [
+      {
+        name: "CY Grotesk Grand",
+        provider: "local",
+        global: true,
+        weights: [400, 700],
+        src: "~/cy-grotesk-grand.woff2",
+      },
+    ],
+  },
+
   modules: [
     "@nuxt/fonts",
     "@nuxt/hints",
