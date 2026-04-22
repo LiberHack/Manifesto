@@ -12,8 +12,8 @@ const { data: teams, refresh } = await useFetch('/api/teams', {
     <div class="flex items-center justify-between gap-4 flex-wrap">
       <h1 class="text-4xl font-black uppercase">Teams</h1>
       <div class="flex gap-2">
-        <NuxtLink to="/team/create" class="btn btn-primary font-black uppercase">+ Form Team</NuxtLink>
-        <NuxtLink to="/dashboard" class="btn btn-outline font-black uppercase">> Dashboard</NuxtLink>
+        <NuxtLink to="/ops/team/create" class="btn btn-primary font-black uppercase">+ Form Team</NuxtLink>
+        <NuxtLink to="/ops/dashboard" class="btn btn-outline font-black uppercase">> Dashboard</NuxtLink>
       </div>
     </div>
 
@@ -28,7 +28,7 @@ const { data: teams, refresh } = await useFetch('/api/teams', {
     </div>
 
     <div class="grid gap-4 sm:grid-cols-2">
-      <NuxtLink v-for="team in (teams as any[])" :key="team.id" :to="`/teams/${team.id}`"
+      <NuxtLink v-for="team in (teams as any[])" :key="team.id" :to="`/ops/teams/${team.id}`"
         class="card bg-base-200 border border-base-content/20 hover:border-primary transition-colors">
         <div class="card-body">
           <h2 class="card-title font-black">{{ team.name }}</h2>

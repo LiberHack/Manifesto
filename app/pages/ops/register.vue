@@ -23,13 +23,13 @@ async function register() {
   loading.value = false
 
   if (authError) { error.value = authError.message; return }
-  router.push('/teams')
+  router.push('/ops/teams')
 }
 </script>
 
 <template>
   <main class="min-h-screen flex items-center justify-center p-4">
-    <form class="w-full max-w-md space-y-4" @submit.prevent="register">
+    <form class="w-full max-w-md flex flex-col gap-2" @submit.prevent="register">
       <h1 class="text-4xl font-black uppercase tracking-tight">Register</h1>
 
       <div v-if="error" role="alert" class="alert alert-error text-sm">{{ error }}</div>
@@ -51,7 +51,8 @@ async function register() {
 
       <label class="form-control">
         <span class="label-text font-bold">Skills <span class="opacity-60">(comma-separated)</span></span>
-        <input v-model="form.skills" type="text" placeholder="TypeScript, Rust, UI/UX" class="input input-bordered w-full" />
+        <input v-model="form.skills" type="text" placeholder="TypeScript, Rust, UI/UX"
+          class="input input-bordered w-full" />
       </label>
 
       <button type="submit" :disabled="loading" class="btn btn-primary w-full font-black uppercase">
@@ -59,7 +60,7 @@ async function register() {
       </button>
 
       <p class="text-sm text-center">
-        Already registered? <NuxtLink to="/login" class="link">Log in</NuxtLink>
+        Already registered? <NuxtLink to="/ops/login" class="link">Log in</NuxtLink>
       </p>
     </form>
   </main>

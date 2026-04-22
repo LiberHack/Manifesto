@@ -20,13 +20,13 @@ async function login() {
   loading.value = false
 
   if (authError) { error.value = authError.message; return }
-  router.push('/teams')
+  router.push('/ops/teams')
 }
 </script>
 
 <template>
   <main class="min-h-screen flex items-center justify-center p-4">
-    <form class="w-full max-w-md space-y-4" @submit.prevent="login">
+    <form class="w-full max-w-md flex flex-col gap-2" @submit.prevent="login">
       <h1 class="text-4xl font-black uppercase tracking-tight">Login</h1>
 
       <div v-if="error" role="alert" class="alert alert-error text-sm">{{ error }}</div>
@@ -46,7 +46,7 @@ async function login() {
       </button>
 
       <p class="text-sm text-center">
-        No account? <NuxtLink to="/register" class="link">Register</NuxtLink>
+        No account? <NuxtLink to="/ops/register" class="link">Register</NuxtLink>
       </p>
     </form>
   </main>
