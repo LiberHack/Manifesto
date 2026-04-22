@@ -44,7 +44,7 @@ const createTeam = handleSubmit(async (values) => {
     return
   }
 
-  router.push('/dashboard')
+  router.push('/ops/dashboard')
 })
 </script>
 
