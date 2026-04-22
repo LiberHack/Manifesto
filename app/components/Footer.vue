@@ -22,7 +22,10 @@
             name="streamline-pixel:logo-social-media-old-instagram"
           />
         </a>
-        <a class="flex flex-row gap-2 items-center">
+        <a
+          href="https://discord.gg/m4Z6AarxwB"
+          class="flex flex-row gap-2 items-center"
+        >
           <p>Discord</p>
           <Icon size="32" name="teenyicons:discord-solid" />
         </a>
