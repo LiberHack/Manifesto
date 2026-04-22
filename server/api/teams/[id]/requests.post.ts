@@ -1,5 +1,6 @@
 import { serverSupabaseUser } from "#supabase/server";
 import { useSupabaseAdmin } from "#server/utils/supabase";
+import { sendJoinRequestNotification } from "#server/utils/email";
 
 export default defineEventHandler(async (event) => {
   const user = await serverSupabaseUser(event);
@@ -49,5 +50,33 @@ export default defineEventHandler(async (event) => {
     .single();
 
   if (error) throw createError({ statusCode: 500, message: error.message });
+
+  // Notify team leader — fire and forget, don't block response
+  void (async () => {
+    const { data: team } = await supabase
+      .from("teams")
+      .select("name, leader_id")
+      .eq("id", teamId!)
+      .single();
+    if (!team) return;
+
+    const [requester, leader] = await Promise.all([
+      supabase.from("participants").select("name").eq("id", user.sub).single(),
+      supabase
+        .from("participants")
+        .select("email")
+        .eq("id", team.leader_id)
+        .single(),
+    ]);
+
+    if (leader.data?.email && requester.data?.name) {
+      await sendJoinRequestNotification(
+        leader.data.email,
+        requester.data.name,
+        team.name,
+      ).catch(() => {});
+    }
+  })();
+
   return request;
 });

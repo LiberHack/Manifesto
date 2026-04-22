@@ -324,7 +324,7 @@ export default defineNuxtConfig({
   supabase: {
     // Disable auto-redirect — we handle it via manual middleware
     redirectOptions: {
-      login: "/login",
+      login: "/ops/login",
       callback: "/confirm",
       exclude: ["/*"],
     },
