@@ -18,11 +18,18 @@ export default defineNuxtConfig({
     },
     families: [
       {
-        name: "CY Grotesk Grand",
+        name: "3270",
         provider: "local",
         global: true,
-        weights: [400, 700],
-        src: "~/cy-grotesk-grand.woff2",
+        weights: [700, 700],
+        src: "/3270_font/3270-Regular.otf",
+      },
+      {
+        name: "cygrotesk",
+        provider: "local",
+        global: true,
+        weights: [700, 700],
+        src: "/CyGrotesk-GrandRegular.otf",
       },
     ],
   },

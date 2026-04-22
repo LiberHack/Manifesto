@@ -1,5 +1,5 @@
 <template>
-  <div class="w-full flex flex-col gap-16 py-8">
+  <div class="w-full flex flex-col gap-16 py-8 font-cygrotesk">
     <div
       class="w-full flex flex-col md:flex-row items-center justify-center gap-5"
     >
