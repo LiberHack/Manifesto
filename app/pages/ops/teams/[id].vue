@@ -28,14 +28,15 @@ async function sendRequest() {
 
 <template>
   <main class="max-w-2xl mx-auto p-6 space-y-6">
-    <NuxtLink to="/teams" class="btn btn-ghost btn-sm">← Back</NuxtLink>
+    <NuxtLink to="/ops/teams" class="btn btn-ghost btn-sm">← Back</NuxtLink>
 
     <template v-if="team">
       <h1 class="text-4xl font-black uppercase">{{ team.name }}</h1>
       <p v-if="team.description" class="opacity-70">{{ team.description }}</p>
 
       <div class="flex flex-wrap gap-2">
-        <span v-for="skill in team.skills_wanted" :key="skill" class="badge badge-primary badge-outline">{{ skill }}</span>
+        <span v-for="skill in team.skills_wanted" :key="skill" class="badge badge-primary badge-outline">{{ skill
+          }}</span>
       </div>
 
       <h2 class="text-xl font-bold mt-6 mb-3">Members ({{ team.members?.length ?? 0 }}/6)</h2>
@@ -49,18 +50,11 @@ async function sendRequest() {
       </ul>
 
       <div class="mt-8">
-        <div
-          v-if="message"
-          class="alert mb-4"
-          :class="message === 'Request sent!' ? 'alert-success' : 'alert-error'"
-        >{{ message }}</div>
+        <div v-if="message" class="alert mb-4" :class="message === 'Request sent!' ? 'alert-success' : 'alert-error'">{{
+          message }}</div>
 
-        <button
-          v-if="!isMember && !alreadyInTeam"
-          :disabled="sending"
-          class="btn btn-primary font-black uppercase"
-          @click="sendRequest"
-        >{{ sending ? 'Sending…' : 'Request to Join' }}</button>
+        <button v-if="!isMember && !alreadyInTeam" :disabled="sending" class="btn btn-primary font-black uppercase"
+          @click="sendRequest">{{ sending ? 'Sending…' : 'Request to Join' }}</button>
 
         <p v-else-if="isMember" class="font-bold text-success">You're a member of this team.</p>
         <p v-else class="opacity-60">You're already in a team.</p>

@@ -56,7 +56,7 @@ const createTeam = handleSubmit(async (values) => {
     <form class="w-full max-w-md flex flex-col gap-2" @submit.prevent="createTeam">
       <div class="flex justify-between">
         <h1 class="text-4xl font-black uppercase tracking-tight">Form a Team</h1>
-        <NuxtLink to="/teams" class="btn btn-outline font-black uppercase">> Back</NuxtLink>
+        <NuxtLink to="/ops/teams" class="btn btn-outline font-black uppercase">> Back</NuxtLink>
 
       </div>
 

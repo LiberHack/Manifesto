@@ -22,7 +22,7 @@ async function deleteTeam(id: string) {
   <main class="max-w-5xl mx-auto p-6 space-y-12">
     <div class="flex items-center justify-between">
       <h1 class="text-4xl font-black uppercase">Admin</h1>
-      <NuxtLink to="/dashboard" class="btn btn-ghost btn-sm">← Dashboard</NuxtLink>
+      <NuxtLink to="/ops/dashboard" class="btn btn-ghost btn-sm">← Dashboard</NuxtLink>
     </div>
 
     <section>
