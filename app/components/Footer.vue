@@ -1,6 +1,12 @@
+<script setup lang="js">
+const appConfig = useAppConfig();
+const discord = appConfig.socials.discord;
+const instagram = appConfig.socials.instagram;
+</script>
+
 <template>
   <footer
-    class="footer sm:footer-horizontal bg-base-100 text-neutral-content gap-0 border-2 border-primary mb-4"
+    class="footer sm:footer-horizontal bg-base-100 text-neutral-content gap-0 border-2 border-primary"
   >
     <aside class="flex flex-row items-center border-2 border-primary p-2">
       <NuxtImg src="/favicon.webp" class="w-32 border-primary border-r-2" />
@@ -12,20 +18,14 @@
     >
       <h1 class="text-3xl w-full">Social</h1>
       <div class="grid grid-flow-col gap-4 h-full w-full">
-        <a
-          class="flex flex-row gap-2 items-center"
-          href="https://www.instagram.com/liberh4ck/"
-        >
+        <a class="flex flex-row gap-2 items-center" :href="instagram">
           <p>Instagram</p>
           <Icon
             size="32"
             name="streamline-pixel:logo-social-media-old-instagram"
           />
         </a>
-        <a
-          href="https://discord.gg/m4Z6AarxwB"
-          class="flex flex-row gap-2 items-center"
-        >
+        <a :href="discord" class="flex flex-row gap-2 items-center">
           <p>Discord</p>
           <Icon size="32" name="teenyicons:discord-solid" />
         </a>
