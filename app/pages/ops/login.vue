@@ -1,26 +1,38 @@
 <script setup lang="ts">
+import { until } from '@vueuse/core'
+
 definePageMeta({ middleware: [] })
 
 const supabase = useSupabaseClient()
 const router = useRouter()
+const user = useSupabaseUser()
 
 const form = reactive({ email: '', password: '' })
 const error = ref('')
 const loading = ref(false)
 
+
 async function login() {
   error.value = ''
   loading.value = true
 
-  const { error: authError } = await supabase.auth.signInWithPassword({
-    email: form.email,
-    password: form.password,
-  })
+  try {
+    const { error: authError } = await supabase.auth.signInWithPassword({
+      email: form.email,
+      password: form.password,
+    })
 
-  loading.value = false
+    if (authError) {
+      error.value = authError.message
+      return
+    }
 
-  if (authError) { error.value = authError.message; return }
-  router.push('/ops/teams')
+    await until(user).toBeTruthy()
+
+    router.push('/ops/teams')
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 
