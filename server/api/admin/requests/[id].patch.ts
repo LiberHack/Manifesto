@@ -1,4 +1,5 @@
 import { requireAdmin } from "#server/utils/adminAuth";
+import { sendRequestDecisionNotification } from "#server/utils/email";
 
 export default defineEventHandler(async (event) => {
   const { supabase } = await requireAdmin(event);
@@ -20,5 +21,30 @@ export default defineEventHandler(async (event) => {
     .single();
 
   if (error) throw createError({ statusCode: 500, message: error.message });
+
+  // Notify requester — fire and forget
+  void (async () => {
+    const [requester, team] = await Promise.all([
+      supabase
+        .from("participants")
+        .select("email")
+        .eq("id", data.participant_id)
+        .single(),
+      supabase
+        .from("teams")
+        .select("name")
+        .eq("id", data.team_id)
+        .single(),
+    ]);
+
+    if (requester.data?.email && team.data?.name) {
+      await sendRequestDecisionNotification(
+        requester.data.email,
+        team.data.name,
+        body.status
+      ).catch(() => {});
+    }
+  })();
+
   return data;
 });

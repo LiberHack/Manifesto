@@ -38,7 +38,7 @@ export default defineNuxtConfig({
   supabase: {
     // Disable auto-redirect — we handle it via manual middleware
     redirectOptions: {
-      login: "/login",
+      login: "/ops/login",
       callback: "/confirm",
       exclude: ["/*"],
     },
@@ -46,6 +46,8 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
+    postmarkToken: process.env.POSTMARK_SERVER_TOKEN ?? "",
+    postmarkFromEmail: process.env.POSTMARK_FROM_EMAIL ?? "",
     public: {
       supabaseUrl: process.env.SUPABASE_URL ?? "",
       supabaseAnonKey: process.env.SUPABASE_ANON_KEY ?? "",

@@ -7,7 +7,7 @@ const { data: me } = await useFetch<any>('/api/me')
 
 async function logout() {
   await supabase.auth.signOut()
-  router.push('/login')
+  router.push('/ops/login')
 }
 </script>
 
@@ -34,7 +34,7 @@ async function logout() {
       <h2 class="text-xl font-bold mb-2">Your Team</h2>
       <NuxtLink :to="`/ops/teams/${me.team.id}`" class="link font-bold text-lg">{{ me.team.name }}</NuxtLink>
       <div class="mt-3">
-        <NuxtLink to="/team/manage" class="btn btn-sm btn-outline">Manage Join Requests</NuxtLink>
+        <NuxtLink to="/ops/team/manage" class="btn btn-sm btn-outline">Manage Join Requests</NuxtLink>
       </div>
     </section>
 
@@ -42,7 +42,7 @@ async function logout() {
       <h2 class="text-xl font-bold mb-2">No Team Yet</h2>
       <div class="flex gap-3">
         <NuxtLink to="/ops/teams" class="btn btn-primary btn-sm font-black uppercase">Browse Teams</NuxtLink>
-        <NuxtLink to="/team/create" class="btn btn-outline btn-sm font-black uppercase">Form a Team</NuxtLink>
+        <NuxtLink to="/ops/team/create" class="btn btn-outline btn-sm font-black uppercase">Form a Team</NuxtLink>
       </div>
     </section>
 
