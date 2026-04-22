@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+@theme {
+  --font-3270:
+    "3270", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+@theme {
+  --font-cygrotesk:
+    cygrotesk, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
 @plugin "daisyui/theme" {
   name: "liberhacklight";
   default: true;
