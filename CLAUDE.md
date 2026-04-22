@@ -33,7 +33,32 @@ We use **bun** locally for speed, but infra/CI relies on **npm** for reproducibi
 ## Project Structure
 
 ```
-app/           # Nuxt app directory (pages, components, composables, etc.)
-public/        # Static assets (tailwind.css lives here)
-nuxt.config.ts # Nuxt configuration
+app/              # Nuxt app directory (pages, components, composables, etc.)
+public/           # Static assets (tailwind.css lives here)
+nuxt.config.ts    # Nuxt configuration
+supabase/         # Supabase CLI config & migrations (supabase CLI only)
+supabase-docker/  # Self-hosted Supabase via Docker Compose
 ```
+
+## Supabase (Self-Hosted)
+
+The project runs Supabase locally via Docker, not via Supabase CLI's `supabase start`.
+
+```bash
+# Start Supabase
+cd supabase-docker && docker compose up -d
+
+# Stop Supabase
+cd supabase-docker && docker compose down
+
+# View logs
+cd supabase-docker && docker compose logs -f
+
+# Dashboard: http://localhost:8000
+# Username: supabase  Password: see supabase-docker/.env DASHBOARD_PASSWORD
+```
+
+- Kong (API gateway) on port 8000, Postgres on port 5432
+- The app `.env` points to `SUPABASE_URL=http://localhost:8000`
+- Secrets live in `supabase-docker/.env` (git-ignored)
+- Migrations still managed via Supabase CLI in `supabase/` directory
