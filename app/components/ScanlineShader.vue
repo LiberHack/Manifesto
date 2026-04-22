@@ -31,17 +31,17 @@ onMounted(() => {
     new THREE.PlaneGeometry(2, 2),
     new THREE.ShaderMaterial({
       uniforms: {
-        uTime: { value: 0 },
-        uIntensity: { value: 0.5 },
+        uTime: { value: 0.2 },
+        uIntensity: { value: 0.8 },
         uSpeed: { value: 0.2 },
-        uLineDarkness: { value: 0.9 },
-        uGlowColor: { value: new THREE.Vector3(0.3, 0.3, 0.3) },
-        uGlow: { value: 2 },
+        uLineDarkness: { value: 1.0 },
+        uGlowColor: { value: new THREE.Vector3(0.4, 0.4, 0.4) },
+        uGlow: { value: 2.6 },
         uResolution: { value: new THREE.Vector2(width, height) },
       },
       vertexShader: `
         varying vec2 vUv;
-        
+
         void main() {
           vUv = uv;
           gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
@@ -49,7 +49,7 @@ onMounted(() => {
       `,
       fragmentShader: `
         precision highp float;
-        
+
         uniform float uTime;
         uniform float uIntensity;
         uniform float uSpeed;
@@ -57,34 +57,34 @@ onMounted(() => {
         uniform float uLineDarkness;
         uniform vec3 uGlowColor;
         uniform vec2 uResolution;
-        
+
         varying vec2 vUv;
-        
+
         float random(vec2 st) {
           return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
         }
-        
+
         void main() {
           vec2 uv = vUv;
-          
+
           float scanline = sin(uv.y * uResolution.y * 0.5 + uTime * uSpeed * 5.0) * 0.5 + 0.5;
           scanline = pow(scanline, 3.0);
-          
+
           float lineIntensity = mix(1.0, 0.5 - scanline * uIntensity, uIntensity);
-          
+
           vec4 color = vec4(0.0);
-          
+
           color.rgb -= (1.0 - lineIntensity) * uLineDarkness * 0.7;
-          
+
           float glow = sin(uv.y * uResolution.y * 0.5) * 0.5 + 0.5;
           glow = pow(glow, 2.0);
           color.rgb += uGlowColor * glow * uGlow * 0.3;
-          
+
           float noise = random(uv + uTime * 0.01) * 0.01;
           color.rgb += noise * 0.3;
-          
+
           color.a = max(max(color.r, color.g), color.b) * 0.8 + uIntensity * 0.3;
-          
+
           gl_FragColor = color;
         }
       `,
