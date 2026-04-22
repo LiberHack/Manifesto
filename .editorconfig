@@ -1,0 +1,20 @@
+# http://editorconfig.org
+root = true
+
+[*]
+# Universal settings for all files
+charset = utf-8
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+end_of_line = lf
+
+[*.md]
+# Markdown files sometimes need trailing spaces for line breaks
+trim_trailing_whitespace = false
+
+[Makefile]
+# Makefiles strictly require tabs
+indent_style = tab
+
