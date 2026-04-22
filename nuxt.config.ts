@@ -1,4 +1,3 @@
-// https://nuxt.com/docs/api/configuration/nuxt-config
 import tailwindcss from "@tailwindcss/vite";
 
 export default defineNuxtConfig({
@@ -33,5 +32,23 @@ export default defineNuxtConfig({
     "@nuxt/icon",
     "@nuxt/image",
     "@nuxt/content",
+    "@nuxtjs/supabase",
   ],
+
+  supabase: {
+    // Disable auto-redirect — we handle it via manual middleware
+    redirectOptions: {
+      login: "/login",
+      callback: "/confirm",
+      exclude: ["/*"],
+    },
+  },
+
+  runtimeConfig: {
+    supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
+    public: {
+      supabaseUrl: process.env.SUPABASE_URL ?? "",
+      supabaseAnonKey: process.env.SUPABASE_ANON_KEY ?? "",
+    },
+  },
 });
