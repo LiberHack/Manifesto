@@ -8,7 +8,7 @@
   >
     <div class="flex flex-col min-h-screen">
       <div class="navbar bg-base-100 shadow-sm border-b-2 border-primary">
-        <a class="btn btn-ghost text-xl">L1BERH4CK</a>
+        <NuxtLink href="/" class="btn btn-ghost text-xl">L1BERH4CK</NuxtLink>
       </div>
       <div class="flex flex-col h-full w-full">
         <slot />
