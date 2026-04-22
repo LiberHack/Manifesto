@@ -24,7 +24,10 @@ export default defineEventHandler(async (event) => {
   }
 
   const { data, error } = await query;
-  if (error) throw createError({ statusCode: 500, message: error.message });
+  if (error) {
+    console.error("[teams.get] query failed:", error.message);
+    throw createError({ statusCode: 500, message: "Failed to fetch teams" });
+  }
 
   // Only return teams with fewer than 6 members
   return (data ?? []).filter((team) => team.members.length < 6);

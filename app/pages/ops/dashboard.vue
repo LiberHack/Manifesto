@@ -31,14 +31,19 @@ async function logout() {
     </section>
 
     <section v-if="me?.team">
-      <h2 class="text-xl font-bold mb-2">Your Team</h2>
-      <NuxtLink :to="`/ops/teams/${me.team.id}`" class="link font-bold text-lg">{{ me.team.name }}</NuxtLink>
-      <div class="mt-3">
-        <NuxtLink to="/ops/team/manage" class="btn btn-sm btn-outline">Manage Join Requests</NuxtLink>
-      </div>
+      <section>
+        <h2 class="text-xl font-bold mb-2">Your Team</h2>
+        <NuxtLink :to="`/ops/teams/${me.team.id}`" class="link font-bold text-lg">{{ me.team.name }}</NuxtLink>
+      </section>
+
+      <section v-if="me?.team.leader_id === me?.id">
+        <h2 class="text-xl font-bold mb-2">Pending requests</h2>
+        <ManageRequests />
+      </section>
+
     </section>
 
-    <section v-else-if="me">
+    <section v-else-if="!me?.team">
       <h2 class="text-xl font-bold mb-2">No Team Yet</h2>
       <div class="flex gap-3">
         <NuxtLink to="/ops/teams" class="btn btn-primary btn-sm font-black uppercase">Browse Teams</NuxtLink>

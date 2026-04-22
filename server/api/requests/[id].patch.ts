@@ -47,7 +47,13 @@ export default defineEventHandler(async (event) => {
     .select()
     .single();
 
-  if (error) throw createError({ statusCode: 500, message: error.message });
+  if (error) {
+    if (error.message?.includes("team_full")) {
+      throw createError({ statusCode: 409, message: "Team is already full" });
+    }
+    console.error("[requests.patch] update failed:", error.message);
+    throw createError({ statusCode: 500, message: "Failed to update request" });
+  }
 
   // Notify requester — fire and forget
   void (async () => {

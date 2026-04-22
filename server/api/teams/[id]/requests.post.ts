@@ -49,7 +49,10 @@ export default defineEventHandler(async (event) => {
     .select()
     .single();
 
-  if (error) throw createError({ statusCode: 500, message: error.message });
+  if (error) {
+    console.error("[teams/requests.post] insert failed:", error.message);
+    throw createError({ statusCode: 500, message: "Failed to submit request" });
+  }
 
   // Notify team leader — fire and forget, don't block response
   void (async () => {
