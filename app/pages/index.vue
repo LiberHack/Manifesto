@@ -38,7 +38,12 @@
     >
       <p class="text-5xl font-bold text-center">Fr3qu3nt!y A5k3d Qu3st10n5</p>
       <div class="flex flex-row w-full gap-8">
-        <AsciiShader class="h-0" />
+        <NuxtImg
+          preload
+          src="/favicon.webp"
+          class="bg-base-100/90 border-primary border-4"
+        />
+
         <FAQ class="h-min" />
       </div>
     </div>
