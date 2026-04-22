@@ -12,6 +12,7 @@ const originalText = "register now";
 const displayText = ref(originalText);
 let animationInterval = null;
 let currentProgress = 0;
+let isAnimating = false;
 const DURATION = 30;
 
 const router = useRouter()
@@ -34,9 +35,23 @@ const getGlitchVersion = (text) => {
     })
     .join("");
 };
+
+const clearAnimation = () => {
+  if (animationInterval) {
+    clearInterval(animationInterval);
+    animationInterval = null;
+  }
+};
+
 const startAnimation = () => {
+  // NEW: Prevent multiple animations
+  if (isAnimating) return;
+
+  clearAnimation();
+  isAnimating = true;
   let progress = 0;
   const maxProgress = originalText.length;
+
   animationInterval = setInterval(() => {
     progress++;
     currentProgress = progress;
@@ -51,13 +66,15 @@ const startAnimation = () => {
     }
     displayText.value = result;
     if (progress >= maxProgress) {
-      clearInterval(animationInterval);
+      clearAnimation();
+      isAnimating = false;
     }
   }, DURATION);
 };
 
 const resetAnimation = () => {
-  clearInterval(animationInterval);
+  clearAnimation();
+  isAnimating = true;
   let progress = currentProgress;
 
   animationInterval = setInterval(() => {
@@ -73,8 +90,9 @@ const resetAnimation = () => {
     }
     displayText.value = result;
     if (progress <= 0) {
-      clearInterval(animationInterval);
+      clearAnimation();
       displayText.value = originalText;
+      isAnimating = false;
     }
   }, DURATION);
 };
