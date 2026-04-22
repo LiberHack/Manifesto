@@ -4,7 +4,7 @@ definePageMeta({ middleware: [] })
 const supabase = useSupabaseClient()
 const router = useRouter()
 
-const form = reactive({ name: '', email: '', password: '', skills: '' })
+const form = reactive({ name: '', email: '', password: '', skills: [] as string[] })
 const error = ref('')
 const loading = ref(false)
 
@@ -12,7 +12,7 @@ async function register() {
   error.value = ''
   loading.value = true
 
-  const skills = form.skills.split(',').map((s) => s.trim()).filter(Boolean)
+  const skills = form.skills
 
   const { error: authError } = await supabase.auth.signUp({
     email: form.email,
@@ -22,7 +22,15 @@ async function register() {
 
   loading.value = false
 
-  if (authError) { error.value = authError.message; return }
+  if (authError) {
+    if (authError.message.includes('registration_closed'))
+      error.value = 'Registration is closed — the 120-participant limit has been reached.'
+    else if (authError.message.includes('too_many_skills'))
+      error.value = 'You can add at most 5 skills.'
+    else
+      error.value = authError.message
+    return
+  }
   router.push('/ops/teams')
 }
 </script>
@@ -50,9 +58,8 @@ async function register() {
       </label>
 
       <label class="form-control">
-        <span class="label-text font-bold">Skills <span class="opacity-60">(comma-separated)</span></span>
-        <input v-model="form.skills" type="text" placeholder="TypeScript, Rust, UI/UX"
-          class="input input-bordered w-full" />
+        <span class="label-text font-bold">Your Skills</span>
+        <SkillPicker v-model="form.skills" allow-create />
       </label>
 
       <button type="submit" :disabled="loading" class="btn btn-primary w-full font-black uppercase">

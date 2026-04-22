@@ -20,7 +20,10 @@ export default defineEventHandler(async (event) => {
     .select()
     .single();
 
-  if (error) throw createError({ statusCode: 500, message: error.message });
+  if (error) {
+    console.error("[admin/requests.patch] update failed:", error.message);
+    throw createError({ statusCode: 500, message: "Failed to update request" });
+  }
 
   // Notify requester — fire and forget
   void (async () => {

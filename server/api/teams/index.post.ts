@@ -76,7 +76,10 @@ export default defineEventHandler(async (event) => {
     .select()
     .single();
 
-  if (error) throw createError({ statusCode: 500, message: error.message });
+  if (error) {
+    console.error("[teams.post] insert failed:", error.message);
+    throw createError({ statusCode: 500, message: "Failed to create team" });
+  }
 
   await supabase
     .from("participants")
