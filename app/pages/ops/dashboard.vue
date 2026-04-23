@@ -46,9 +46,12 @@ async function logout() {
       <div class="flex items-center justify-between flex-wrap gap-8">
         <h1 class="text-4xl font-black uppercase">Dashboard</h1>
         <div class="flex gap-2 items-center">
-          <NuxtLink to="/ops/teams" class="btn btn-outline font-black uppercase"
-            >> Teams</NuxtLink
+          <NuxtLink
+            to="/ops/teams"
+            class="btn btn-outline font-black uppercase"
           >
+            > Teams
+          </NuxtLink>
           <button class="btn btn-ghost btn-sm" @click="logout">Logout</button>
         </div>
       </div>
@@ -62,19 +65,21 @@ async function logout() {
             v-for="skill in me.skills"
             :key="skill"
             class="badge badge-outline"
-            >{{ skill }}</span
           >
+            {{ skill }}
+          </span>
         </div>
       </section>
 
-      <section v-if="me?.team">
+      <section v-if="me?.team" class="space-y-8">
         <section>
           <h2 class="text-xl font-bold mb-2">Your Team</h2>
           <NuxtLink
             :to="`/ops/teams/${me.team.id}`"
             class="link font-bold text-lg"
-            >{{ me.team.name }}</NuxtLink
           >
+            {{ me.team.name }}
+          </NuxtLink>
         </section>
 
         <section v-if="isLeader">
@@ -112,13 +117,15 @@ async function logout() {
           <NuxtLink
             to="/ops/teams"
             class="btn btn-primary btn-sm font-black uppercase"
-            >Browse Teams</NuxtLink
           >
+            Browse Teams
+          </NuxtLink>
           <NuxtLink
             to="/ops/team/create"
             class="btn btn-outline btn-sm font-black uppercase"
-            >Form a Team</NuxtLink
           >
+            Form a Team
+          </NuxtLink>
         </div>
       </section>
 
@@ -126,8 +133,9 @@ async function logout() {
         <NuxtLink
           to="/ops/admin"
           class="btn btn-warning btn-sm font-black uppercase"
-          >Admin Panel</NuxtLink
         >
+          Admin Panel
+        </NuxtLink>
       </section>
     </div>
   </main>
