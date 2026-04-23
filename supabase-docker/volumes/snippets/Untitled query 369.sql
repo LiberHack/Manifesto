@@ -1,1 +1,6 @@
-delete from auth.users where id = '09aaa4a0-f20b-4cd7-a30c-7a2ab4346ce3';
+INSERT INTO public.skills (name) VALUES
+  ('TypeScript'), ('JavaScript'), ('Python'), ('Rust'), ('Go'),
+  ('C++'), ('Java'), ('Vue'), ('React'), ('Svelte'),
+  ('UI/UX'), ('DevOps'), ('Docker'), ('Kubernetes'), ('GraphQL'),
+  ('PostgreSQL'), ('Linux'), ('Security'), ('Embedded'), ('Machine Learning')
+ON CONFLICT DO NOTHING;
