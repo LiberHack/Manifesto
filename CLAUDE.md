@@ -62,3 +62,14 @@ cd supabase-docker && docker compose logs -f
 - The app `.env` points to `SUPABASE_URL=http://localhost:8000`
 - Secrets live in `supabase-docker/.env` (git-ignored)
 - Migrations still managed via Supabase CLI in `supabase/` directory
+
+## Deployment
+
+Production runs via Docker Compose with Caddy for automatic SSL (Let's Encrypt):
+- `Dockerfile` — copies pre-built `.output/` into `node:22-alpine`, runs `node .output/server/index.mjs`
+- `docker-compose.yml` — `app` + `caddy` services; Caddy proxies to `app:3000`
+- `Caddyfile` — reads domain from `$DOMAIN` env var
+- Set `DOMAIN=yourdomain.com` in `.env` before `docker compose up -d`
+- Ports 80/443 must be open; DNS must point to server before first start
+
+`better-sqlite3` in `.output/` is `@nuxt/content`'s internal storage — not user code, no action needed.

@@ -12,3 +12,4 @@ bun.lockb
 .env.local
 supabase-docker/.env
 supabase-docker/volumes/db/data/
+.output
