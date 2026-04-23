@@ -58,7 +58,6 @@
         class="bg-base-100/90 border-primary border-4 hidden md:block"
       />
     </div>
-    <p>hallo</p>
 
     <Footer />
   </div>
