@@ -26,6 +26,7 @@
     "postmark": "^4.0.7",
     "tailwindcss": "^4.2.3",
     "three": "^0.184.0",
+    "typescript": "^6.0.3",
     "vee-validate": "^4.15.1",
     "vue": "^3.5.32",
     "vue-router": "^5.0.4",

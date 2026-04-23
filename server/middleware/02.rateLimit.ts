@@ -9,7 +9,7 @@ export default defineEventHandler((event) => {
   if (!API_PATTERN.test(event.path)) return;
 
   const ip =
-    getHeader(event, "x-forwarded-for")?.split(",")[0].trim() ??
+    getHeader(event, "x-forwarded-for")?.split(",")[0]?.trim() ??
     getHeader(event, "x-real-ip") ??
     "unknown";
 
@@ -25,7 +25,7 @@ export default defineEventHandler((event) => {
 
   if (entry.count > MAX_REQUESTS) {
     const retryAfter = Math.ceil((entry.resetAt - now) / 1000);
-    setHeader(event, "Retry-After", String(retryAfter));
+    setHeader(event, "Retry-After", retryAfter);
     throw createError({ statusCode: 429, message: "Too many requests" });
   }
 });

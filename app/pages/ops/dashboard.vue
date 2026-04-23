@@ -55,7 +55,7 @@ async function logout() {
       </div>
     </section>
 
-    <section v-if="me?.team">
+    <section v-if="me?.team" class="space-y-8">
       <section>
         <h2 class="text-xl font-bold mb-2">Your Team</h2>
         <NuxtLink :to="`/ops/teams/${me.team.id}`" class="link font-bold text-lg">{{ me.team.name }}</NuxtLink>
