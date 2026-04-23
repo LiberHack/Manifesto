@@ -32,6 +32,8 @@ const filteredTeams = computed(() => {
 
 <template>
   <main class="max-w-4xl mx-auto p-6 space-y-8">
+    <PendingRequestsBanner />
+
     <div class="flex items-center justify-between gap-4 flex-wrap">
       <h1 class="text-4xl font-black uppercase">Teams</h1>
       <div class="flex gap-2">
@@ -41,8 +43,7 @@ const filteredTeams = computed(() => {
     </div>
 
     <div class="space-y-3">
-      <input v-model="nameFilter" type="text" placeholder="Search by team name…"
-        class="input input-bordered w-full" />
+      <input v-model="nameFilter" type="text" placeholder="Search by team name…" class="input input-bordered w-full" />
 
       <div v-if="allSkills.length" class="flex flex-wrap gap-1.5">
         <button v-for="skill in allSkills" :key="skill"
@@ -65,8 +66,7 @@ const filteredTeams = computed(() => {
           <h2 class="card-title font-black">{{ team.name }}</h2>
           <p v-if="team.description" class="text-sm opacity-70">{{ team.description }}</p>
           <div class="flex flex-wrap gap-1 mt-2">
-            <span v-for="skill in team.skills_wanted" :key="skill"
-              class="badge badge-outline text-xs"
+            <span v-for="skill in team.skills_wanted" :key="skill" class="badge badge-outline text-xs"
               :class="selectedSkills.includes(skill) ? 'badge-primary' : ''">
               {{ skill }}
             </span>
