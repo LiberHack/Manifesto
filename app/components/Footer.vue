@@ -14,11 +14,11 @@ const instagram = appConfig.socials.instagram;
     <div class="border-primary border-2 h-full p-2 md:place-self-center md:justify-self-end w-full md:w-min">
       <h1 class="text-3xl w-full">Social</h1>
       <div class="grid grid-flow-col gap-4 h-full w-full">
-        <a class="flex flex-row gap-2 items-center" :href="instagram">
+        <a class="flex flex-row gap-2 items-center" :href="instagram" target="_blank">
           <p>Instagram</p>
           <Icon size="32" name="streamline-pixel:logo-social-media-old-instagram" />
         </a>
-        <a :href="discord" class="flex flex-row gap-2 items-center">
+        <a :href="discord" class="flex flex-row gap-2 items-center" target="_blank">
           <p>Discord</p>
           <Icon size="32" name="teenyicons:discord-solid" />
         </a>
