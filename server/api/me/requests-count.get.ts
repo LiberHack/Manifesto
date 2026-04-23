@@ -14,7 +14,10 @@ export default defineEventHandler(async (event) => {
     .eq("id", user.sub)
     .single();
 
-  const team = participant?.team as { id: string; leader_id: string } | null;
+  const team = participant?.team as unknown as {
+    id: string;
+    leader_id: string;
+  } | null;
   if (!team || team.leader_id !== user.sub) return { count: 0 };
 
   const { count } = await supabase

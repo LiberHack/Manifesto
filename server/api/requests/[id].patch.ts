@@ -30,7 +30,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 409, message: "Request is not pending" });
   }
 
-  const leaderId = (joinRequest.team as { leader_id: string } | null)
+  const leaderId = (joinRequest.team as unknown as { leader_id: string } | null)
     ?.leader_id;
   if (leaderId !== user.sub) {
     throw createError({
