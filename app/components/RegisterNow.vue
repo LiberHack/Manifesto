@@ -1,10 +1,15 @@
 <template>
-  <button
-    class="flex flex-col text-5xl font-black text-shadow-lg/80 text-shadow-4 p-2 transition-all ease-in-out duration-200 md:leading-[0.01] md:hover:leading-[0.5] leading-[0.5]"
-    @mouseenter="startAnimation" @mouseleave="resetAnimation" @click="navigateRegister">
-    <p v-for="i in 5" :key="i">{{ displayText }}</p>
-    <p class="invisible h-0">{{ getGlitchVersion(displayText) }}</p>
-  </button>
+  <NuxtLink href="/ops/teams">
+    <button
+      class="cursor-pointer flex flex-col text-5xl font-black text-shadow-lg/80 text-shadow-4 p-2 transition-all ease-in-out duration-200 md:leading-[0.01] md:hover:leading-[0.5] leading-[0.5]"
+      @mouseenter="startAnimation"
+      @mouseleave="resetAnimation"
+      @click="navigateRegister"
+    >
+      <p v-for="i in 5" :key="i">{{ displayText }}</p>
+      <p class="invisible h-0">{{ getGlitchVersion(displayText) }}</p>
+    </button>
+  </NuxtLink>
 </template>
 
 <script setup>
@@ -15,7 +20,7 @@ let currentProgress = 0;
 let isAnimating = false;
 const DURATION = 30;
 
-const router = useRouter()
+const router = useRouter();
 
 const substitutions = {
   e: "3",
@@ -25,7 +30,7 @@ const substitutions = {
   " ": "_",
 };
 
-const navigateRegister = () => router.push("/ops/register")
+const navigateRegister = () => router.push("/ops/register");
 
 const getGlitchVersion = (text) => {
   return text
