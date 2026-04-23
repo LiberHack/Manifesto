@@ -5,12 +5,19 @@ const emit = defineEmits<{ 'update:modelValue': [string[]] }>()
 const MAX_CREATED = 5
 
 const { data: allSkills } = await useFetch<{ name: string }[]>('/api/skills')
+const user = useSupabaseUser()
 
 const query = ref('')
 const open = ref(false)
 const activeIndex = ref(-1)
 const userCreatedCount = ref(0)
+const addError = ref<string | null>(null)
 const listEl = ref<HTMLUListElement | null>(null)
+
+if (props.allowCreate && user.value) {
+  const { data } = await useFetch<{ count: number }>('/api/me/skills-count')
+  if (data.value) userCreatedCount.value = data.value.count
+}
 
 const filtered = computed(() => {
   const q = query.value.trim().toLowerCase()
@@ -29,7 +36,7 @@ const createdLeft = computed(() => MAX_CREATED - userCreatedCount.value)
 // Total navigable items: filtered skills + optional "Add new" row
 const itemCount = computed(() => filtered.value.length + (query.value.trim() && !exactMatch.value && canCreateMore.value ? 1 : 0))
 
-watch([filtered, query], () => { activeIndex.value = -1 })
+watch([filtered, query], () => { activeIndex.value = -1; addError.value = null })
 
 function isSelected(name: string) {
   return props.modelValue.includes(name)
@@ -46,11 +53,28 @@ function remove(name: string) {
   emit('update:modelValue', props.modelValue.filter(s => s !== name))
 }
 
-function addNew() {
+async function addNew() {
   const name = query.value.trim()
   if (!name || !canCreateMore.value) return
-  userCreatedCount.value++
-  select(name)
+
+  if (user.value) {
+    // Authenticated: let the API create/retrieve the catalog entry and enforce the cap
+    try {
+      const result = await $fetch<{ name: string }>('/api/skills', {
+        method: 'POST',
+        body: { name },
+      })
+      userCreatedCount.value++
+      select(result.name)
+    } catch (e: any) {
+      addError.value = e?.data?.message ?? 'Could not add skill'
+      open.value = false
+    }
+  } else {
+    // Unauthenticated (register): local tracking only; DB trigger enforces on submit
+    userCreatedCount.value++
+    select(name)
+  }
 }
 
 function onInput() {
@@ -153,6 +177,9 @@ function onArrow(dir: 1 | -1) {
     <p v-if="allowCreate" class="text-xs opacity-60">
       {{ createdLeft }} new skill{{ createdLeft === 1 ? '' : 's' }} left to add
     </p>
+
+    <!-- API error -->
+    <p v-if="addError" class="text-xs text-error">{{ addError }}</p>
 
   </div>
 </template>
