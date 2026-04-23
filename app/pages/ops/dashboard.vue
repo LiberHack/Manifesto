@@ -5,6 +5,31 @@ const supabase = useSupabaseClient()
 const router = useRouter()
 const { data: me } = await useFetch<any>('/api/me')
 
+const isLeader = computed(() => me.value?.team?.leader_id === me.value?.id)
+
+const skillsWanted = ref<string[]>([])
+const skillsSaving = ref(false)
+const skillsMessage = ref('')
+
+watch(() => me.value?.team?.skills_wanted, (val) => {
+  if (val) skillsWanted.value = [...val]
+}, { immediate: true })
+
+async function saveSkills() {
+  skillsSaving.value = true
+  skillsMessage.value = ''
+  try {
+    await $fetch(`/api/teams/${me.value.team.id}`, {
+      method: 'PATCH',
+      body: { skills_wanted: skillsWanted.value },
+    })
+    skillsMessage.value = 'Saved!'
+  } catch (e: any) {
+    skillsMessage.value = e.data?.message ?? 'Something went wrong'
+  }
+  skillsSaving.value = false
+}
+
 async function logout() {
   await supabase.auth.signOut()
   router.push('/ops/login')
@@ -36,7 +61,19 @@ async function logout() {
         <NuxtLink :to="`/ops/teams/${me.team.id}`" class="link font-bold text-lg">{{ me.team.name }}</NuxtLink>
       </section>
 
-      <section v-if="me?.team.leader_id === me?.id">
+      <section v-if="isLeader">
+        <h2 class="text-xl font-bold mb-2">Skills Wanted</h2>
+        <SkillPicker v-model="skillsWanted" :allow-create="true" class="mb-3" />
+        <div v-if="skillsMessage" class="text-sm mb-2"
+          :class="skillsMessage === 'Saved!' ? 'text-success' : 'text-error'">
+          {{ skillsMessage }}
+        </div>
+        <button class="btn btn-sm btn-outline font-black uppercase" :disabled="skillsSaving" @click="saveSkills">
+          {{ skillsSaving ? 'Saving…' : 'Save Skills' }}
+        </button>
+      </section>
+
+      <section v-if="isLeader">
         <h2 class="text-xl font-bold mb-2">Pending requests</h2>
         <ManageRequests />
       </section>

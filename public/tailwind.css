@@ -38,3 +38,23 @@
 @plugin "daisyui" {
   themes: liberhacklight;
 }
+
+@layer utilities {
+  @keyframes snap-orange {
+
+    0%,
+    100% {
+      color: white;
+    }
+
+    50% {
+      color: #fb923c;
+    }
+
+    /* Tailwind orange-400 */
+  }
+
+  .animate-snap-color {
+    animation: snap-orange 1s steps(1) infinite;
+  }
+}
