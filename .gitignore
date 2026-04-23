@@ -6,3 +6,9 @@ node_modules
 .nuxt
 .direnv
 .data
+bun.lock
+bun.lockb
+.env
+.env.local
+supabase-docker/.env
+supabase-docker/volumes/db/data/
