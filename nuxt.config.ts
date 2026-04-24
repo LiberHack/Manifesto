@@ -52,12 +52,12 @@ export default defineNuxtConfig({
   },
 
   runtimeConfig: {
-    supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
-    postmarkToken: process.env.POSTMARK_SERVER_TOKEN ?? "",
-    postmarkFromEmail: process.env.POSTMARK_FROM_EMAIL ?? "",
+    supabaseServiceKey: process.env.NUXT_SUPABASE_SERVICE_KEY ?? "",
+    postmarkToken: process.env.NUXT_POSTMARK_TOKEN ?? "",
+    postmarkFromEmail: process.env.NUXT_POSTMARK_FROM_EMAIL ?? "",
     public: {
-      supabaseUrl: process.env.SUPABASE_URL ?? "",
-      supabaseAnonKey: process.env.SUPABASE_ANON_KEY ?? "",
+      supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL ?? "",
+      supabaseAnonKey: process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
     },
   },
 });

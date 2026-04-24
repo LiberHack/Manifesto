@@ -73,3 +73,17 @@ Production runs via Docker Compose with Caddy for automatic SSL (Let's Encrypt):
 - Ports 80/443 must be open; DNS must point to server before first start
 
 `better-sqlite3` in `.output/` is `@nuxt/content`'s internal storage — not user code, no action needed.
+
+### Deploying to server
+
+```bash
+rsync -avz \
+  --include='.output/***' \
+  --include='Dockerfile' \
+  --include='docker-compose.yml' \
+  --include='Caddyfile' \
+  --include='.env' \
+  --exclude='*' \
+  /home/hexchap/Projects/LiberHack/Manifesto/ \
+  user@your-server:/opt/librehack/
+```
