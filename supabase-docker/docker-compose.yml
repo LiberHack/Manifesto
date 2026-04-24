@@ -81,6 +81,7 @@ services:
       default:
         aliases:
           - api-gw
+      liberhack:
     healthcheck:
       test: ["CMD", "kong", "health"]
       interval: 5s
@@ -653,3 +654,7 @@ services:
 volumes:
   db-config:
   deno-cache:
+
+networks:
+  liberhack:
+    external: true

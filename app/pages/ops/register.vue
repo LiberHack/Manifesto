@@ -36,18 +36,14 @@ async function register() {
     else error.value = authError.message;
     return;
   }
-  router.push("/ops/teams");
+  router.push('/ops/verify-email')
 }
 </script>
 
 <template>
-  <main
-    class="fixed inset-0 w-screen h-screen flex items-center justify-center p-4"
-  >
-    <form
-      class="w-full max-w-md flex flex-col gap-2 bg-base-100 p-8 border-primary border-2"
-      @submit.prevent="register"
-    >
+  <main class="fixed inset-0 w-screen h-screen flex items-center justify-center p-4">
+    <form class="w-full max-w-md flex flex-col gap-2 bg-base-100 p-8 border-primary border-2"
+      @submit.prevent="register">
       <h1 class="text-4xl font-black uppercase tracking-tight">Register</h1>
 
       <div v-if="error" role="alert" class="alert alert-error text-sm">
@@ -56,33 +52,17 @@ async function register() {
 
       <label class="form-control">
         <span class="label-text font-bold">Name</span>
-        <input
-          v-model="form.name"
-          type="text"
-          required
-          class="input input-bordered w-full"
-        />
+        <input v-model="form.name" type="text" required class="input input-bordered w-full" />
       </label>
 
       <label class="form-control">
         <span class="label-text font-bold">Email</span>
-        <input
-          v-model="form.email"
-          type="email"
-          required
-          class="input input-bordered w-full"
-        />
+        <input v-model="form.email" type="email" required class="input input-bordered w-full" />
       </label>
 
       <label class="form-control">
         <span class="label-text font-bold">Password</span>
-        <input
-          v-model="form.password"
-          type="password"
-          required
-          minlength="8"
-          class="input input-bordered w-full"
-        />
+        <input v-model="form.password" type="password" required minlength="8" class="input input-bordered w-full" />
       </label>
 
       <label class="form-control">
@@ -90,11 +70,7 @@ async function register() {
         <SkillPicker v-model="form.skills" allow-create />
       </label>
 
-      <button
-        type="submit"
-        :disabled="loading"
-        class="btn btn-primary w-full font-black uppercase"
-      >
+      <button type="submit" :disabled="loading" class="btn btn-primary w-full font-black uppercase">
         {{ loading ? "Registering…" : "Register" }}
       </button>
 
