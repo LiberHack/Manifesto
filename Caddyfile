@@ -2,6 +2,10 @@ api.{$DOMAIN} {
     reverse_proxy supabase-kong:8000
 }
 
+studio.{$DOMAIN} {
+    reverse_proxy supabase-studio:3000
+}
+
 {$DOMAIN} {
     reverse_proxy app:3000
 }
