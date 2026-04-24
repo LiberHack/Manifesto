@@ -1,0 +1,17 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    command: npm run dev
+    environment:
+      NODE_ENV: development
+      NUXT_HOST: 0.0.0.0
+      NUXT_PORT: 3000
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.nuxt
+    ports:
+      - "3000:3000"
+      - "24678:24678"  # Nuxt HMR websocket
