@@ -37,7 +37,7 @@
       class="w-full flex flex-col justify-center align-middle items-center gap-8 p-8"
     >
       <p class="text-5xl font-bold text-center">Fr3qu3nt!y A5k3d Qu3st10n5</p>
-      <div class="flex flex-row w-full gap-8">
+      <div class="flex flex-col lg:flex-row w-full gap-8">
         <NuxtImg
           preload
           src="/favicon.webp"
