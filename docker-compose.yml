@@ -1,3 +1,7 @@
+networks:
+  liberhack:
+    external: true
+
 services:
   app:
     build: .
@@ -6,6 +10,8 @@ services:
       - .env
     environment:
       NODE_ENV: production
+    networks:
+      - liberhack
 
   caddy:
     image: caddy:2-alpine
@@ -22,6 +28,8 @@ services:
       DOMAIN: ${DOMAIN}
     depends_on:
       - app
+    networks:
+      - liberhack
 
 volumes:
   caddy_data:
