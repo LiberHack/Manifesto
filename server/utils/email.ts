@@ -15,14 +15,18 @@ interface EmailOptions {
 async function sendEmail(options: EmailOptions) {
   const config = useRuntimeConfig();
   const client = useEmailClient();
-  await client.sendEmail({
-    From: config.postmarkFromEmail as string,
-    To: options.to,
-    Subject: options.subject,
-    HtmlBody: options.htmlBody,
-    TextBody: options.textBody,
-    MessageStream: "outbound",
-  });
+  try {
+    await client.sendEmail({
+      From: config.postmarkFromEmail as string,
+      To: options.to,
+      Subject: options.subject,
+      HtmlBody: options.htmlBody,
+      TextBody: options.textBody,
+      MessageStream: "outbound",
+    });
+  } catch (err) {
+    console.error("[email] failed to send to", options.to, err);
+  }
 }
 
 export async function sendJoinRequestNotification(
