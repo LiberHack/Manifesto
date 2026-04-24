@@ -58,6 +58,9 @@ export default defineNuxtConfig({
     public: {
       supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL ?? "",
       supabaseAnonKey: process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
+      emailVerifiedUrl:
+        process.env.NUXT_PUBLIC_EMAIL_VERIFIED_REDIRECT_URL ??
+        "http://localhost:3000/ops/teams?email=success",
     },
   },
 });

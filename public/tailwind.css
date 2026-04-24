@@ -10,6 +10,8 @@
     cygrotesk, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
+@plugin "@tailwindcss/typography";
+
 @plugin "daisyui/theme" {
   name: "liberhacklight";
   default: true;
