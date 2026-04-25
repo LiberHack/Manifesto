@@ -14,6 +14,18 @@ const skillsMessage = ref("");
 const leavingTeam = ref(false);
 const showLeaveConfirm = ref(false);
 const leaveMessage = ref("");
+const teamMemberCount = ref<number | null>(null);
+
+watch(showLeaveConfirm, async (open) => {
+  if (open && me.value?.team?.id && teamMemberCount.value === null) {
+    try {
+      const team = await $fetch<{ members: unknown[] }>(`/api/teams/${me.value.team.id}`);
+      teamMemberCount.value = team.members.length;
+    } catch {
+      teamMemberCount.value = 1;
+    }
+  }
+});
 
 const copyingInvite = ref(false);
 const rotatingInvite = ref(false);
@@ -48,6 +60,7 @@ async function leaveTeam() {
   try {
     await $fetch("/api/me/team", { method: "DELETE" });
     showLeaveConfirm.value = false;
+    teamMemberCount.value = null;
     await refreshMe();
   } catch (e: any) {
     leaveMessage.value = e.data?.message ?? "Something went wrong";
@@ -131,7 +144,8 @@ async function logout() {
           <!-- Leave confirmation -->
           <div v-if="showLeaveConfirm" class="mt-4 p-4 border border-error flex flex-col gap-3">
             <p class="text-sm font-bold">
-              <template v-if="isLeader && (me.team.members?.length ?? 0) > 1">
+              <template v-if="teamMemberCount === null">Loading…</template>
+              <template v-else-if="isLeader && teamMemberCount > 1">
                 You're the leader. Leaving will transfer leadership to the next member.
               </template>
               <template v-else-if="isLeader">
