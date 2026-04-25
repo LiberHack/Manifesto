@@ -11,7 +11,6 @@
 name: supabase
 
 services:
-
   studio:
     container_name: supabase-studio
     image: supabase/studio:2026.04.08-sha-205cbe7
@@ -145,6 +144,8 @@ services:
       db:
         # Disable this if you are using an external Postgres database
         condition: service_healthy
+      templates-server:
+        condition: service_started
     environment:
       GOTRUE_API_HOST: 0.0.0.0
       GOTRUE_API_PORT: 9999
@@ -188,6 +189,12 @@ services:
       GOTRUE_MAILER_URLPATHS_CONFIRMATION: ${MAILER_URLPATHS_CONFIRMATION}
       GOTRUE_MAILER_URLPATHS_RECOVERY: ${MAILER_URLPATHS_RECOVERY}
       GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: ${MAILER_URLPATHS_EMAIL_CHANGE}
+      GOTRUE_MAILER_TEMPLATES_CONFIRMATION: 'http://templates-server/verify-email.html'
+      GOTRUE_MAILER_TEMPLATES_MAGIC_LINK: 'http://templates-server/magic-link.html'
+      GOTRUE_MAILER_TEMPLATES_RECOVERY: 'http://templates-server/reset-password.html'
+      GOTRUE_MAILER_SUBJECTS_CONFIRMATION: ${MAILER_SUBJECTS_CONFIRMATION}
+      GOTRUE_MAILER_SUBJECTS_MAGIC_LINK: ${MAILER_SUBJECTS_MAGIC_LINK}
+      GOTRUE_MAILER_SUBJECTS_RECOVERY: ${MAILER_SUBJECTS_RECOVERY}
 
       GOTRUE_EXTERNAL_PHONE_ENABLED: ${ENABLE_PHONE_SIGNUP}
       GOTRUE_SMS_AUTOCONFIRM: ${ENABLE_PHONE_AUTOCONFIRM}
@@ -535,6 +542,14 @@ services:
         "-c",
         "/app/bin/migrate && /app/bin/supavisor eval \"$$(cat /etc/pooler/pooler.exs)\" && /app/bin/server"
       ]
+
+  templates-server:
+    container_name: supabase-templates
+    image: caddy:2-alpine
+    restart: unless-stopped
+    command: ['caddy', 'file-server', '-r', '/templates', '--listen', ':80']
+    volumes:
+      - ../server/emails/dist:/templates:ro
 
 volumes:
   db-config:
