@@ -3,7 +3,20 @@ definePageMeta({ middleware: [] });
 
 const supabase = useSupabaseClient();
 const router = useRouter();
+const route = useRoute();
 const config = useRuntimeConfig();
+
+const rawInvite = route.query.invite as string | undefined;
+const inviteCode = rawInvite?.replace(/[^a-zA-Z0-9_-]/g, "") || undefined;
+const inviteTeam = ref<{ name: string } | null>(null);
+
+if (inviteCode) {
+  try {
+    inviteTeam.value = await $fetch(`/api/invite/${inviteCode}`);
+  } catch {
+    // invalid invite — proceed without it
+  }
+}
 
 const form = reactive({
   name: "",
@@ -28,7 +41,9 @@ async function register() {
     password: form.password,
     options: {
       data: { name: form.name, skills, dietary, experience },
-      emailRedirectTo: config.public.emailVerifiedUrl,
+      emailRedirectTo: inviteCode
+        ? `${config.public.emailVerifiedUrl}?invite=${inviteCode}`
+        : config.public.emailVerifiedUrl,
     },
   });
 
@@ -36,22 +51,31 @@ async function register() {
 
   if (authError) {
     if (authError.message.includes("registration_closed"))
-      error.value =
-        "Registration is closed — the 120-participant limit has been reached.";
+      error.value = "Registration is closed — the 120-participant limit has been reached.";
     else if (authError.message.includes("too_many_skills"))
       error.value = "You can add at most 5 skills.";
     else error.value = authError.message;
     return;
   }
-  router.push('/ops/verify-email')
+
+  router.push("/ops/verify-email");
 }
 </script>
 
 <template>
   <main class="w-full min-h-screen flex items-center justify-center p-4 py-12">
-    <form class="w-full max-w-md flex flex-col gap-2 bg-base-100 p-8 border-primary border-2"
-      @submit.prevent="register">
+    <form
+      class="w-full max-w-md flex flex-col gap-2 bg-base-100 p-8 border-primary border-2"
+      @submit.prevent="register"
+    >
       <h1 class="text-4xl font-black uppercase tracking-tight">Register</h1>
+
+      <div v-if="inviteTeam" class="alert text-sm border-2 border-primary bg-base-200">
+        <span>
+          After verifying your email, you'll be invited to join
+          <strong class="text-primary">{{ inviteTeam.name }}</strong>.
+        </span>
+      </div>
 
       <div v-if="error" role="alert" class="alert alert-error text-sm">
         {{ error }}

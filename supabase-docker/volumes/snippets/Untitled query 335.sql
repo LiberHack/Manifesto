@@ -1,1 +1,1 @@
-DELETE FROM auth.users WHERE id = '014dc83f-c3a8-425b-b970-ee3306d709e3';
+DELETE FROM auth.users WHERE email = 'ball@liberhack.org';

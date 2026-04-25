@@ -1,6 +1,6 @@
 # Manifesto
 
-Website for **LibreHack** — a hackathon with a punk-ish vibe. Think raw, rebellious, anti-corporate aesthetic: zine culture, glitch/noise textures, brutalist layouts, bold type, high contrast. Not polished SaaS — deliberately rough around the edges.
+Website for **LiberHack** — a hackathon with a punk-ish vibe. Think raw, rebellious, anti-corporate aesthetic: zine culture, glitch/noise textures, brutalist layouts, bold type, high contrast. Not polished SaaS — deliberately rough around the edges.
 
 Nuxt 4 app with Vue 3, Tailwind CSS v4, DaisyUI, and @nuxt/content.
 
@@ -9,6 +9,7 @@ Nuxt 4 app with Vue 3, Tailwind CSS v4, DaisyUI, and @nuxt/content.
 - **Framework**: Nuxt 4 (`nuxt ^4.4.2`)
 - **UI**: Tailwind CSS v4 via `@tailwindcss/vite`, DaisyUI v5
 - **Content**: `@nuxt/content` with better-sqlite3
+- **Email**: Postmark (transactional), MJML templates
 - **Language**: TypeScript
 - **Modules**: `@nuxt/fonts`, `@nuxt/icon`, `@nuxt/image`, `@nuxt/hints`
 
@@ -19,6 +20,7 @@ bun dev        # start dev server
 bun build      # production build
 bun generate   # static generation
 bun preview    # preview production build
+bun test       # run vitest unit tests
 ```
 
 ## Package Manager
@@ -34,11 +36,53 @@ We use **bun** locally for speed, but infra/CI relies on **npm** for reproducibi
 
 ```
 app/              # Nuxt app directory (pages, components, composables, etc.)
+app/pages/ops/    # Authenticated participant area (login, dashboard, teams, invite)
+app/pages/legal/  # Legal pages (CoC, Privacy)
+app/components/   # Shared Vue components (SkillPicker, ManageRequests, etc.)
+app/middleware/   # auth.ts — client-side route guard (checks session + email_verified)
+server/           # Nitro API routes, middleware, email utils
+server/api/       # REST API endpoints
+server/emails/    # MJML email templates — edit .mjml, run generate-ts.mjs to rebuild
+server/middleware/ # 01.auth.ts (attaches user to context), 02.rateLimit.ts (60 req/min/IP)
 public/           # Static assets (tailwind.css lives here)
 nuxt.config.ts    # Nuxt configuration
-supabase/         # Supabase CLI config & migrations (supabase CLI only)
+supabase/         # Supabase CLI config & migrations
 supabase-docker/  # Self-hosted Supabase via Docker Compose
 ```
+
+## Environment Variables
+
+Required in `.env`:
+
+```bash
+NUXT_SUPABASE_SERVICE_KEY=          # Supabase service role key (bypasses RLS)
+NUXT_PUBLIC_SUPABASE_URL=           # e.g. http://localhost:8000
+NUXT_PUBLIC_SUPABASE_ANON_KEY=      # Supabase anon key
+NUXT_POSTMARK_TOKEN=                # Postmark server token (transactional email)
+NUXT_POSTMARK_FROM_EMAIL=           # Sender address verified in Postmark
+NUXT_SITE_URL=                      # Full app URL, used in email links (e.g. http://localhost:3000)
+# Optional:
+NUXT_PUBLIC_EMAIL_VERIFIED_REDIRECT_URL=  # defaults to /ops/confirm — must be allowed in ADDITIONAL_REDIRECT_URLS in supabase-docker/.env
+```
+
+## Auth & Routes
+
+- `/ops/*` pages are protected by the `auth` client middleware — redirects to `/ops/login` if no session, `/ops/verify-email` if email not confirmed
+- Server-side: `01.auth.ts` attaches the Supabase user to `event.context.user`
+- Rate limiting: 60 req/min per IP on all `/api/*` routes (`02.rateLimit.ts`)
+- Admin role: set `role = 'admin'` in the `participants` table to expose `/ops/admin`
+- `emailRedirectTo` in `signUp` requires the URL to be in `ADDITIONAL_REDIRECT_URLS` in `supabase-docker/.env` (e.g. `http://localhost:3000/**`)
+
+## Emails
+
+Templates are MJML compiled to HTML, then inlined as TypeScript constants (so they bundle into the Nitro output with no file-system reads at runtime).
+
+```bash
+# After editing any server/emails/*.mjml file:
+node server/emails/generate-ts.mjs   # regenerates server/utils/email-templates.ts
+```
+
+The Supabase email verification template is separate — paste `server/emails/dist/verify-email.html` into the Supabase dashboard → Auth → Email Templates → Confirm signup.
 
 ## Supabase (Self-Hosted)
 
@@ -61,7 +105,7 @@ cd supabase-docker && docker compose logs -f
 - Kong (API gateway) on port 8000, Postgres on port 5432
 - The app `.env` points to `SUPABASE_URL=http://localhost:8000`
 - Secrets live in `supabase-docker/.env` (git-ignored)
-- Migrations still managed via Supabase CLI in `supabase/` directory
+- Migrations managed via Supabase CLI: `supabase db push --local`
 
 ## Deployment
 
@@ -71,8 +115,6 @@ Production runs via Docker Compose with Caddy for automatic SSL (Let's Encrypt):
 - `Caddyfile` — reads domain from `$DOMAIN` env var
 - Set `DOMAIN=yourdomain.com` in `.env` before `docker compose up -d`
 - Ports 80/443 must be open; DNS must point to server before first start
-
-`better-sqlite3` in `.output/` is `@nuxt/content`'s internal storage — not user code, no action needed.
 
 ### Deploying to server
 
