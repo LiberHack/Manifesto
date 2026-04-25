@@ -42,7 +42,7 @@ export default defineEventHandler(async (event) => {
 
   await supabase
     .from("participants")
-    .update({ team_id: null, role: "participant" })
+    .update({ team_id: null })
     .eq("id", user.sub);
 
   // Cancel any pending join requests

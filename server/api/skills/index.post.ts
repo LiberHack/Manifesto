@@ -30,8 +30,6 @@ export default defineEventHandler(async (event) => {
     .select("id", { count: "exact", head: true })
     .eq("created_by", user.sub);
 
-  console.log(count);
-
   if ((count ?? 0) >= MAX_SKILLS_PER_USER) {
     throw createError({
       statusCode: 422,

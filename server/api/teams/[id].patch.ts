@@ -60,6 +60,9 @@ export default defineEventHandler(async (event) => {
     .select()
     .single();
 
-  if (error) throw createError({ statusCode: 500, message: error.message });
+  if (error) {
+    console.error("[teams.patch] update failed:", error.message);
+    throw createError({ statusCode: 500, message: "Internal server error" });
+  }
   return data;
 });

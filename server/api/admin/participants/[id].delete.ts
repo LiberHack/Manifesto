@@ -6,7 +6,10 @@ export default defineEventHandler(async (event) => {
 
   // Deleting from auth.users cascades to participants
   const { error } = await supabase.auth.admin.deleteUser(id!);
-  if (error) throw createError({ statusCode: 500, message: error.message });
+  if (error) {
+    console.error("[admin/participants.delete] failed:", error.message);
+    throw createError({ statusCode: 500, message: "Internal server error" });
+  }
 
   return { success: true };
 });

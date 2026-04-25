@@ -31,6 +31,9 @@ export default defineEventHandler(async (event) => {
     .eq("status", "pending")
     .order("created_at", { ascending: true });
 
-  if (error) throw createError({ statusCode: 500, message: error.message });
+  if (error) {
+    console.error("[teams/requests.get] fetch failed:", error.message);
+    throw createError({ statusCode: 500, message: "Internal server error" });
+  }
   return data;
 });
