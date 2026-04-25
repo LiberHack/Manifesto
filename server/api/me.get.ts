@@ -9,7 +9,7 @@ export default defineEventHandler(async (event) => {
   const { data: participant, error } = await supabase
     .from("participants")
     .select(
-      "id, name, email, skills, role, created_at, team:teams(id, name, skills_wanted, description, leader_id)",
+      "id, name, email, skills, role, created_at, team:teams(id, name, skills_wanted, description, leader_id, invite_code)",
     )
     .eq("id", user.sub)
     .single();

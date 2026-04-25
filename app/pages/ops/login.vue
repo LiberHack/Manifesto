@@ -5,6 +5,7 @@ definePageMeta({ middleware: [] });
 
 const supabase = useSupabaseClient();
 const router = useRouter();
+const route = useRoute();
 const user = useSupabaseUser();
 
 const form = reactive({ email: "", password: "" });
@@ -28,7 +29,8 @@ async function login() {
 
     await until(user).toBeTruthy();
 
-    router.push("/ops/teams");
+    const inviteCode = route.query.invite as string | undefined;
+    router.push(inviteCode ? `/ops/invite/${inviteCode}` : "/ops/dashboard");
   } finally {
     loading.value = false;
   }

@@ -1,0 +1,81 @@
+<mjml lang="en">
+  <mj-head>
+    <mj-title>Update on your request to join {{TEAM_NAME}}</mj-title>
+    <mj-preview>Your request to join {{TEAM_NAME}} was not accepted.</mj-preview>
+    <mj-attributes>
+      <mj-all font-family="'Courier New', Courier, monospace" />
+      <mj-text color="#f0f0f0" font-size="14px" line-height="22px" padding="0 32px" />
+      <mj-section background-color="#191919" padding="0" />
+    </mj-attributes>
+    <mj-html-attributes>
+      <mj-selector path=".email-heading div">
+        <mj-html-attribute name="role">heading</mj-html-attribute>
+        <mj-html-attribute name="aria-level">1</mj-html-attribute>
+      </mj-selector>
+    </mj-html-attributes>
+  </mj-head>
+  <mj-body background-color="#191919" width="600px">
+
+    <mj-section padding="32px 0 0 0">
+      <mj-column>
+        <mj-text font-size="11px" color="#d946ef" font-weight="bold" letter-spacing="4px" padding="0 32px">
+          LIBERHACK
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="10px 0">
+      <mj-column>
+        <mj-divider border-color="#d946ef" border-width="2px" padding="0 32px" />
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="4px 0 0 0">
+      <mj-column>
+        <mj-text css-class="email-heading" font-size="20px" font-weight="bold" letter-spacing="2px" padding="0 32px 20px 32px">
+          NOT THIS TIME
+        </mj-text>
+        <mj-text padding="0 32px 10px 32px">
+          Your request to join <strong style="color:#d946ef">{{TEAM_NAME}}</strong> at LiberHack was not accepted.
+        </mj-text>
+        <mj-text padding="0 32px" color="#777777" font-size="12px">
+          Keep hacking — there are plenty of teams looking for people.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="24px 0 0 0">
+      <mj-column>
+        <mj-button
+          href="{{BASE_URL}}/ops/teams"
+          background-color="#333333"
+          color="#f0f0f0"
+          font-family="'Courier New', Courier, monospace"
+          font-size="12px"
+          font-weight="bold"
+          letter-spacing="2px"
+          border-radius="0px"
+          inner-padding="14px 28px"
+          align="left"
+          padding="0 32px">
+          BROWSE TEAMS →
+        </mj-button>
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="32px 0 0 0">
+      <mj-column>
+        <mj-divider border-color="#2a2a2a" border-width="1px" padding="0 32px" />
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="12px 0 28px 0">
+      <mj-column>
+        <mj-text font-size="11px" color="#444444" padding="0 32px">
+          LiberHack · You're receiving this because you requested to join a team.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+  </mj-body>
+</mjml>
