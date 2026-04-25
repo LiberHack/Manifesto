@@ -9,7 +9,7 @@ export default defineEventHandler(async (event) => {
 
   const { data: participant } = await supabase
     .from("participants")
-    .select("team_id, role")
+    .select("team_id, team:teams(leader_id)")
     .eq("id", user.sub)
     .single();
 
@@ -18,8 +18,9 @@ export default defineEventHandler(async (event) => {
   }
 
   const teamId = participant.team_id;
+  const team = participant.team as unknown as { leader_id: string } | null;
 
-  if (participant.role === "leader") {
+  if (team?.leader_id === user.sub) {
     const { data: otherMembers } = await supabase
       .from("participants")
       .select("id, created_at")
@@ -30,13 +31,8 @@ export default defineEventHandler(async (event) => {
     if (otherMembers && otherMembers.length > 0) {
       // Promote the longest-standing member to leader
       await supabase
-        .from("participants")
-        .update({ role: "leader" })
-        .eq("id", otherMembers[0].id);
-
-      await supabase
         .from("teams")
-        .update({ leader_id: otherMembers[0].id })
+        .update({ leader_id: otherMembers[0]?.id })
         .eq("id", teamId);
     } else {
       // Last member — delete the team (cascade sets team_id to null)
