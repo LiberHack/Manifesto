@@ -8,6 +8,9 @@ export default defineEventHandler(async (event) => {
     .select("id, name, email, skills, role, team_id, created_at")
     .order("created_at", { ascending: false });
 
-  if (error) throw createError({ statusCode: 500, message: error.message });
+  if (error) {
+    console.error("[admin/participants] fetch failed:", error.message);
+    throw createError({ statusCode: 500, message: "Internal server error" });
+  }
   return data;
 });

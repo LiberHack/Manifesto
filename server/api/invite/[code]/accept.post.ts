@@ -49,7 +49,13 @@ export default defineEventHandler(async (event) => {
     .update({ team_id: team.id })
     .eq("id", user.sub);
 
-  if (error) throw createError({ statusCode: 500, message: error.message });
+  if (error) {
+    if (error.message?.includes("team_full")) {
+      throw createError({ statusCode: 409, message: "Team is full" });
+    }
+    console.error("[invite.accept] update failed:", error.message);
+    throw createError({ statusCode: 500, message: "Internal server error" });
+  }
 
   // Cancel any pending join requests for the new member
   await supabase

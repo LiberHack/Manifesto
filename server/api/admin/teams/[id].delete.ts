@@ -18,7 +18,10 @@ export default defineEventHandler(async (event) => {
     .eq("status", "pending");
 
   const { error } = await supabase.from("teams").delete().eq("id", id!);
-  if (error) throw createError({ statusCode: 500, message: error.message });
+  if (error) {
+    console.error("[admin/teams.delete] failed:", error.message);
+    throw createError({ statusCode: 500, message: "Internal server error" });
+  }
 
   return { success: true };
 });

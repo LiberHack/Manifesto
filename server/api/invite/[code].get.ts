@@ -2,6 +2,7 @@ import { useSupabaseAdmin } from "#server/utils/supabase";
 
 export default defineEventHandler(async (event) => {
   const code = getRouterParam(event, "code");
+  setHeader(event, "Cache-Control", "public, max-age=300");
   const supabase = useSupabaseAdmin();
 
   const { data: team, error } = await supabase
