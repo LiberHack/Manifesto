@@ -79,10 +79,17 @@ Templates are MJML compiled to HTML, then inlined as TypeScript constants (so th
 
 ```bash
 # After editing any server/emails/*.mjml file:
+bunx mjml server/emails/<name>.mjml -o server/emails/dist/<name>.html
 node server/emails/generate-ts.mjs   # regenerates server/utils/email-templates.ts
 ```
 
-The Supabase email verification template is separate — paste `server/emails/dist/verify-email.html` into the Supabase dashboard → Auth → Email Templates → Confirm signup.
+Auth emails (signup, magic link, password reset) are served as static files by a Caddy container (`templates-server`) inside the Docker network. GoTrue fetches the template HTML via HTTP, renders Go template variables (`{{ .ConfirmationURL }}`, `{{ .Email }}`), and sends via SMTP.
+
+- Template files are served directly from `server/emails/dist/` — no duplication needed.
+- After editing MJML: recompile to `dist/`, then restart `templates-server` (or it auto-serves the new file).
+- `MAILER_SUBJECTS_*` vars in `supabase-docker/.env` control email subjects.
+
+Templates: `verify-email.html` (signup), `magic-link.html` (magic link), `reset-password.html` (recovery).
 
 ## Supabase (Self-Hosted)
 
