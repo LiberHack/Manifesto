@@ -120,10 +120,7 @@ async function logout() {
         <section>
           <div class="flex items-center justify-between gap-4 flex-wrap">
             <h2 class="text-xl font-bold">Your Team</h2>
-            <button
-              class="btn btn-ghost btn-xs text-error font-bold uppercase"
-              @click="showLeaveConfirm = true"
-            >
+            <button class="btn btn-ghost btn-xs text-error font-bold uppercase" @click="showLeaveConfirm = true">
               Leave Team
             </button>
           </div>
@@ -146,11 +143,7 @@ async function logout() {
             </p>
             <div v-if="leaveMessage" class="alert alert-error text-sm">{{ leaveMessage }}</div>
             <div class="flex gap-2">
-              <button
-                :disabled="leavingTeam"
-                class="btn btn-error btn-sm font-black uppercase"
-                @click="leaveTeam"
-              >
+              <button :disabled="leavingTeam" class="btn btn-error btn-sm font-black uppercase" @click="leaveTeam">
                 {{ leavingTeam ? "Leaving…" : "Confirm Leave" }}
               </button>
               <button class="btn btn-ghost btn-sm" @click="showLeaveConfirm = false">Cancel</button>
@@ -158,47 +151,14 @@ async function logout() {
           </div>
         </section>
 
-        <!-- Invite link -->
-        <section>
-          <h2 class="text-xl font-bold mb-3">Invite Link</h2>
-          <p class="text-sm opacity-60 mb-3">Share this link to invite people directly to your team.</p>
-          <div class="flex gap-2 flex-wrap">
-            <button
-              class="btn btn-outline btn-sm font-black uppercase"
-              :disabled="copyingInvite"
-              @click="copyInviteLink"
-            >
-              Copy Invite Link
-            </button>
-            <button
-              v-if="isLeader"
-              class="btn btn-ghost btn-sm font-black uppercase"
-              :disabled="rotatingInvite"
-              @click="rotateInviteLink"
-            >
-              {{ rotatingInvite ? "Rotating…" : "Rotate Link" }}
-            </button>
-          </div>
-          <p v-if="inviteCopyMessage" class="text-sm mt-2 text-primary font-mono break-all">
-            {{ inviteCopyMessage }}
-          </p>
-        </section>
-
         <section v-if="isLeader">
           <h2 class="text-xl font-bold mb-2">Skills Wanted</h2>
           <SkillPicker v-model="skillsWanted" :allow-create="true" class="mb-3" />
-          <div
-            v-if="skillsMessage"
-            class="text-sm mb-2"
-            :class="skillsMessage === 'Saved!' ? 'text-success' : 'text-error'"
-          >
+          <div v-if="skillsMessage" class="text-sm mb-2"
+            :class="skillsMessage === 'Saved!' ? 'text-success' : 'text-error'">
             {{ skillsMessage }}
           </div>
-          <button
-            class="btn btn-sm btn-outline font-black uppercase"
-            :disabled="skillsSaving"
-            @click="saveSkills"
-          >
+          <button class="btn btn-sm btn-outline font-black uppercase" :disabled="skillsSaving" @click="saveSkills">
             {{ skillsSaving ? "Saving…" : "Save Skills" }}
           </button>
         </section>
@@ -220,6 +180,25 @@ async function logout() {
           </NuxtLink>
         </div>
       </section>
+
+      <!-- Invite link -->
+      <section>
+        <h2 class="text-xl font-bold mb-3">Invite Link</h2>
+        <p class="text-sm opacity-60 mb-3">Share this link to invite people directly to your team.</p>
+        <div class="flex gap-2 flex-wrap">
+          <button class="btn btn-outline btn-sm font-black uppercase" :disabled="copyingInvite" @click="copyInviteLink">
+            Copy Invite Link
+          </button>
+          <button v-if="isLeader" class="btn btn-ghost btn-sm font-black uppercase" :disabled="rotatingInvite"
+            @click="rotateInviteLink">
+            {{ rotatingInvite ? "Rotating…" : "Rotate Link" }}
+          </button>
+        </div>
+        <p v-if="inviteCopyMessage" class="text-sm mt-2 text-primary font-mono break-all">
+          {{ inviteCopyMessage }}
+        </p>
+      </section>
+
 
       <section v-if="me?.role === 'admin'">
         <NuxtLink to="/ops/admin" class="btn btn-warning btn-sm font-black uppercase">
