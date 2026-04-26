@@ -55,7 +55,7 @@ export default defineNuxtConfig({
     supabaseServiceKey: process.env.NUXT_SUPABASE_SERVICE_KEY ?? "",
     resendApiKey: process.env.NUXT_RESEND_API_KEY ?? "",
     resendFromEmail: process.env.NUXT_RESEND_FROM_EMAIL ?? "",
-    siteUrl: process.env.NUXT_SITE_URL ?? "http://localhost:3000",
+    siteUrl: "https://liberhack.org",
     public: {
       supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL ?? "",
       supabaseAnonKey: process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY ?? "",

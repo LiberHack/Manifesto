@@ -58,7 +58,7 @@ async function register() {
     return;
   }
 
-  router.push("/ops/verify-email");
+  router.push(`/ops/verify-email?email=${encodeURIComponent(form.email)}`);
 }
 </script>
 
