@@ -18,7 +18,7 @@
     </div>
 
     <div class="w-full flex flex-col gap-8 items-center">
-      <p class="text-6xl font-bold items-stretch">Ass0c1at3s</p>
+      <p class="text-3xl lg:text-6xl font-bold items-stretch">Ass0c1at3s</p>
       <div class="flex flex-col lg:flex-row gap-16">
         <div class="flex flex-col items-center gap-2">
           <div>
@@ -53,7 +53,7 @@
             <NuxtImg
               preload
               src="/vladan.jpg"
-              class="bg-base-100/90 border-primary border-4 h-48 w-full"
+              class="bg-base-100/90 border-primary border-4 h-24 md:h-48 w-full"
             />
           </div>
           <p
