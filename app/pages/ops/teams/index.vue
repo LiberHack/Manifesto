@@ -40,7 +40,7 @@ const filteredTeams = computed(() => {
 
     <div class="flex items-center justify-between gap-4 flex-wrap">
       <h1 class="text-4xl font-black uppercase">Teams</h1>
-      <div class="flex gap-2">
+      <div class="flex flex-col md:flex-row gap-2">
         <NuxtLink
           to="/ops/team/create"
           class="btn btn-primary font-black uppercase"

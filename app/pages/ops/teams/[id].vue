@@ -33,7 +33,7 @@ async function sendRequest() {
     <NuxtLink to="/ops/teams" class="btn btn-ghost btn-sm">← Back</NuxtLink>
 
     <template v-if="team">
-      <h1 class="text-4xl font-black uppercase">{{ team.name }}</h1>
+      <h1 class="text-xl md:text-4xl font-black uppercase">{{ team.name }}</h1>
       <p v-if="team.description" class="opacity-70">{{ team.description }}</p>
 
       <div class="flex flex-wrap gap-2">
