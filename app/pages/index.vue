@@ -17,9 +17,10 @@
       </div>
     </div>
 
-    <div class="w-full flex flex-col gap-8 items-center">
+    <div class="w-full flex flex-col gap-8 items-center justify-center">
       <p class="text-3xl lg:text-6xl font-bold items-stretch">Ass0c1at3s</p>
-      <div class="flex flex-col lg:flex-row gap-16">
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-16">
         <div class="flex flex-col items-center gap-2">
           <div>
             <NuxtImg
@@ -34,6 +35,7 @@
             BurgasLab
           </p>
         </div>
+
         <div class="flex flex-col items-center gap-2">
           <div>
             <NuxtImg
@@ -48,6 +50,7 @@
             PPMG
           </p>
         </div>
+
         <div class="flex flex-col items-center gap-2">
           <div>
             <NuxtImg
@@ -60,6 +63,21 @@
             class="font-bold text-xl md:text-2xl bg-base-100/80 border-primary border-2 p-2"
           >
             VLADAN OOD
+          </p>
+        </div>
+
+        <div class="flex flex-col items-center gap-2">
+          <div>
+            <NuxtImg
+              preload
+              src="/advance-bg.png"
+              class="bg-base-100/90 border-primary border-4 h-24 md:h-42 w-full"
+            />
+          </div>
+          <p
+            class="font-bold text-xl md:text-2xl bg-base-100/80 border-primary border-2 p-2"
+          >
+            Advance
           </p>
         </div>
       </div>
