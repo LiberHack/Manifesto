@@ -1,7 +1,7 @@
 <template>
   <NuxtLink href="/ops/teams">
     <button
-      class="cursor-pointer flex flex-col text-5xl font-black text-shadow-lg/80 text-shadow-4 p-2 transition-all ease-in-out duration-200 md:leading-[0.01] md:hover:leading-[0.5] leading-[0.5]"
+      class="cursor-pointer flex flex-col text-3xl md:text-5xl font-black text-shadow-lg/80 text-shadow-4 p-2 transition-all ease-in-out duration-200 md:leading-[0.01] md:hover:leading-[0.5] leading-[0.5]"
       @mouseenter="startAnimation"
       @mouseleave="resetAnimation"
       @click="navigateRegister"
