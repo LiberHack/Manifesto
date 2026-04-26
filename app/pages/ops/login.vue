@@ -39,11 +39,17 @@ async function login() {
 </script>
 
 <template>
-  <main class="fixed inset-0 w-screen h-screen flex items-center justify-center p-4">
-    <form class="w-full max-w-md flex flex-col gap-2 bg-base-100 p-8 border-primary border-2" @submit.prevent="login">
+  <main class="fixed w-screen h-screen flex items-center justify-center p-4">
+    <form
+      class="w-full max-w-md flex flex-col gap-2 bg-base-100 p-8 border-primary border-2"
+      @submit.prevent="login"
+    >
       <h1 class="text-4xl font-black uppercase tracking-tight">Login</h1>
 
-      <div v-if="confirmed" class="alert text-sm border-2 border-primary bg-base-200">
+      <div
+        v-if="confirmed"
+        class="alert text-sm border-2 border-primary bg-base-200"
+      >
         <span>Email confirmed. You can now log in.</span>
       </div>
 
@@ -53,15 +59,29 @@ async function login() {
 
       <label class="form-control">
         <span class="label-text font-bold">Email</span>
-        <input v-model="form.email" type="email" required class="input input-bordered w-full" />
+        <input
+          v-model="form.email"
+          type="email"
+          required
+          class="input input-bordered w-full"
+        />
       </label>
 
       <label class="form-control">
         <span class="label-text font-bold">Password</span>
-        <input v-model="form.password" type="password" required class="input input-bordered w-full" />
+        <input
+          v-model="form.password"
+          type="password"
+          required
+          class="input input-bordered w-full"
+        />
       </label>
 
-      <button type="submit" :disabled="loading" class="btn btn-primary w-full font-black uppercase">
+      <button
+        type="submit"
+        :disabled="loading"
+        class="btn btn-primary w-full font-black uppercase"
+      >
         {{ loading ? "Logging in…" : "Log in" }}
       </button>
 
