@@ -1,14 +1,9 @@
-import * as postmark from "postmark";
+import { Resend } from "resend";
 import {
   joinRequestHtml,
   decisionApprovedHtml,
   decisionRejectedHtml,
 } from "./email-templates";
-
-function useEmailClient() {
-  const config = useRuntimeConfig();
-  return new postmark.ServerClient(config.postmarkToken as string);
-}
 
 function fill(template: string, vars: Record<string, string>): string {
   return Object.entries(vars).reduce(
@@ -20,24 +15,22 @@ function fill(template: string, vars: Record<string, string>): string {
 interface EmailOptions {
   to: string;
   subject: string;
-  htmlBody: string;
-  textBody: string;
+  html: string;
+  text: string;
 }
 
 async function sendEmail(options: EmailOptions) {
   const config = useRuntimeConfig();
-  const client = useEmailClient();
-  try {
-    await client.sendEmail({
-      From: config.postmarkFromEmail as string,
-      To: options.to,
-      Subject: options.subject,
-      HtmlBody: options.htmlBody,
-      TextBody: options.textBody,
-      MessageStream: "outbound",
-    });
-  } catch (err) {
-    console.error("[email] failed to send to", options.to, err);
+  const resend = new Resend(config.resendApiKey as string);
+  const { error } = await resend.emails.send({
+    from: config.resendFromEmail as string,
+    to: [options.to],
+    subject: options.subject,
+    html: options.html,
+    text: options.text,
+  });
+  if (error) {
+    console.error("[email] failed to send to", options.to, error);
   }
 }
 
@@ -47,17 +40,17 @@ export async function sendJoinRequestNotification(
   teamName: string,
 ) {
   const config = useRuntimeConfig();
-  const htmlBody = fill(joinRequestHtml, {
+  const html = fill(joinRequestHtml, {
     REQUESTER_NAME: requesterName,
     TEAM_NAME: teamName,
     BASE_URL: config.siteUrl as string,
   });
-  const textBody = `${requesterName} wants to join your team "${teamName}" at LiberHack.\n\nReview the request: ${config.siteUrl}/ops/dashboard`;
+  const text = `${requesterName} wants to join your team "${teamName}" at LiberHack.\n\nReview the request: ${config.siteUrl}/ops/dashboard`;
   await sendEmail({
     to: leaderEmail,
     subject: `New join request for ${teamName}`,
-    htmlBody,
-    textBody,
+    html,
+    text,
   });
 }
 
@@ -68,11 +61,11 @@ export async function sendRequestDecisionNotification(
 ) {
   const config = useRuntimeConfig();
   const approved = status === "approved";
-  const htmlBody = fill(approved ? decisionApprovedHtml : decisionRejectedHtml, {
+  const html = fill(approved ? decisionApprovedHtml : decisionRejectedHtml, {
     TEAM_NAME: teamName,
     BASE_URL: config.siteUrl as string,
   });
-  const textBody = approved
+  const text = approved
     ? `Your request to join "${teamName}" at LiberHack has been approved. You're now part of the team!\n\n${config.siteUrl}/ops/dashboard`
     : `Your request to join "${teamName}" at LiberHack was not accepted this time. Keep hacking.\n\nBrowse other teams: ${config.siteUrl}/ops/teams`;
   await sendEmail({
@@ -80,7 +73,7 @@ export async function sendRequestDecisionNotification(
     subject: approved
       ? `You're in — welcome to ${teamName}!`
       : `Update on your request to join ${teamName}`,
-    htmlBody,
-    textBody,
+    html,
+    text,
   });
 }
