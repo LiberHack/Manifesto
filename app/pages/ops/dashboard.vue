@@ -181,6 +181,26 @@ async function logout() {
           <h2 class="text-xl font-bold mb-2">Pending requests</h2>
           <ManageRequests />
         </section>
+
+        <!-- Invite link -->
+        <section>
+          <h2 class="text-xl font-bold mb-3">Invite Link</h2>
+          <p class="text-sm opacity-60 mb-3">Share this link to invite people directly to your team.</p>
+          <div class="flex gap-2 flex-wrap">
+            <button class="btn btn-outline btn-sm font-black uppercase" :disabled="copyingInvite"
+              @click="copyInviteLink">
+              Copy Invite Link
+            </button>
+            <button v-if="isLeader" class="btn btn-ghost btn-sm font-black uppercase" :disabled="rotatingInvite"
+              @click="rotateInviteLink">
+              {{ rotatingInvite ? "Rotating…" : "Rotate Link" }}
+            </button>
+          </div>
+          <p v-if="inviteCopyMessage" class="text-sm mt-2 text-primary font-mono break-all">
+            {{ inviteCopyMessage }}
+          </p>
+        </section>
+
       </section>
 
       <section v-else-if="!me?.team">
@@ -194,25 +214,6 @@ async function logout() {
           </NuxtLink>
         </div>
       </section>
-
-      <!-- Invite link -->
-      <section>
-        <h2 class="text-xl font-bold mb-3">Invite Link</h2>
-        <p class="text-sm opacity-60 mb-3">Share this link to invite people directly to your team.</p>
-        <div class="flex gap-2 flex-wrap">
-          <button class="btn btn-outline btn-sm font-black uppercase" :disabled="copyingInvite" @click="copyInviteLink">
-            Copy Invite Link
-          </button>
-          <button v-if="isLeader" class="btn btn-ghost btn-sm font-black uppercase" :disabled="rotatingInvite"
-            @click="rotateInviteLink">
-            {{ rotatingInvite ? "Rotating…" : "Rotate Link" }}
-          </button>
-        </div>
-        <p v-if="inviteCopyMessage" class="text-sm mt-2 text-primary font-mono break-all">
-          {{ inviteCopyMessage }}
-        </p>
-      </section>
-
 
       <section v-if="me?.role === 'admin'">
         <NuxtLink to="/ops/admin" class="btn btn-warning btn-sm font-black uppercase">

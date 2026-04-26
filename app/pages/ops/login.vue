@@ -11,6 +11,7 @@ const user = useSupabaseUser();
 const form = reactive({ email: "", password: "" });
 const error = ref("");
 const loading = ref(false);
+const confirmed = computed(() => route.query.confirmed === "1");
 
 async function login() {
   error.value = "";
@@ -46,6 +47,10 @@ async function login() {
       @submit.prevent="login"
     >
       <h1 class="text-4xl font-black uppercase tracking-tight">Login</h1>
+
+      <div v-if="confirmed" class="alert text-sm border-2 border-primary bg-base-200">
+        <span>Email confirmed. You can now log in.</span>
+      </div>
 
       <div v-if="error" role="alert" class="alert alert-error text-sm">
         {{ error }}
