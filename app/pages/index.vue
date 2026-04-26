@@ -17,7 +17,18 @@
       </div>
     </div>
 
-    <div class="w-full flex flex-col gap-8 items-center justify-center">
+    <div
+      class="w-full flex flex-row justify-center align-middle items-center gap-8 p-8 md:p-24"
+    >
+      <RegisterNow />
+      <NuxtImg
+        preload
+        src="/eyes.webp"
+        class="bg-base-100/90 border-primary border-4 w-xs hidden md:block"
+      />
+    </div>
+
+    <div class="w-full flex flex-col gap-8 items-center">
       <p class="text-3xl lg:text-6xl font-bold items-stretch">Ass0c1at3s</p>
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-16">
@@ -101,18 +112,6 @@
         <FAQ class="h-min" />
       </div>
     </div>
-
-    <div
-      class="w-full h-96 flex flex-row justify-center align-middle items-center gap-8 p-8 md:p-24"
-    >
-      <RegisterNow />
-      <NuxtImg
-        preload
-        src="/eyes.webp"
-        class="bg-base-100/90 border-primary border-4 w-xs hidden md:block"
-      />
-    </div>
-
     <Footer />
   </div>
 </template>
