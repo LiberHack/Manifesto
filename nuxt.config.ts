@@ -53,15 +53,13 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     supabaseServiceKey: process.env.NUXT_SUPABASE_SERVICE_KEY ?? "",
-    postmarkToken: process.env.NUXT_POSTMARK_TOKEN ?? "",
-    postmarkFromEmail: process.env.NUXT_POSTMARK_FROM_EMAIL ?? "",
+    resendApiKey: process.env.NUXT_RESEND_API_KEY ?? "",
+    resendFromEmail: process.env.NUXT_RESEND_FROM_EMAIL ?? "",
     siteUrl: process.env.NUXT_SITE_URL ?? "http://localhost:3000",
     public: {
       supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL ?? "",
       supabaseAnonKey: process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
-      emailVerifiedUrl:
-        process.env.NUXT_PUBLIC_EMAIL_VERIFIED_REDIRECT_URL ??
-        "http://localhost:3000/ops/confirm",
+      emailVerifiedUrl: "https://liberhack.org/ops/confirm",
     },
   },
 });
