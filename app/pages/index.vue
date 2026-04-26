@@ -25,7 +25,7 @@
             <NuxtImg
               preload
               src="/burgaslab.png"
-              class="bg-base-100/90 border-primary border-4 h-48 w-full"
+              class="bg-base-100/90 border-primary border-4 h-24 md:h-42 w-full"
             />
           </div>
           <p
@@ -39,7 +39,7 @@
             <NuxtImg
               preload
               src="/ppmg.jpg"
-              class="bg-base-100/90 border-primary border-4 h-48 w-full"
+              class="bg-base-100/90 border-primary border-4 h-24 md:h-42 w-full"
             />
           </div>
           <p
@@ -53,7 +53,7 @@
             <NuxtImg
               preload
               src="/vladan.jpg"
-              class="bg-base-100/90 border-primary border-4 h-24 md:h-48 w-full"
+              class="bg-base-100/90 border-primary border-4 h-24 md:h-42 w-full"
             />
           </div>
           <p
