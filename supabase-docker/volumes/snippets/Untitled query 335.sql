@@ -1,1 +1,1 @@
-DELETE FROM auth.users WHERE email = 'ball@liberhack.org';
+DELETE FROM auth.users WHERE email = 'new@liberhack.org';

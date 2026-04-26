@@ -11,6 +11,23 @@ watch(user, () => {
     navigateTo(invite ? `/ops/invite/${invite}` : "/ops/teams");
   }
 }, { immediate: true });
+
+// If there are no Supabase auth tokens in the URL, the confirmation link was
+// opened on a different device — redirect immediately instead of waiting forever.
+onMounted(() => {
+  if (user.value) return;
+
+  const hasCodeVerifier = Object.keys(localStorage).some((k) =>
+    k.includes("code-verifier")
+  );
+
+  if (!hasCodeVerifier) {
+    const loginPath = invite
+      ? `/ops/login?confirmed=1&invite=${invite}`
+      : "/ops/login?confirmed=1";
+    navigateTo(loginPath);
+  }
+});
 </script>
 
 <template>
