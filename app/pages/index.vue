@@ -6,15 +6,41 @@
       <NuxtImg
         preload
         src="/favicon.webp"
-        class="bg-base-100/90 border-primary border-4"
+        class="bg-base-100/90 border-primary border-4 w-xs lg:w-md"
       />
-      <div class="w-2/3 md:w-1/4">
+      <div class="w-sm md:w-lg flex flex-col gap-8 bg-base-100/70 p-4">
         <p
           class="text-2xl lg:text-5xl font-bold text-center text-shadow-lg/80 text-shadow-4"
         >
           Your Future Is In YOUR Hands
         </p>
+        <p
+          class="text-xl font-bold text-center text-shadow-lg/80 text-shadow-4"
+        >
+          <span class="block">June 5–7</span>Social impact & Civic tech but make
+          it punk
+        </p>
       </div>
+    </div>
+
+    <div
+      class="w-full flex flex-col md:flex-row items-center justify-center gap-5"
+    >
+      <div class="flex flex-col gap-4 w-sm md:w-lg bg-base-100/70 p-4">
+        <!-- <div
+          class="text-2xl lg:text-5xl font-bold text-center text-shadow-lg/80 text-shadow-4 gap-2"
+        >
+          About
+        </div> -->
+        <div class="text-xl lg:text-4xl text-center">
+          Build, pitch, and ship — 48 hours to take your idea from zero to demo
+        </div>
+      </div>
+      <NuxtImg
+        preload
+        src="/holy.webp"
+        class="bg-base-100/90 border-primary border-4 w-xs lg:w-md"
+      />
     </div>
 
     <div
