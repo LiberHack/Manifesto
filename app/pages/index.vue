@@ -87,7 +87,7 @@
             <NuxtImg
               preload
               src="/hell.webp"
-              class="bg-base-100/90 border-primary border-4 w-full object-contain"
+              class="bg-base-100/90 border-primary border-4 w-full object-contain p-2"
             />
           </div>
           <p
@@ -102,7 +102,7 @@
             <NuxtImg
               preload
               src="/zonta.png"
-              class="bg-base-100/90 border-primary border-4 w-full object-contain"
+              class="bg-base-100/90 border-primary border-4 w-full object-contain p-4"
             />
           </div>
           <p
@@ -117,7 +117,7 @@
             <NuxtImg
               preload
               src="/scarabey.jpg"
-              class="bg-base-100/90 border-primary border-4 w-full object-contain"
+              class="bg-white border-primary border-4 w-full object-contain p-6"
             />
           </div>
           <p
