@@ -56,7 +56,12 @@
         src="/eyes.webp"
         class="bg-base-100/90 border-primary border-4 w-xs hidden md:block lg:w-md"
       />
-      <RegisterNow />
+      <div class="flex flex-col items-center gap-4">
+        <RegisterNow />
+        <NuxtLink to="/reglament" class="text-sm underline opacity-60 hover:opacity-100">
+          прочети регламента →
+        </NuxtLink>
+      </div>
     </div>
 
     <div class="w-full flex flex-col gap-8 items-center">
@@ -78,7 +83,7 @@
           <p
             class="font-bold text-xl md:text-2xl bg-base-100/80 border-primary border-2 p-2"
           >
-            Burgas
+            Burgas Municipality
           </p>
         </div>
 
@@ -102,7 +107,7 @@
             <NuxtImg
               preload
               src="/zonta.png"
-              class="bg-base-100/90 border-primary border-4 w-full object-contain p-4"
+              class="bg-base-100/90 border-primary border-4 w-full object-contain p-4 bg-white"
             />
           </div>
           <p
