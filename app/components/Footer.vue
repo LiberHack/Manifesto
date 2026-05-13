@@ -13,6 +13,12 @@ const instagram = appConfig.socials.instagram;
       <p>LiberHack.</p>
     </aside>
 
+    <div class="border-primary border-2 h-full p-2 flex flex-col justify-center">
+      <NuxtLink to="/reglament" class="font-bold underline hover:opacity-70 whitespace-nowrap">
+        Регламент →
+      </NuxtLink>
+    </div>
+
     <div
       class="border-primary border-2 h-full p-2 md:place-self-center md:justify-self-end w-full md:w-min"
     >

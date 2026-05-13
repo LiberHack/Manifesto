@@ -1,13 +1,14 @@
 <script setup>
 const route = useRoute();
 const appConfig = useAppConfig();
+const noShader = computed(() => route.path === '/reglament');
 const discord = appConfig.socials.discord;
 const instagram = appConfig.socials.instagram;
 </script>
 
 <template>
   <ClientOnly>
-    <ScanlineShader />
+    <ScanlineShader v-if="!noShader" />
   </ClientOnly>
 
   <div class="shader-container w-full min-h-screen bg-[url('/index.webp')] bg-repeat bg-auto font-cygrotesk">

@@ -129,9 +129,10 @@ async function register() {
         <input v-model="form.coc" type="checkbox" required class="checkbox checkbox-primary mt-1 shrink-0" />
         <span class="text-sm leading-snug">
           I have read and agree to the
-          <NuxtLink to="/legal/coc" target="_blank" class="link font-bold">Code of Conduct</NuxtLink>
-          and
-          <NuxtLink to="/legal/privacy" target="_blank" class="link font-bold">Privacy Policy</NuxtLink>.
+          <NuxtLink to="/legal/coc" target="_blank" class="link font-bold">Code of Conduct</NuxtLink>,
+          <NuxtLink to="/legal/privacy" target="_blank" class="link font-bold">Privacy Policy</NuxtLink>,
+          and the
+          <NuxtLink to="/reglament" target="_blank" class="link font-bold">Регламент</NuxtLink>.
         </span>
       </label>
 
