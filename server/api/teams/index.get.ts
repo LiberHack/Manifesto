@@ -29,6 +29,5 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 500, message: "Failed to fetch teams" });
   }
 
-  // Only return teams with fewer than 6 members
-  return (data ?? []).filter((team) => team.members.length < 6);
+  return data ?? [];
 });
