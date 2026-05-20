@@ -106,6 +106,12 @@
           </div>
         </div>
       </div>
+
+      <div class="w-fit">
+        <p class="text-xl text-center px-2">
+          + Best projects in each category receive an €100 prize.
+        </p>
+      </div>
     </div>
 
     <div
