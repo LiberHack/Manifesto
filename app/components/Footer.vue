@@ -9,12 +9,20 @@ const instagram = appConfig.socials.instagram;
     class="footer sm:footer-horizontal bg-base-100 text-neutral-content gap-0 border-2 border-primary"
   >
     <aside class="flex flex-row items-center border-2 border-primary p-2">
-      <NuxtImg src="/favicon.webp" class="w-32 border-primary border-r-2" />
+      <NuxtImg
+        src="/favicon.webp"
+        class="w-32 border-primary border-r-2 object-contain"
+      />
       <p>LiberHack.</p>
     </aside>
 
-    <div class="border-primary border-2 h-full p-2 flex flex-col justify-center">
-      <NuxtLink to="/reglament" class="font-bold underline hover:opacity-70 whitespace-nowrap">
+    <div
+      class="border-primary border-2 h-full p-2 flex flex-col justify-center"
+    >
+      <NuxtLink
+        to="/reglament"
+        class="font-bold underline hover:opacity-70 whitespace-nowrap"
+      >
         Регламент →
       </NuxtLink>
     </div>
