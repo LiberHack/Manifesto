@@ -210,15 +210,18 @@
           <div class="flex flex-col gap-2">
             <div class="flex flex-row gap-3 items-center border-primary border-2 p-3">
               <span class="text-2xl font-bold">🥇</span>
-              <span>1-во място — 300€ + предметна награда</span>
+              <span>1-во място — 500€ + предметна награда</span>
             </div>
             <div class="flex flex-row gap-3 items-center border-primary border-2 p-3">
               <span class="text-2xl font-bold">🥈</span>
-              <span>2-ро място — 200€ + предметна награда</span>
+              <span>2-ро място — 300€ + предметна награда</span>
             </div>
             <div class="flex flex-row gap-3 items-center border-primary border-2 p-3">
               <span class="text-2xl font-bold">🥉</span>
               <span>3-то място — 100€ + предметна награда</span>
+            </div>
+            <div class="flex flex-row gap-3 items-center border-primary border-2 p-3">
+              <span>Най-добрият проект във всяка категория получава 100 €.</span>
             </div>
           </div>
         </div>
