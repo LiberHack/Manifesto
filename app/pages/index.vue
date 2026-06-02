@@ -133,162 +133,94 @@
       </div>
     </div>
 
-    <div class="w-full flex flex-col gap-8 items-center">
+    <div class="w-full flex flex-col gap-12 items-center">
       <p
         class="text-3xl lg:text-6xl font-bold items-stretch text-shadow-lg/80 text-shadow-4"
       >
         Ass0c1at3s
       </p>
 
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-        <div class="flex flex-col items-center gap-2 px-8">
-          <div>
-            <NuxtImg
-              preload
-              src="/burgas.jpg"
-              class="bg-base-100/90 border-primary border-4 w-full object-contain"
-            />
-          </div>
-          <p
-            class="font-bold text-xl md:text-2xl bg-base-100/80 border-primary border-2 p-2 text-center"
-          >
-            Burgas Municipality
-          </p>
+      <!-- Platinum -->
+      <div class="w-full flex flex-col gap-6 items-center">
+        <div class="flex items-center gap-4 w-full max-w-4xl px-4">
+          <div class="h-px flex-1 bg-slate-300/60" />
+          <p class="text-slate-300 font-bold text-xl tracking-widest uppercase">Platinum</p>
+          <div class="h-px flex-1 bg-slate-300/60" />
         </div>
-
-        <div class="flex flex-col items-center gap-2 px-8">
-          <div>
-            <NuxtImg
-              preload
-              src="/hell.webp"
-              class="bg-base-100/90 border-primary border-4 w-full object-contain p-2"
-            />
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center w-full max-w-2xl px-4">
+          <div class="flex flex-col items-center gap-2">
+            <NuxtImg preload src="/burgas.jpg" class="bg-base-100/90 border-slate-300 border-4 w-full object-contain" />
+            <p class="font-bold text-xl md:text-2xl bg-base-100/80 border-slate-300 border-2 p-2 text-center w-full">Burgas Municipality</p>
           </div>
-          <p
-            class="font-bold text-xl md:text-2xl bg-base-100/80 border-primary border-2 p-2 text-center"
-          >
-            Hell
-          </p>
+          <div class="flex flex-col items-center gap-2">
+            <NuxtImg preload src="/zonta.png" class="bg-white border-slate-300 border-4 w-full object-contain p-4" />
+            <p class="font-bold text-xl md:text-2xl bg-base-100/80 border-slate-300 border-2 p-2 text-center w-full">Zonta</p>
+          </div>
+          <div class="flex flex-col items-center gap-2">
+            <NuxtImg preload src="/telerik.png" class="bg-white border-slate-300 border-4 w-full object-contain" />
+            <p class="font-bold text-xl md:text-2xl bg-base-100/80 border-slate-300 border-2 p-2 text-center w-full">Telerik</p>
+          </div>
+          <div class="flex flex-col items-center gap-2">
+            <NuxtImg preload src="/flora-bar-and-grill.jpg" class="border-slate-300 border-4 w-full object-contain" />
+            <p class="font-bold text-xl md:text-2xl bg-base-100/80 border-slate-300 border-2 p-2 text-center w-full">FLORA Bar&amp;Grill</p>
+          </div>
         </div>
+      </div>
 
-        <div class="flex flex-col items-center gap-2 px-8">
-          <div>
-            <NuxtImg
-              preload
-              src="/telerik.png"
-              class="bg-white border-primary border-4 w-full object-contain"
-            />
-          </div>
-          <p
-            class="font-bold text-xl md:text-2xl bg-base-100/80 border-primary border-2 p-2 text-center"
-          >
-            Telerik
-          </p>
+      <!-- Golden -->
+      <div class="w-full flex flex-col gap-6 items-center">
+        <div class="flex items-center gap-4 w-full max-w-4xl px-4">
+          <div class="h-px flex-1 bg-yellow-500/60" />
+          <p class="text-yellow-500 font-bold text-xl tracking-widest uppercase">Golden</p>
+          <div class="h-px flex-1 bg-yellow-500/60" />
         </div>
-
-        <div class="flex flex-col items-center gap-2 px-8">
-          <div>
-            <NuxtImg
-              preload
-              src="/flora-bar-and-grill.jpg"
-              class="border-primary border-4 w-full object-contain"
-            />
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center w-full max-w-2xl px-4">
+          <div class="flex flex-col items-center gap-2">
+            <NuxtImg preload src="/hell.webp" class="bg-base-100/90 border-primary border-4 w-full object-contain p-2" />
+            <p class="font-bold text-xl md:text-2xl bg-base-100/80 border-primary border-2 p-2 text-center w-full">Hell</p>
           </div>
-          <p
-            class="font-bold text-xl md:text-2xl bg-base-100/80 border-primary border-2 p-2 text-center"
-          >
-            FLORA Bar&Grill
-          </p>
+          <div class="flex flex-col items-center gap-2">
+            <NuxtImg preload src="/scarabey.jpg" class="bg-white border-primary border-4 w-full object-contain p-6" />
+            <p class="font-bold text-xl md:text-2xl bg-base-100/80 border-primary border-2 p-2 text-center w-full">Scarabey</p>
+          </div>
         </div>
+      </div>
 
-        <div class="flex flex-col items-center gap-2 px-8">
-          <div>
-            <NuxtImg
-              preload
-              src="/zonta.png"
-              class="bg-white border-primary border-4 w-full object-contain p-4"
-            />
-          </div>
-          <p
-            class="font-bold text-xl md:text-2xl bg-base-100/80 border-primary border-2 p-2 text-center"
-          >
-            Zonta
-          </p>
+      <!-- Silver -->
+      <div class="w-full flex flex-col gap-6 items-center">
+        <div class="flex items-center gap-4 w-full max-w-4xl px-4">
+          <div class="h-px flex-1 bg-base-content/30" />
+          <p class="text-base-content/60 font-bold text-xl tracking-widest uppercase">Silver</p>
+          <div class="h-px flex-1 bg-base-content/30" />
         </div>
-
-        <div class="flex flex-col items-center gap-2 px-8">
-          <div>
-            <NuxtImg
-              preload
-              src="/scarabey.jpg"
-              class="bg-white border-primary border-4 w-full object-contain p-6"
-            />
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center w-full max-w-2xl px-4">
+          <div class="flex flex-col items-center gap-2">
+            <NuxtImg preload src="/vladan.jpg" class="bg-base-100/90 border-primary border-4 w-full object-contain" />
+            <p class="font-bold text-xl md:text-2xl bg-base-100/80 border-primary border-2 p-2 text-center w-full">VLADAN OOD</p>
           </div>
-          <p
-            class="font-bold text-xl md:text-2xl bg-base-100/80 border-primary border-2 p-2 text-center"
-          >
-            Scarabey
-          </p>
+          <div class="flex flex-col items-center gap-2">
+            <NuxtImg preload src="/advance-bg.png" class="bg-base-100/90 border-primary border-4 h-24 md:h-42 w-full" />
+            <p class="font-bold text-xl md:text-2xl bg-base-100/80 border-primary border-2 p-2 text-center w-full">Advance</p>
+          </div>
         </div>
+      </div>
 
-        <div class="flex flex-col items-center gap-2 px-8">
-          <div>
-            <NuxtImg
-              preload
-              src="/burgaslab.png"
-              class="bg-base-100/90 border-primary border-4 w-full object-contain"
-            />
-          </div>
-          <p
-            class="font-bold text-xl md:text-2xl bg-base-100/80 border-primary border-2 p-2 text-center"
-          >
-            BurgasLab
-          </p>
+      <!-- Partners -->
+      <div class="w-full flex flex-col gap-6 items-center">
+        <div class="flex items-center gap-4 w-full max-w-4xl px-4">
+          <div class="h-px flex-1 bg-base-content/20" />
+          <p class="text-base-content/40 font-bold text-xl tracking-widest uppercase">Partners</p>
+          <div class="h-px flex-1 bg-base-content/20" />
         </div>
-
-        <div class="flex flex-col items-center gap-2 px-8">
-          <div>
-            <NuxtImg
-              preload
-              src="/ppmg.jpg"
-              class="bg-base-100/90 border-primary border-4 h-24 md:h-42 w-full object-contain"
-            />
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center w-full max-w-2xl px-4">
+          <div class="flex flex-col items-center gap-2">
+            <NuxtImg preload src="/burgaslab.png" class="bg-base-100/90 border-primary border-4 w-full object-contain" />
+            <p class="font-bold text-xl md:text-2xl bg-base-100/80 border-primary border-2 p-2 text-center w-full">BurgasLab</p>
           </div>
-          <p
-            class="font-bold text-xl md:text-2xl bg-base-100/80 border-primary border-2 p-2 text-center"
-          >
-            PPMG
-          </p>
-        </div>
-
-        <div class="flex flex-col items-center gap-2 px-8">
-          <div>
-            <NuxtImg
-              preload
-              src="/vladan.jpg"
-              class="bg-base-100/90 border-primary border-4 w-full object-contain"
-            />
+          <div class="flex flex-col items-center gap-2">
+            <NuxtImg preload src="/ppmg.jpg" class="bg-base-100/90 border-primary border-4 h-24 md:h-42 w-full object-contain" />
+            <p class="font-bold text-xl md:text-2xl bg-base-100/80 border-primary border-2 p-2 text-center w-full">PPMG</p>
           </div>
-          <p
-            class="font-bold text-xl md:text-2xl bg-base-100/80 border-primary border-2 p-2 text-center"
-          >
-            VLADAN OOD
-          </p>
-        </div>
-
-        <div class="flex flex-col items-center gap-2 px-8">
-          <div>
-            <NuxtImg
-              preload
-              src="/advance-bg.png"
-              class="bg-base-100/90 border-primary border-4 h-24 md:h-42 w-full"
-            />
-          </div>
-          <p
-            class="font-bold text-xl md:text-2xl bg-base-100/80 border-primary border-2 p-2 text-center"
-          >
-            Advance
-          </p>
         </div>
       </div>
     </div>
