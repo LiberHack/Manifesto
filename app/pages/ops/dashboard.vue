@@ -272,7 +272,7 @@ async function logout() {
           </div>
 
           <button
-            class="btn btn-sm btn-outline font-black uppercase"
+            class="btn btn-sm btn-outline font-black uppercase mt-3"
             :disabled="teamSaving"
             @click="saveTeam"
           >

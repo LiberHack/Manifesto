@@ -5,7 +5,7 @@ export default defineEventHandler(async (event) => {
 
   const { data, error } = await supabase
     .from("participants")
-    .select("id, name, email, skills, role, team_id, created_at")
+    .select("id, name, email, skills, role, team_id, dietary, experience, created_at")
     .order("created_at", { ascending: false });
 
   if (error) {
