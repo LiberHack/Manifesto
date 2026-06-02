@@ -33,20 +33,14 @@ async function deleteTeam(id: string) {
   <main class="max-w-5xl mx-auto p-6 space-y-12 bg-base-100">
     <div class="flex flex-col md:flex-row items-center justify-between">
       <h1 class="text-4xl font-black uppercase">Admin</h1>
-      <div class="flex gap-2 items-center">
-        <a href="/api/admin/participants/export" download class="btn btn-outline btn-sm">
-          ↓ Export CSV
-        </a>
-        <NuxtLink to="/ops/dashboard" class="btn btn-ghost btn-sm"
-          >← Dashboard</NuxtLink
-        >
-      </div>
+      <NuxtLink to="/ops/dashboard" class="btn btn-ghost btn-sm">← Dashboard</NuxtLink>
     </div>
 
     <section>
-      <h2 class="text-2xl font-bold mb-4">
-        Participants ({{ participants?.length ?? 0 }})
-      </h2>
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-2xl font-bold">Participants ({{ participants?.length ?? 0 }})</h2>
+        <a href="/api/admin/participants/export" download class="btn btn-outline btn-sm">↓ Export CSV</a>
+      </div>
       <div class="overflow-x-auto">
         <table class="table table-xs md:table-md w-full">
           <thead class="text-xs md:text-lg">
@@ -91,7 +85,10 @@ async function deleteTeam(id: string) {
     </section>
 
     <section>
-      <h2 class="text-2xl font-bold mb-4">Teams ({{ teams?.length ?? 0 }})</h2>
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-2xl font-bold">Teams ({{ teams?.length ?? 0 }})</h2>
+        <a href="/api/admin/teams/export" download class="btn btn-outline btn-sm">↓ Export CSV</a>
+      </div>
       <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div
           v-for="team in teams"
