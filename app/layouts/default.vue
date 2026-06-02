@@ -44,6 +44,7 @@ const instagram = appConfig.socials.instagram;
         </div>
       </div>
 
+      <AppBanners />
       <div class="flex flex-col h-full w-full">
         <slot />
       </div>

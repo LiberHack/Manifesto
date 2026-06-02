@@ -7,10 +7,66 @@ const { data: me, refresh: refreshMe } = await useFetch<any>("/api/me");
 
 const isLeader = computed(() => me.value?.team?.leader_id === me.value?.id);
 
-const skillsWanted = ref<string[]>([]);
-const skillsSaving = ref(false);
-const skillsMessage = ref("");
+// ── Profile edit ──────────────────────────────────────────────────────────────
+const profileForm = reactive({
+  dietary: (me.value?.dietary ?? "") as string,
+  experience: (me.value?.experience ?? "") as "" | "beginner" | "intermediate" | "experienced",
+});
+const profileSaving = ref(false);
+const profileMessage = ref("");
 
+async function saveProfile() {
+  profileSaving.value = true;
+  profileMessage.value = "";
+  try {
+    await $fetch("/api/me/profile", {
+      method: "PATCH",
+      body: {
+        dietary: profileForm.dietary,
+        experience: profileForm.experience || null,
+      },
+    });
+    await refreshMe();
+    profileMessage.value = "Saved!";
+  } catch (e: any) {
+    profileMessage.value = e.data?.message ?? "Something went wrong";
+  }
+  profileSaving.value = false;
+}
+
+// ── Team edit ─────────────────────────────────────────────────────────────────
+const skillsWanted = ref<string[]>([]);
+const teamDescription = ref("");
+const teamSaving = ref(false);
+const teamMessage = ref("");
+
+watch(
+  () => me.value?.team,
+  (team) => {
+    if (team) {
+      skillsWanted.value = [...(team.skills_wanted ?? [])];
+      teamDescription.value = team.description ?? "";
+    }
+  },
+  { immediate: true },
+);
+
+async function saveTeam() {
+  teamSaving.value = true;
+  teamMessage.value = "";
+  try {
+    await $fetch(`/api/teams/${me.value.team.id}`, {
+      method: "PATCH",
+      body: { skills_wanted: skillsWanted.value, description: teamDescription.value },
+    });
+    teamMessage.value = "Saved!";
+  } catch (e: any) {
+    teamMessage.value = e.data?.message ?? "Something went wrong";
+  }
+  teamSaving.value = false;
+}
+
+// ── Leave team ────────────────────────────────────────────────────────────────
 const leavingTeam = ref(false);
 const showLeaveConfirm = ref(false);
 const leaveMessage = ref("");
@@ -19,42 +75,13 @@ const teamMemberCount = ref<number | null>(null);
 watch(showLeaveConfirm, async (open) => {
   if (open && me.value?.team?.id && teamMemberCount.value === null) {
     try {
-      const team = await $fetch<{ members: unknown[] }>(
-        `/api/teams/${me.value.team.id}`,
-      );
+      const team = await $fetch<{ members: unknown[] }>(`/api/teams/${me.value.team.id}`);
       teamMemberCount.value = team.members.length;
     } catch {
       teamMemberCount.value = 1;
     }
   }
 });
-
-const copyingInvite = ref(false);
-const rotatingInvite = ref(false);
-const inviteCopyMessage = ref("");
-
-watch(
-  () => me.value?.team?.skills_wanted,
-  (val) => {
-    if (val) skillsWanted.value = [...val];
-  },
-  { immediate: true },
-);
-
-async function saveSkills() {
-  skillsSaving.value = true;
-  skillsMessage.value = "";
-  try {
-    await $fetch(`/api/teams/${me.value.team.id}`, {
-      method: "PATCH",
-      body: { skills_wanted: skillsWanted.value },
-    });
-    skillsMessage.value = "Saved!";
-  } catch (e: any) {
-    skillsMessage.value = e.data?.message ?? "Something went wrong";
-  }
-  skillsSaving.value = false;
-}
 
 async function leaveTeam() {
   leavingTeam.value = true;
@@ -70,6 +97,11 @@ async function leaveTeam() {
   leavingTeam.value = false;
 }
 
+// ── Invite link ───────────────────────────────────────────────────────────────
+const copyingInvite = ref(false);
+const rotatingInvite = ref(false);
+const inviteCopyMessage = ref("");
+
 function inviteUrl() {
   return `${window.location.origin}/ops/invite/${me.value?.team?.invite_code}`;
 }
@@ -84,29 +116,24 @@ async function copyInviteLink() {
     inviteCopyMessage.value = inviteUrl();
   }
   copyingInvite.value = false;
-  setTimeout(() => {
-    inviteCopyMessage.value = "";
-  }, 3000);
+  setTimeout(() => { inviteCopyMessage.value = ""; }, 3000);
 }
 
 async function rotateInviteLink() {
   rotatingInvite.value = true;
   inviteCopyMessage.value = "";
   try {
-    await $fetch(`/api/teams/${me.value.team.id}/rotate-invite`, {
-      method: "POST",
-    });
+    await $fetch(`/api/teams/${me.value.team.id}/rotate-invite`, { method: "POST" });
     await refreshMe();
     inviteCopyMessage.value = "Link rotated.";
   } catch (e: any) {
     inviteCopyMessage.value = e.data?.message ?? "Failed to rotate";
   }
   rotatingInvite.value = false;
-  setTimeout(() => {
-    inviteCopyMessage.value = "";
-  }, 3000);
+  setTimeout(() => { inviteCopyMessage.value = ""; }, 3000);
 }
 
+// ── Auth ──────────────────────────────────────────────────────────────────────
 async function logout() {
   await supabase.auth.signOut();
   router.push("/ops/login");
@@ -116,34 +143,67 @@ async function logout() {
 <template>
   <main class="max-w-2xl mx-auto p-6 py-8 flex flex-col">
     <div class="bg-base-100 p-8 flex flex-col gap-8 border-primary border-2">
+
       <div class="flex items-center justify-between flex-wrap gap-8">
         <h1 class="text-xl md:text-4xl font-black uppercase">Dashboard</h1>
         <div class="flex gap-2 items-center">
-          <NuxtLink
-            to="/ops/teams"
-            class="btn btn-outline font-black uppercase"
-          >
-            > Teams
-          </NuxtLink>
+          <NuxtLink to="/ops/teams" class="btn btn-outline font-black uppercase">> Teams</NuxtLink>
           <button class="btn btn-ghost btn-sm" @click="logout">Logout</button>
         </div>
       </div>
 
+      <!-- Profile -->
       <section v-if="me">
-        <h2 class="text-xl font-bold mb-2">Profile</h2>
-        <p><strong>Name:</strong> {{ me.name }}</p>
-        <p><strong>Email:</strong> {{ me.email }}</p>
-        <div class="flex flex-wrap gap-1 mt-2">
-          <span
-            v-for="skill in me.skills"
-            :key="skill"
-            class="badge badge-outline"
-          >
+        <h2 class="text-xl font-bold mb-3">Profile</h2>
+        <p class="mb-1"><strong>Name:</strong> {{ me.name }}</p>
+        <p class="mb-2"><strong>Email:</strong> {{ me.email }}</p>
+        <div class="flex flex-wrap gap-1 mb-4">
+          <span v-for="skill in me.skills" :key="skill" class="badge badge-outline">
             {{ skill }}
           </span>
         </div>
+
+        <div class="flex flex-col gap-3">
+          <label class="form-control">
+            <span class="label-text font-bold">Experience Level</span>
+            <select v-model="profileForm.experience" class="select select-bordered w-full">
+              <option value="">— not set —</option>
+              <option value="beginner">Beginner — new to hacking / tech events</option>
+              <option value="intermediate">Intermediate — comfortable building</option>
+              <option value="experienced">Experienced — seasoned hacker</option>
+            </select>
+          </label>
+
+          <label class="form-control">
+            <span class="label-text font-bold">Dietary Requirements</span>
+            <input
+              v-model="profileForm.dietary"
+              type="text"
+              maxlength="200"
+              placeholder="e.g. vegetarian, gluten-free, none"
+              class="input input-bordered w-full"
+            />
+          </label>
+
+          <div
+            v-if="profileMessage"
+            class="text-sm"
+            :class="profileMessage === 'Saved!' ? 'text-success' : 'text-error'"
+          >
+            {{ profileMessage }}
+          </div>
+
+          <button
+            class="btn btn-sm btn-outline font-black uppercase"
+            :disabled="profileSaving"
+            @click="saveProfile"
+          >
+            {{ profileSaving ? "Saving…" : "Save Profile" }}
+          </button>
+        </div>
       </section>
 
+      <!-- Has team -->
       <section v-if="me?.team" class="space-y-8">
         <section>
           <div class="flex items-center justify-between gap-4 flex-wrap">
@@ -155,34 +215,22 @@ async function logout() {
               Leave Team
             </button>
           </div>
-          <NuxtLink
-            :to="`/ops/teams/${me.team.id}`"
-            class="link font-bold text-lg"
-          >
+          <NuxtLink :to="`/ops/teams/${me.team.id}`" class="link font-bold text-lg">
             {{ me.team.name }}
           </NuxtLink>
 
-          <!-- Leave confirmation -->
-          <div
-            v-if="showLeaveConfirm"
-            class="mt-4 p-4 border border-error flex flex-col gap-3"
-          >
+          <div v-if="showLeaveConfirm" class="mt-4 p-4 border border-error flex flex-col gap-3">
             <p class="text-sm font-bold">
               <template v-if="teamMemberCount === null">Loading…</template>
               <template v-else-if="isLeader && teamMemberCount > 1">
-                You're the leader. Leaving will transfer leadership to the next
-                member.
+                You're the leader. Leaving will transfer leadership to the next member.
               </template>
               <template v-else-if="isLeader">
                 You're the only member. Leaving will delete the team.
               </template>
-              <template v-else>
-                Are you sure you want to leave {{ me.team.name }}?
-              </template>
+              <template v-else>Are you sure you want to leave {{ me.team.name }}?</template>
             </p>
-            <div v-if="leaveMessage" class="alert alert-error text-sm">
-              {{ leaveMessage }}
-            </div>
+            <div v-if="leaveMessage" class="alert alert-error text-sm">{{ leaveMessage }}</div>
             <div class="flex gap-2">
               <button
                 :disabled="leavingTeam"
@@ -191,36 +239,44 @@ async function logout() {
               >
                 {{ leavingTeam ? "Leaving…" : "Confirm Leave" }}
               </button>
-              <button
-                class="btn btn-ghost btn-sm"
-                @click="showLeaveConfirm = false"
-              >
-                Cancel
-              </button>
+              <button class="btn btn-ghost btn-sm" @click="showLeaveConfirm = false">Cancel</button>
             </div>
           </div>
         </section>
 
         <section v-if="isLeader">
-          <h2 class="text-xl font-bold mb-2">Skills Wanted</h2>
-          <SkillPicker
-            v-model="skillsWanted"
-            :allow-create="true"
-            class="mb-3"
-          />
+          <h2 class="text-xl font-bold mb-3">Edit Team</h2>
+
+          <label class="form-control mb-3">
+            <span class="label-text font-bold">Description</span>
+            <textarea
+              v-model="teamDescription"
+              maxlength="200"
+              placeholder="What's your team about?"
+              class="textarea textarea-bordered w-full"
+              rows="3"
+            />
+          </label>
+
+          <label class="form-control mb-3">
+            <span class="label-text font-bold">Skills Wanted</span>
+            <SkillPicker v-model="skillsWanted" :allow-create="true" />
+          </label>
+
           <div
-            v-if="skillsMessage"
+            v-if="teamMessage"
             class="text-sm mb-2"
-            :class="skillsMessage === 'Saved!' ? 'text-success' : 'text-error'"
+            :class="teamMessage === 'Saved!' ? 'text-success' : 'text-error'"
           >
-            {{ skillsMessage }}
+            {{ teamMessage }}
           </div>
+
           <button
             class="btn btn-sm btn-outline font-black uppercase"
-            :disabled="skillsSaving"
-            @click="saveSkills"
+            :disabled="teamSaving"
+            @click="saveTeam"
           >
-            {{ skillsSaving ? "Saving…" : "Save Skills" }}
+            {{ teamSaving ? "Saving…" : "Save Team" }}
           </button>
         </section>
 
@@ -229,7 +285,6 @@ async function logout() {
           <ManageRequests />
         </section>
 
-        <!-- Invite link -->
         <section>
           <h2 class="text-xl font-bold mb-3">Invite Link</h2>
           <p class="text-sm opacity-60 mb-3">
@@ -252,41 +307,29 @@ async function logout() {
               {{ rotatingInvite ? "Rotating…" : "Rotate Link" }}
             </button>
           </div>
-          <p
-            v-if="inviteCopyMessage"
-            class="text-sm mt-2 text-primary font-mono break-all"
-          >
+          <p v-if="inviteCopyMessage" class="text-sm mt-2 text-primary font-mono break-all">
             {{ inviteCopyMessage }}
           </p>
         </section>
       </section>
-
-      <section v-else-if="!me?.team">
+      <section v-else>
         <h2 class="text-xl font-bold mb-2">No Team Yet</h2>
         <div class="flex flex-col md:flex-row gap-3">
-          <NuxtLink
-            to="/ops/teams"
-            class="btn btn-primary btn-sm font-black uppercase"
-          >
+          <NuxtLink to="/ops/teams" class="btn btn-primary btn-sm font-black uppercase">
             Browse Teams
           </NuxtLink>
-          <NuxtLink
-            to="/ops/team/create"
-            class="btn btn-outline btn-sm font-black uppercase"
-          >
+          <NuxtLink to="/ops/team/create" class="btn btn-outline btn-sm font-black uppercase">
             Form a Team
           </NuxtLink>
         </div>
       </section>
 
       <section v-if="me?.role === 'admin'">
-        <NuxtLink
-          to="/ops/admin"
-          class="btn btn-warning btn-sm font-black uppercase"
-        >
+        <NuxtLink to="/ops/admin" class="btn btn-warning btn-sm font-black uppercase">
           Admin Panel
         </NuxtLink>
       </section>
+
     </div>
   </main>
 </template>
