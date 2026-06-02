@@ -33,9 +33,14 @@ async function deleteTeam(id: string) {
   <main class="max-w-5xl mx-auto p-6 space-y-12 bg-base-100">
     <div class="flex flex-col md:flex-row items-center justify-between">
       <h1 class="text-4xl font-black uppercase">Admin</h1>
-      <NuxtLink to="/ops/dashboard" class="btn btn-ghost btn-sm"
-        >← Dashboard</NuxtLink
-      >
+      <div class="flex gap-2 items-center">
+        <a href="/api/admin/participants/export" download class="btn btn-outline btn-sm">
+          ↓ Export CSV
+        </a>
+        <NuxtLink to="/ops/dashboard" class="btn btn-ghost btn-sm"
+          >← Dashboard</NuxtLink
+        >
+      </div>
     </div>
 
     <section>
