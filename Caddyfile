@@ -1,11 +1,39 @@
-api.{$DOMAIN} {
-    reverse_proxy supabase-kong:8000
-}
+{
+      debug
+  }
 
-studio.{$DOMAIN} {
-    reverse_proxy supabase-studio:3000
-}
+  api.{$DOMAIN} {
+      reverse_proxy supabase-kong:8000
+  }
 
-{$DOMAIN} {
-    reverse_proxy app:3000
-}
+  {$DOMAIN} {
+      reverse_proxy app:3000
+  }
+
+  adviz.bg {
+      reverse_proxy host.docker.internal:30088 {
+          header_up X-Forwarded-Proto https
+          header_up X-Forwarded-For {remote_host}
+      }
+  }
+
+  api.adviz.bg {
+      reverse_proxy host.docker.internal:30088 {
+          header_up X-Forwarded-Proto https
+          header_up X-Forwarded-For {remote_host}
+      }
+  }
+
+  xn--80aalycsf6f.xn--90ae {
+      reverse_proxy host.docker.internal:30081 {
+          header_up X-Forwarded-Proto https
+          header_up X-Forwarded-For {remote_host}
+      }
+  }
+
+  api.xn--80aalycsf6f.xn--90ae {
+      reverse_proxy host.docker.internal:30081 {
+          header_up X-Forwarded-Proto https
+          header_up X-Forwarded-For {remote_host}
+      }
+  }

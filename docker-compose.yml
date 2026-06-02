@@ -30,6 +30,8 @@ services:
       - app
     networks:
       - liberhack
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
 volumes:
   caddy_data:
