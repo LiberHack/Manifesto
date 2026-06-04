@@ -42,8 +42,17 @@ function toSofiaLocal(iso: string | null): string {
 
 function fromSofiaLocal(localStr: string): string {
   if (!localStr) return ''
-  const sofiaDt = new Date(localStr + ':00.000+03:00')
-  return sofiaDt.toISOString()
+  // Compute the UTC offset for Europe/Sofia at the given local time.
+  // We interpret localStr as a Sofia wall-clock time (YYYY-MM-DDTHH:mm),
+  // then find the UTC equivalent by probing with Intl.DateTimeFormat.
+  const probe = new Date(localStr)
+  const sofiaStr = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'Europe/Sofia',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit',
+  }).format(probe).replace(' ', 'T')
+  const offsetMs = probe.getTime() - new Date(sofiaStr).getTime()
+  return new Date(new Date(localStr).getTime() - offsetMs).toISOString()
 }
 
 // ── Section visibility toggles ───────────────────────────────────────────────

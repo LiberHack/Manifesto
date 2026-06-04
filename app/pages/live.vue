@@ -28,6 +28,8 @@ interface LiveData {
   serverTime: string
 }
 
+interface CountdownParts { d: string; h: string; m: string; s: string }
+
 const config = ref<LiveConfig | null>(null)
 const schedule = ref<ScheduleItem[]>([])
 const announcements = ref<Announcement[]>([])
@@ -35,13 +37,12 @@ const serverTimeOffset = ref(0)
 const tick = ref(0)
 const announcementIndex = ref(0)
 
-// Fetch initial state (SSR-compatible)
 const { data: initialData } = await useFetch<LiveData>('/api/live/data')
 
 if (initialData.value) {
-  if (initialData.value.config) config.value = initialData.value.config
-  if (initialData.value.schedule?.length) schedule.value = initialData.value.schedule
-  if (initialData.value.announcements?.length) announcements.value = initialData.value.announcements
+  if (initialData.value.config != null) config.value = initialData.value.config
+  if (initialData.value.schedule != null) schedule.value = initialData.value.schedule
+  if (initialData.value.announcements != null) announcements.value = initialData.value.announcements
   if (initialData.value.serverTime) {
     serverTimeOffset.value = Date.parse(initialData.value.serverTime) - Date.now()
   }
@@ -51,27 +52,38 @@ function now(): number {
   return Date.now() + serverTimeOffset.value
 }
 
-function formatCountdown(targetIso: string): string {
+function countdown(targetIso: string): CountdownParts {
   const diff = Math.max(0, new Date(targetIso).getTime() - now())
-  const h = Math.floor(diff / 3600000)
+  const d = Math.floor(diff / 86400000)
+  const h = Math.floor((diff % 86400000) / 3600000)
   const m = Math.floor((diff % 3600000) / 60000)
   const s = Math.floor((diff % 60000) / 1000)
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  return {
+    d: String(d).padStart(2, '0'),
+    h: String(h).padStart(2, '0'),
+    m: String(m).padStart(2, '0'),
+    s: String(s).padStart(2, '0'),
+  }
 }
 
-function formatSofia(iso: string, opts: Intl.DateTimeFormatOptions): string {
-  return new Intl.DateTimeFormat('bg-BG', { timeZone: 'Europe/Sofia', ...opts }).format(new Date(iso))
+function sofiaFmt(iso: string, opts: Intl.DateTimeFormatOptions): string {
+  return new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Sofia', ...opts }).format(new Date(iso))
+}
+
+function headerDateRange(start: string, end: string): string {
+  const month = sofiaFmt(start, { month: 'long' }).toUpperCase()
+  const startDay = sofiaFmt(start, { day: 'numeric' })
+  const endDay = sofiaFmt(end, { day: 'numeric' })
+  const year = sofiaFmt(start, { year: 'numeric' })
+  return `${month} ${startDay}–${endDay}, ${year}`
 }
 
 const currentItem = computed(() => {
-  // Reference tick to make this reactive to the interval
   void tick.value
   const n = now()
   return schedule.value.find(item => {
-    const starts = new Date(item.starts_at).getTime()
-    if (item.ends_at === null) return false // point-in-time, never "now playing"
-    const ends = new Date(item.ends_at).getTime()
-    return starts <= n && ends > n
+    if (item.ends_at === null) return false
+    return new Date(item.starts_at).getTime() <= n && new Date(item.ends_at).getTime() > n
   }) ?? null
 })
 
@@ -91,6 +103,31 @@ const displayMode = computed((): DisplayMode => {
   if (nextItem.value) return 'next-up'
   if (config.value && new Date(config.value.event_end).getTime() > now()) return 'event-end'
   return 'wrap'
+})
+
+const mainCountdown = computed((): CountdownParts | null => {
+  void tick.value
+  if (displayMode.value === 'now-playing' && currentItem.value?.ends_at) return countdown(currentItem.value.ends_at)
+  if (displayMode.value === 'next-up' && nextItem.value) return countdown(nextItem.value.starts_at)
+  if (displayMode.value === 'event-end' && config.value) return countdown(config.value.event_end)
+  return null
+})
+
+const eventEndCountdown = computed((): CountdownParts | null => {
+  void tick.value
+  return config.value ? countdown(config.value.event_end) : null
+})
+
+const activeItem = computed(() =>
+  displayMode.value === 'now-playing' ? currentItem.value : nextItem.value
+)
+
+const activeItemTime = computed((): string => {
+  const item = activeItem.value
+  if (!item) return ''
+  const day = sofiaFmt(item.starts_at, { weekday: 'long' })
+  const time = sofiaFmt(item.starts_at, { hour: '2-digit', minute: '2-digit', hour12: false })
+  return `${day} ${time}`
 })
 
 const currentAnnouncement = computed(() => {
@@ -113,19 +150,13 @@ function startAnnouncementCycle() {
 }
 
 onMounted(() => {
-  // Start countdown tick
-  countdownInterval = setInterval(() => {
-    tick.value++
-  }, 1000)
-
-  // Start announcement cycle
+  countdownInterval = setInterval(() => { tick.value++ }, 1000)
   startAnnouncementCycle()
 
-  // Open SSE stream
   eventSource = new EventSource('/api/live/stream')
-  eventSource.onmessage = (event) => {
+  eventSource.onmessage = (e) => {
     try {
-      const data: LiveData = JSON.parse(event.data)
+      const data: LiveData = JSON.parse(e.data)
       if (data.config != null) config.value = data.config
       if (data.schedule != null) schedule.value = data.schedule
       if (data.announcements != null) {
@@ -133,12 +164,8 @@ onMounted(() => {
         announcements.value = data.announcements
         if (data.announcements.length !== prevLen) startAnnouncementCycle()
       }
-      if (data.serverTime) {
-        serverTimeOffset.value = Date.parse(data.serverTime) - Date.now()
-      }
-    } catch {
-      // ignore malformed events
-    }
+      if (data.serverTime) serverTimeOffset.value = Date.parse(data.serverTime) - Date.now()
+    } catch { /* ignore malformed */ }
   }
 })
 
@@ -151,130 +178,130 @@ onBeforeUnmount(() => {
 
 <template>
   <div
-    class="font-cygrotesk min-h-screen w-full flex flex-col relative overflow-hidden"
+    class="font-cygrotesk min-h-screen w-full flex flex-col"
     style="background-image: url('/index.webp'); background-size: cover; background-position: center;"
   >
-    <!-- Dark overlay for readability -->
-    <div class="absolute inset-0 bg-black/60 z-0" />
-
-    <!-- Header bar -->
+    <!-- Header -->
     <header
-      class="relative z-10 flex items-center justify-between px-6 py-3"
+      class="flex items-center justify-between px-6 py-4 shrink-0"
       style="background: var(--color-base-100); border-bottom: 2px solid var(--color-primary);"
     >
-      <span class="text-2xl font-black tracking-tight uppercase">
+      <span class="text-2xl font-black tracking-tight">
         LIBER<span style="color: var(--color-primary);">H4CK</span>
       </span>
-      <span v-if="config" class="text-sm font-bold uppercase opacity-80 tracking-widest">
-        {{ formatSofia(config.event_start, { day: 'numeric' }) }}–{{ formatSofia(config.event_end, { day: 'numeric', month: 'long', year: 'numeric' }) }}
+      <span v-if="config" class="text-sm font-bold tracking-widest">
+        {{ headerDateRange(config.event_start, config.event_end) }}
       </span>
     </header>
 
-    <!-- Main content area -->
-    <main class="relative z-10 flex-1 flex flex-col items-center justify-center px-4 py-8">
+    <!-- Main area -->
+    <main class="flex-1 flex flex-col justify-center">
 
-      <!-- Mode A: NOW PLAYING -->
-      <template v-if="displayMode === 'now-playing' && currentItem">
+      <!-- Active countdown box -->
+      <template v-if="displayMode !== 'wrap'">
         <div
-          class="w-full max-w-2xl flex flex-col items-center gap-4 p-8 text-center"
-          style="background: var(--color-base-100); border: 2px solid var(--color-primary);"
+          class="w-full flex flex-col items-center py-10 gap-3"
+          style="background: var(--color-base-100); border-top: 2px solid var(--color-primary); border-bottom: 2px solid var(--color-primary);"
         >
-          <div class="badge badge-lg font-black uppercase tracking-widest" style="background: var(--color-primary); color: #000;">
-            NOW PLAYING
+          <!-- Mode label -->
+          <div
+            class="text-xs font-black tracking-[0.35em] uppercase"
+            :style="displayMode === 'event-end' ? 'opacity: 0.5' : `color: var(--color-primary)`"
+          >
+            {{ displayMode === 'now-playing' ? 'NOW PLAYING' : displayMode === 'next-up' ? 'NEXT UP' : 'EVENT ENDS IN' }}
           </div>
-          <div class="text-3xl font-black uppercase tracking-tight leading-tight">
-            {{ currentItem.label }}
+
+          <!-- Event name -->
+          <div v-if="activeItem" class="text-4xl md:text-5xl font-black text-center px-8 leading-tight">
+            {{ activeItem.label.toUpperCase() }}
           </div>
-          <div class="text-6xl font-black tabular-nums" style="color: var(--color-primary);">
-            {{ formatCountdown(currentItem.ends_at!) }}
+
+          <!-- Day + time -->
+          <div v-if="activeItem" class="text-sm opacity-40 tracking-wider">
+            {{ activeItemTime }}
           </div>
-          <div class="text-xs uppercase tracking-widest opacity-50">time remaining</div>
+
+          <!-- Countdown: DD · HH · MM · SS -->
+          <div v-if="mainCountdown" class="flex items-end justify-center mt-4 gap-1 md:gap-3">
+            <div class="flex flex-col items-center gap-2">
+              <span class="text-[4.5rem] md:text-[8rem] font-black leading-none tabular-nums">{{ mainCountdown.d }}</span>
+              <span class="text-[0.6rem] tracking-[0.25em] uppercase opacity-40">DAYS</span>
+            </div>
+            <span class="text-[3.5rem] md:text-[6rem] font-black leading-none pb-7" style="color: var(--color-primary);">·</span>
+            <div class="flex flex-col items-center gap-2">
+              <span class="text-[4.5rem] md:text-[8rem] font-black leading-none tabular-nums">{{ mainCountdown.h }}</span>
+              <span class="text-[0.6rem] tracking-[0.25em] uppercase opacity-40">HRS</span>
+            </div>
+            <span class="text-[3.5rem] md:text-[6rem] font-black leading-none pb-7" style="color: var(--color-primary);">·</span>
+            <div class="flex flex-col items-center gap-2">
+              <span class="text-[4.5rem] md:text-[8rem] font-black leading-none tabular-nums">{{ mainCountdown.m }}</span>
+              <span class="text-[0.6rem] tracking-[0.25em] uppercase opacity-40">MIN</span>
+            </div>
+            <span class="text-[3.5rem] md:text-[6rem] font-black leading-none pb-7" style="color: var(--color-primary);">·</span>
+            <div class="flex flex-col items-center gap-2">
+              <span class="text-[4.5rem] md:text-[8rem] font-black leading-none tabular-nums">{{ mainCountdown.s }}</span>
+              <span class="text-[0.6rem] tracking-[0.25em] uppercase opacity-40">SEC</span>
+            </div>
+          </div>
         </div>
 
-        <!-- Next up strip -->
+        <!-- EVENT ENDS IN secondary strip (next-up mode only) -->
         <div
-          v-if="nextItem"
-          class="mt-4 w-full max-w-2xl flex items-center gap-3 px-5 py-3"
-          style="background: var(--color-base-100); border: 2px solid var(--color-primary);"
+          v-if="displayMode === 'next-up' && eventEndCountdown"
+          class="w-full flex items-center px-8 py-4 gap-6 mt-[2px]"
+          style="background: var(--color-base-100); border-top: 2px solid var(--color-primary); border-bottom: 2px solid var(--color-primary);"
         >
-          <div class="badge badge-sm font-bold uppercase tracking-widest shrink-0" style="background: var(--color-primary); color: #000;">
-            NEXT UP
+          <span class="text-xs font-bold tracking-[0.25em] uppercase opacity-40 shrink-0">EVENT ENDS IN</span>
+          <div class="flex items-end gap-1 md:gap-2 ml-auto">
+            <div class="flex flex-col items-center gap-1">
+              <span class="text-xl md:text-2xl font-black tabular-nums" style="color: var(--color-primary);">{{ eventEndCountdown.d }}</span>
+              <span class="text-[0.55rem] tracking-widest uppercase opacity-40">DAYS</span>
+            </div>
+            <span class="text-xl font-black pb-4" style="color: var(--color-primary);">·</span>
+            <div class="flex flex-col items-center gap-1">
+              <span class="text-xl md:text-2xl font-black tabular-nums" style="color: var(--color-primary);">{{ eventEndCountdown.h }}</span>
+              <span class="text-[0.55rem] tracking-widest uppercase opacity-40">HRS</span>
+            </div>
+            <span class="text-xl font-black pb-4" style="color: var(--color-primary);">·</span>
+            <div class="flex flex-col items-center gap-1">
+              <span class="text-xl md:text-2xl font-black tabular-nums" style="color: var(--color-primary);">{{ eventEndCountdown.m }}</span>
+              <span class="text-[0.55rem] tracking-widest uppercase opacity-40">MIN</span>
+            </div>
+            <span class="text-xl font-black pb-4" style="color: var(--color-primary);">·</span>
+            <div class="flex flex-col items-center gap-1">
+              <span class="text-xl md:text-2xl font-black tabular-nums" style="color: var(--color-primary);">{{ eventEndCountdown.s }}</span>
+              <span class="text-[0.55rem] tracking-widest uppercase opacity-40">SEC</span>
+            </div>
           </div>
-          <span class="text-sm font-bold uppercase tracking-wide truncate">{{ nextItem.label }}</span>
-          <span class="text-xs opacity-50 shrink-0 ml-auto">
-            {{ formatSofia(nextItem.starts_at, { hour: '2-digit', minute: '2-digit' }) }}
-          </span>
         </div>
       </template>
 
-      <!-- Mode B: NEXT UP -->
-      <template v-else-if="displayMode === 'next-up' && nextItem">
+      <!-- THAT'S A WRAP -->
+      <template v-else>
         <div
-          class="w-full max-w-2xl flex flex-col items-center gap-4 p-8 text-center"
-          style="background: var(--color-base-100); border: 2px solid var(--color-primary);"
+          class="w-full flex flex-col items-center py-24"
+          style="background: var(--color-base-100); border-top: 2px solid var(--color-primary); border-bottom: 2px solid var(--color-primary);"
         >
-          <div class="badge badge-lg font-black uppercase tracking-widest" style="background: var(--color-primary); color: #000;">
-            NEXT UP
-          </div>
-          <div class="text-3xl font-black uppercase tracking-tight leading-tight">
-            {{ nextItem.label }}
-          </div>
-          <div class="text-6xl font-black tabular-nums" style="color: var(--color-primary);">
-            {{ formatCountdown(nextItem.starts_at) }}
-          </div>
-          <div class="text-xs uppercase tracking-widest opacity-50">starts in</div>
-        </div>
-
-        <!-- Event ends strip -->
-        <div
-          v-if="config"
-          class="mt-4 w-full max-w-2xl flex items-center gap-3 px-5 py-3"
-          style="background: var(--color-base-100); border: 2px solid var(--color-primary);"
-        >
-          <span class="text-xs font-bold uppercase tracking-widest opacity-60 shrink-0">EVENT ENDS IN</span>
-          <span class="text-sm font-black tabular-nums ml-auto" style="color: var(--color-primary);">
-            {{ formatCountdown(config.event_end) }}
-          </span>
-        </div>
-      </template>
-
-      <!-- Mode C: EVENT ENDS IN -->
-      <template v-else-if="displayMode === 'event-end' && config">
-        <div
-          class="w-full max-w-2xl flex flex-col items-center gap-4 p-8 text-center"
-          style="background: var(--color-base-100); border: 2px solid var(--color-primary);"
-        >
-          <div class="text-sm font-bold uppercase tracking-widest opacity-60">EVENT ENDS IN</div>
-          <div class="text-7xl font-black tabular-nums" style="color: var(--color-primary);">
-            {{ formatCountdown(config.event_end) }}
-          </div>
-        </div>
-      </template>
-
-      <!-- Mode C: WRAP -->
-      <template v-else-if="displayMode === 'wrap'">
-        <div
-          class="w-full max-w-2xl flex flex-col items-center gap-6 p-10 text-center"
-          style="background: var(--color-base-100); border: 2px solid var(--color-primary);"
-        >
-          <div class="text-5xl font-black uppercase tracking-tight" style="color: var(--color-primary);">
+          <div class="text-6xl font-black uppercase tracking-tight" style="color: var(--color-primary);">
             THAT'S A WRAP
           </div>
-          <div class="text-sm uppercase tracking-widest opacity-60 font-bold">
+          <div class="text-sm uppercase tracking-widest opacity-40 mt-4 font-bold">
             Thanks for hacking with us.
           </div>
         </div>
       </template>
-
     </main>
 
-    <!-- Announcement ticker (fixed bottom) -->
+    <!-- Announcement ticker -->
     <footer
       v-if="currentAnnouncement"
-      class="relative z-10 flex items-center gap-4 px-6 py-3"
+      class="flex items-center gap-4 px-6 py-3 shrink-0"
       style="background: var(--color-base-100); border-top: 2px solid var(--color-primary);"
     >
-      <div class="badge badge-sm font-black uppercase tracking-widest shrink-0" style="background: var(--color-primary); color: #000;">
+      <div
+        class="px-3 py-1 text-xs font-black uppercase tracking-widest shrink-0"
+        style="background: var(--color-primary); color: #000;"
+      >
         ANNOUNCEMENTS
       </div>
       <span class="text-sm font-bold flex-1 truncate">{{ currentAnnouncement.body }}</span>
