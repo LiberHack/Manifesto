@@ -46,7 +46,7 @@ One migration adds three tables.
 
 **RLS:** All three tables are public-read (no auth required). Writes require `role = 'admin'` in the `participants` table (same pattern as existing admin endpoints).
 
-**Seed data:** Migration preseeds `event_config` and all schedule items from the provided programme (Bulgarian labels, June 5–7 2026 datetimes).
+**Seed data:** Migration preseeds `event_config` and all schedule items from the provided programme (Bulgarian labels, June 5–7 2026 datetimes stored as UTC — e.g. 16:00 Sofia = 13:00 UTC in summer/EEST).
 
 ---
 
@@ -80,6 +80,8 @@ One migration adds three tables.
 
 `server/utils/liveStream.ts` holds a module-level `Set<ReadableStreamDefaultController>`. Every admin mutation endpoint calls `broadcastLive()` after a successful DB write, which pushes the fresh full payload to all connected controllers. Works within a single Node process (single container deploy). The `/live` page's `EventSource` receives the update and replaces reactive state without a page reload.
 
+**Connection cleanup:** `stream.get.ts` must listen for client disconnect via the request's `close` event (Nitro: `event.node.req.on('close', cleanup)`). The cleanup function removes the controller from the Set and calls `controller.close()` if not already closed. In `broadcastLive()`, any `enqueue()` that throws (e.g. controller already closed) must catch the error and remove that controller from the Set to prevent unbounded growth.
+
 ---
 
 ## 3. `/live` Page
@@ -98,17 +100,29 @@ One migration adds three tables.
 ### Layout (top→bottom, full viewport height)
 
 1. **Header bar** — "LIBER**H4CK**" left (accent on H4CK), event date range right. Both from `event_config`.
-2. **Main area** — flex-1, two modes:
-   - **During event (next item exists):** Large "NEXT UP" box with event label + countdown; secondary "EVENT ENDS IN" strip below.
-   - **No next item / post-event:** Full-screen countdown to `event_end`; "THAT'S A WRAP" when `event_end` is past.
+2. **Main area** — flex-1, three modes in priority order:
+   - **NOW PLAYING** (current item): `starts_at <= now AND ends_at > now`. Large box shows "NOW PLAYING" label + event name + countdown to `ends_at`. Secondary strip shows "NEXT UP" preview (next item label only, no countdown).
+   - **NEXT UP** (between items, no current): first item where `starts_at > now`. Large box shows "NEXT UP" + label + countdown to `starts_at`. Secondary "EVENT ENDS IN" strip below.
+   - **No items remaining / post-event:** Full-screen countdown to `event_end`; "THAT'S A WRAP" when `event_end` is past.
 3. **Announcement ticker** — bottom bar, cycles through `announcements` by `sort_order` at 6s intervals. Shows `ANNOUNCEMENTS` label badge + text + `n/total` counter.
+
+**Note:** Schedule items without `ends_at` are treated as point-in-time — they are never "NOW PLAYING" and become past once `starts_at <= now`.
+
+### Timezone display
+
+All timestamps are stored as UTC in Supabase. Display formatting must use `Europe/Sofia` (EEST, UTC+3 in summer) everywhere — header date range, schedule item times, event config datetimes in the admin panel. Use `Intl.DateTimeFormat` with `{ timeZone: 'Europe/Sofia' }` rather than relying on the host system's locale.
+
+### Clock drift correction
+
+`/api/live/data` includes `serverTime: new Date().toISOString()` in its response. On mount, the client computes `serverTimeOffset = Date.parse(serverTime) - Date.now()` and adds this offset to all `new Date()` calls in `getNextEvent()` and countdown calculations. This corrects for TV/display devices that have drifted clocks.
 
 ### Data flow
 
-- `useFetch('/api/live/data')` provides initial state (SSR-compatible).
-- On client mount: `new EventSource('/api/live/stream')` opened. Each `message` event replaces `config`, `schedule`, `announcements` refs. On `beforeUnmount`, `eventSource.close()`.
-- Countdown ticker runs via `setInterval` at 1s, purely client-side.
-- `getNextEvent()` picks the first `schedule_item` where `starts_at > now`.
+- `useFetch('/api/live/data')` provides initial state (SSR-compatible), including `serverTime` for drift correction.
+- On client mount: `new EventSource('/api/live/stream')` opened. Each `message` event replaces `config`, `schedule`, `announcements` refs atomically. State replacement must guard against empty payloads — only replace if the incoming data is non-null/non-empty, preventing a flash of empty UI during reconnect.
+- On server restart, SSE reconnects automatically (browser native retry). Until it reconnects, the last-known state remains visible — no blank screen.
+- Countdown ticker runs via `setInterval` at 1s, purely client-side, using the drift-corrected clock.
+- On `beforeUnmount`: `eventSource.close()`.
 
 ---
 
@@ -124,14 +138,18 @@ Single form: event name (text input), start datetime, end datetime. "Save" butto
 ### Schedule
 - Table: Label, Starts at, Ends at, drag handle.
 - Drag-and-drop reordering via `vue-draggable-plus` (`VueDraggable` component, `v-model` on items array).
-- On drag end: POST `/api/admin/live/schedule/reorder` with updated `sort_order` values.
+- On drag end: POST `/api/admin/live/schedule/reorder`. While the request is in flight, the list is disabled (pointer-events: none + opacity) to prevent a second drag triggering a race condition. Re-enable on response.
 - Inline add-row form at the bottom (label, starts_at, ends_at optional) → POST `/api/admin/live/schedule`.
 - Each row: inline edit toggle + Delete button.
 
 ### Announcements
-- Same drag-and-drop pattern as Schedule.
+- Same drag-and-drop pattern as Schedule, same reorder lock behaviour.
 - Simpler: body text + drag handle.
 - Add form at bottom. Edit inline. Delete per row.
+
+### SSE loopback isolation
+
+The admin panel does **not** open an `EventSource` connection. It fetches its own data via the existing REST endpoints and refreshes on mutation. This prevents SSE broadcasts (triggered by its own writes) from clobbering in-progress form state or causing cursor jumps mid-edit.
 
 All mutations broadcast via SSE → `/live` screen reflects changes within ~1s.
 
