@@ -178,16 +178,17 @@ onBeforeUnmount(() => {
 
 <template>
   <div
-    class="font-cygrotesk min-h-screen w-full flex flex-col"
+    class="font-cygrotesk min-h-screen w-full flex flex-col items-center"
     style="background-image: url('/index.webp'); background-size: cover; background-position: center;"
   >
+  <div class="w-full max-w-7xl flex flex-col min-h-screen">
     <!-- Header -->
     <header
       class="flex items-center justify-between px-6 py-4 shrink-0"
-      style="background: var(--color-base-100); border-bottom: 2px solid var(--color-primary);"
+      style="background: var(--color-base-100); border: 2px solid var(--color-primary);"
     >
-      <span class="text-2xl font-black tracking-tight">
-        LIBER<span style="color: var(--color-primary);">H4CK</span>
+      <span class="text-2xl font-cy tracking-tight">
+        L1BERH4CK
       </span>
       <span v-if="config" class="text-sm font-bold tracking-widest">
         {{ headerDateRange(config.event_start, config.event_end) }}
@@ -201,14 +202,14 @@ onBeforeUnmount(() => {
       <template v-if="displayMode !== 'wrap'">
         <div
           class="w-full flex flex-col items-center py-10 gap-3"
-          style="background: var(--color-base-100); border-top: 2px solid var(--color-primary); border-bottom: 2px solid var(--color-primary);"
+          style="background: var(--color-base-100); border: 2px solid var(--color-primary);"
         >
           <!-- Mode label -->
           <div
             class="text-xs font-black tracking-[0.35em] uppercase"
-            :style="displayMode === 'event-end' ? 'opacity: 0.5' : `color: var(--color-primary)`"
+            :style="displayMode === 'event-end' ? 'opacity: 0.65' : `color: var(--color-primary)`"
           >
-            {{ displayMode === 'now-playing' ? 'NOW PLAYING' : displayMode === 'next-up' ? 'NEXT UP' : 'EVENT ENDS IN' }}
+            {{ displayMode === 'now-playing' ? 'NOW PLAYING' : displayMode === 'next-up' ? 'NEXT UP' : 'DEV TIME ENDS IN' }}
           </div>
 
           <!-- Event name -->
@@ -217,7 +218,7 @@ onBeforeUnmount(() => {
           </div>
 
           <!-- Day + time -->
-          <div v-if="activeItem" class="text-sm opacity-40 tracking-wider">
+          <div v-if="activeItem" class="text-sm opacity-60 tracking-wider">
             {{ activeItemTime }}
           </div>
 
@@ -225,52 +226,74 @@ onBeforeUnmount(() => {
           <div v-if="mainCountdown" class="flex items-end justify-center mt-4 gap-1 md:gap-3">
             <div class="flex flex-col items-center gap-2">
               <span class="text-[4.5rem] md:text-[8rem] font-black leading-none tabular-nums">{{ mainCountdown.d }}</span>
-              <span class="text-[0.6rem] tracking-[0.25em] uppercase opacity-40">DAYS</span>
+              <span class="text-[0.6rem] tracking-[0.25em] uppercase opacity-60">DAYS</span>
             </div>
             <span class="text-[3.5rem] md:text-[6rem] font-black leading-none pb-7" style="color: var(--color-primary);">·</span>
             <div class="flex flex-col items-center gap-2">
               <span class="text-[4.5rem] md:text-[8rem] font-black leading-none tabular-nums">{{ mainCountdown.h }}</span>
-              <span class="text-[0.6rem] tracking-[0.25em] uppercase opacity-40">HRS</span>
+              <span class="text-[0.6rem] tracking-[0.25em] uppercase opacity-60">HRS</span>
             </div>
             <span class="text-[3.5rem] md:text-[6rem] font-black leading-none pb-7" style="color: var(--color-primary);">·</span>
             <div class="flex flex-col items-center gap-2">
               <span class="text-[4.5rem] md:text-[8rem] font-black leading-none tabular-nums">{{ mainCountdown.m }}</span>
-              <span class="text-[0.6rem] tracking-[0.25em] uppercase opacity-40">MIN</span>
+              <span class="text-[0.6rem] tracking-[0.25em] uppercase opacity-60">MIN</span>
             </div>
             <span class="text-[3.5rem] md:text-[6rem] font-black leading-none pb-7" style="color: var(--color-primary);">·</span>
             <div class="flex flex-col items-center gap-2">
               <span class="text-[4.5rem] md:text-[8rem] font-black leading-none tabular-nums">{{ mainCountdown.s }}</span>
-              <span class="text-[0.6rem] tracking-[0.25em] uppercase opacity-40">SEC</span>
+              <span class="text-[0.6rem] tracking-[0.25em] uppercase opacity-60">SEC</span>
             </div>
           </div>
         </div>
 
-        <!-- EVENT ENDS IN secondary strip (next-up mode only) -->
+        <!-- Secondary strip: NEXT UP (during now-playing) or DEV TIME ENDS IN (during next-up) -->
         <div
-          v-if="displayMode === 'next-up' && eventEndCountdown"
-          class="w-full flex items-center px-8 py-4 gap-6 mt-[2px]"
-          style="background: var(--color-base-100); border-top: 2px solid var(--color-primary); border-bottom: 2px solid var(--color-primary);"
+          v-if="displayMode === 'now-playing' && nextItem"
+          class="w-full flex flex-col items-center px-8 py-3 gap-2 mt-[2px]"
+          style="background: var(--color-base-100); border: 2px solid var(--color-primary);"
         >
-          <span class="text-xs font-bold tracking-[0.25em] uppercase opacity-40 shrink-0">EVENT ENDS IN</span>
-          <div class="flex items-end gap-1 md:gap-2 ml-auto">
+          <span class="text-xs font-bold tracking-[0.25em] uppercase">
+            <span class="opacity-60">NEXT UP —</span> {{ nextItem.label.toUpperCase() }}
+          </span>
+          <div class="flex items-center gap-2 md:gap-3">
+            <span class="text-lg md:text-xl font-black tabular-nums" style="color: var(--color-primary);">{{ countdown(nextItem.starts_at).d }}</span>
+            <span class="text-sm font-black opacity-40">D</span>
+            <span class="text-lg md:text-xl font-black" style="color: var(--color-primary);">·</span>
+            <span class="text-lg md:text-xl font-black tabular-nums" style="color: var(--color-primary);">{{ countdown(nextItem.starts_at).h }}</span>
+            <span class="text-sm font-black opacity-40">H</span>
+            <span class="text-lg md:text-xl font-black" style="color: var(--color-primary);">·</span>
+            <span class="text-lg md:text-xl font-black tabular-nums" style="color: var(--color-primary);">{{ countdown(nextItem.starts_at).m }}</span>
+            <span class="text-sm font-black opacity-40">M</span>
+            <span class="text-lg md:text-xl font-black" style="color: var(--color-primary);">·</span>
+            <span class="text-lg md:text-xl font-black tabular-nums" style="color: var(--color-primary);">{{ countdown(nextItem.starts_at).s }}</span>
+            <span class="text-sm font-black opacity-40">S</span>
+          </div>
+        </div>
+        <div
+          v-else-if="displayMode === 'next-up' && eventEndCountdown"
+          class="w-full flex flex-col items-center px-8 py-4 gap-3 mt-[2px]"
+          style="background: var(--color-base-100); border: 2px solid var(--color-primary);"
+        >
+          <span class="text-xs font-bold tracking-[0.25em] uppercase opacity-60">DEV TIME ENDS IN</span>
+          <div class="flex items-end gap-1 md:gap-2">
             <div class="flex flex-col items-center gap-1">
               <span class="text-xl md:text-2xl font-black tabular-nums" style="color: var(--color-primary);">{{ eventEndCountdown.d }}</span>
-              <span class="text-[0.55rem] tracking-widest uppercase opacity-40">DAYS</span>
+              <span class="text-[0.55rem] tracking-widest uppercase opacity-60">DAYS</span>
             </div>
             <span class="text-xl font-black pb-4" style="color: var(--color-primary);">·</span>
             <div class="flex flex-col items-center gap-1">
               <span class="text-xl md:text-2xl font-black tabular-nums" style="color: var(--color-primary);">{{ eventEndCountdown.h }}</span>
-              <span class="text-[0.55rem] tracking-widest uppercase opacity-40">HRS</span>
+              <span class="text-[0.55rem] tracking-widest uppercase opacity-60">HRS</span>
             </div>
             <span class="text-xl font-black pb-4" style="color: var(--color-primary);">·</span>
             <div class="flex flex-col items-center gap-1">
               <span class="text-xl md:text-2xl font-black tabular-nums" style="color: var(--color-primary);">{{ eventEndCountdown.m }}</span>
-              <span class="text-[0.55rem] tracking-widest uppercase opacity-40">MIN</span>
+              <span class="text-[0.55rem] tracking-widest uppercase opacity-60">MIN</span>
             </div>
             <span class="text-xl font-black pb-4" style="color: var(--color-primary);">·</span>
             <div class="flex flex-col items-center gap-1">
               <span class="text-xl md:text-2xl font-black tabular-nums" style="color: var(--color-primary);">{{ eventEndCountdown.s }}</span>
-              <span class="text-[0.55rem] tracking-widest uppercase opacity-40">SEC</span>
+              <span class="text-[0.55rem] tracking-widest uppercase opacity-60">SEC</span>
             </div>
           </div>
         </div>
@@ -280,12 +303,12 @@ onBeforeUnmount(() => {
       <template v-else>
         <div
           class="w-full flex flex-col items-center py-24"
-          style="background: var(--color-base-100); border-top: 2px solid var(--color-primary); border-bottom: 2px solid var(--color-primary);"
+          style="background: var(--color-base-100); border: 2px solid var(--color-primary);"
         >
           <div class="text-6xl font-black uppercase tracking-tight" style="color: var(--color-primary);">
             THAT'S A WRAP
           </div>
-          <div class="text-sm uppercase tracking-widest opacity-40 mt-4 font-bold">
+          <div class="text-sm uppercase tracking-widest opacity-60 mt-4 font-bold">
             Thanks for hacking with us.
           </div>
         </div>
@@ -296,7 +319,7 @@ onBeforeUnmount(() => {
     <footer
       v-if="currentAnnouncement"
       class="flex items-center gap-4 px-6 py-3 shrink-0"
-      style="background: var(--color-base-100); border-top: 2px solid var(--color-primary);"
+      style="background: var(--color-base-100); border: 2px solid var(--color-primary);"
     >
       <div
         class="px-3 py-1 text-xs font-black uppercase tracking-widest shrink-0"
@@ -305,9 +328,10 @@ onBeforeUnmount(() => {
         ANNOUNCEMENTS
       </div>
       <span class="text-sm font-bold flex-1 truncate">{{ currentAnnouncement.body }}</span>
-      <span class="text-xs opacity-40 shrink-0 tabular-nums font-bold">
+      <span class="text-xs opacity-60 shrink-0 tabular-nums font-bold">
         {{ (announcementIndex % announcements.length) + 1 }}/{{ announcements.length }}
       </span>
     </footer>
+  </div>
   </div>
 </template>

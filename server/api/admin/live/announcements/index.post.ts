@@ -4,7 +4,21 @@ import { broadcastLive } from '#server/utils/liveStream'
 export default defineEventHandler(async (event) => {
   const { supabase } = await requireAdmin(event)
   const body = await readBody(event)
-  const { data, error } = await supabase.from('announcements').insert(body).select().single()
+
+  const { data: existing } = await supabase
+    .from('announcements')
+    .select('sort_order')
+    .order('sort_order', { ascending: false })
+    .limit(1)
+    .single()
+
+  const sort_order = existing ? existing.sort_order + 1 : 1
+
+  const { data, error } = await supabase
+    .from('announcements')
+    .insert({ ...body, sort_order })
+    .select()
+    .single()
   if (error) throw createError({ statusCode: 500, message: error.message })
   await broadcastLive()
   return data
