@@ -26,14 +26,33 @@
     </div>
 
     <div
+      class="w-full flex flex-row justify-center align-middle items-center gap-8 p-8"
+    >
+      <div class="flex flex-col items-center gap-4">
+        <ViewProgramme />
+        <NuxtLink
+          to="/reglament"
+          class="text-sm underline opacity-60 hover:opacity-100"
+        >
+          прочети регламента →
+        </NuxtLink>
+      </div>
+      <NuxtImg
+        preload
+        src="/eyes.webp"
+        class="bg-base-100/90 border-primary border-4 w-xs hidden md:block lg:w-md"
+      />
+    </div>
+
+    <div
       class="w-full flex flex-col md:flex-row items-center justify-center gap-5"
     >
+      <NuxtImg
+        preload
+        src="/holy.webp"
+        class="bg-base-100/90 border-primary border-4 w-xs lg:w-md"
+      />
       <div class="flex flex-col gap-4 w-sm md:w-lg bg-base-100/70 p-4">
-        <!-- <div
-          class="text-2xl lg:text-5xl font-bold text-center text-shadow-lg/80 text-shadow-4 gap-2"
-        >
-          About
-        </div> -->
         <div class="text-lg lg:text-4xl text-center flex flex-col gap-2">
           <span class="text-2xl lg:text-4xl">Build, pitch, and ship.</span>
           <span class="block text-xl"
@@ -41,11 +60,6 @@
           >
         </div>
       </div>
-      <NuxtImg
-        preload
-        src="/holy.webp"
-        class="bg-base-100/90 border-primary border-4 w-xs lg:w-md"
-      />
     </div>
 
     <div
@@ -111,25 +125,6 @@
         <p class="text-xl text-center px-2">
           + Best projects in each category receive an €100 prize.
         </p>
-      </div>
-    </div>
-
-    <div
-      class="w-full flex flex-row justify-center align-middle items-center gap-8 p-8"
-    >
-      <NuxtImg
-        preload
-        src="/eyes.webp"
-        class="bg-base-100/90 border-primary border-4 w-xs hidden md:block lg:w-md"
-      />
-      <div class="flex flex-col items-center gap-4">
-        <RegisterNow />
-        <NuxtLink
-          to="/reglament"
-          class="text-sm underline opacity-60 hover:opacity-100"
-        >
-          прочети регламента →
-        </NuxtLink>
       </div>
     </div>
 
