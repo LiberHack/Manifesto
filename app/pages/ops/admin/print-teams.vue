@@ -12,6 +12,7 @@ const { data: teams } = await useFetch<{ id: string; name: string }[]>("/api/adm
       class="team-page"
     >
       <span class="team-name">{{ team.name }}</span>
+      <img src="/images/Liberhack_Logo_Bright_nobg.png" class="logo" alt="LiberHack" />
     </div>
   </div>
 </template>
@@ -37,8 +38,17 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
   page-break-after: always;
   break-after: page;
+}
+
+.logo {
+  position: absolute;
+  bottom: 12mm;
+  left: 12mm;
+  height: 42mm;
+  width: auto;
 }
 
 .team-page:last-child {
@@ -72,19 +82,4 @@ body {
   }
 }
 
-@media print {
-  @page {
-    size: A4 landscape;
-    margin: 0;
-  }
-
-  .print-root {
-    display: block;
-  }
-
-  .team-page {
-    width: 100%;
-    height: 100vh;
-  }
-}
 </style>
