@@ -32,8 +32,8 @@ body {
 }
 
 .team-page {
-  width: 210mm;
-  height: 297mm;
+  width: 297mm;
+  height: 210mm;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -74,7 +74,7 @@ body {
 
 @media print {
   @page {
-    size: A4 portrait;
+    size: A4 landscape;
     margin: 0;
   }
 
