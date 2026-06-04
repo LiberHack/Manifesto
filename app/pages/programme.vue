@@ -17,11 +17,23 @@ useSeoMeta({ title: "Програма — LiberHack" });
     <div
       class="flex flex-col gap-4 bg-base-100/80 border-primary border-4 p-6 md:p-10"
     >
-      <h1
-        class="text-4xl md:text-6xl font-bold text-shadow-lg/80 text-shadow-4 break-words"
-      >
-        Програма
-      </h1>
+      <div class="flex items-start justify-between gap-4 flex-wrap">
+        <h1
+          class="text-4xl md:text-6xl font-bold text-shadow-lg/80 text-shadow-4 break-words"
+        >
+          Програма
+        </h1>
+        <div class="flex flex-col items-end gap-1 shrink-0">
+          <NuxtLink
+            to="/live"
+            class="px-5 py-2 font-black uppercase tracking-widest text-sm text-black transition-colors"
+            style="background: var(--color-primary);"
+          >
+            → LIVE
+          </NuxtLink>
+          <span class="text-[0.65rem] uppercase tracking-widest opacity-60 font-bold">Следи на живо</span>
+        </div>
+      </div>
       <p class="text-xl md:text-2xl opacity-80">
         5, 6 и 7 юни &mdash; ~48 часа от петък следобед до неделя на обяд.
       </p>
