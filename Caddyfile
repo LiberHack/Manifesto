@@ -7,6 +7,10 @@
   }
 
   {$DOMAIN} {
+      handle /images/* {
+          root * /opt/librehack/public
+          file_server
+      }
       reverse_proxy app:3000
   }
 
