@@ -12,7 +12,7 @@ const { data: teams } = await useFetch<{ id: string; name: string }[]>("/api/adm
       class="team-page"
     >
       <span class="team-name">{{ team.name }}</span>
-      <img src="/images/Liberhack_Logo_Bright_nobg.png" class="logo" alt="LiberHack" />
+      <img src="/Liberhack_Logo_Bright_nobg.png" class="logo" alt="LiberHack" />
     </div>
   </div>
 </template>
