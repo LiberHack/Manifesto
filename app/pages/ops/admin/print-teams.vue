@@ -32,7 +32,7 @@ body {
 }
 
 .team-page {
-  width: 297mm;
+  width: 100%;
   height: 210mm;
   display: flex;
   align-items: center;
