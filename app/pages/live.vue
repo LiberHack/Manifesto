@@ -184,13 +184,13 @@ onBeforeUnmount(() => {
   <div class="w-full max-w-7xl flex flex-col min-h-screen">
     <!-- Header -->
     <header
-      class="flex items-center justify-between px-6 py-4 shrink-0"
+      class="flex flex-col sm:flex-row sm:items-center sm:justify-between px-6 py-4 gap-1 sm:gap-0 shrink-0"
       style="background: var(--color-base-100); border: 2px solid var(--color-primary);"
     >
       <span class="text-2xl font-cy tracking-tight">
         L1BERH4CK
       </span>
-      <span v-if="config" class="text-sm font-bold tracking-widest">
+      <span v-if="config" class="text-xs sm:text-sm font-bold tracking-widest opacity-80 sm:opacity-100">
         {{ headerDateRange(config.event_start, config.event_end) }}
       </span>
     </header>
@@ -213,7 +213,7 @@ onBeforeUnmount(() => {
           </div>
 
           <!-- Event name -->
-          <div v-if="activeItem" class="text-4xl md:text-5xl font-black text-center px-8 leading-tight">
+          <div v-if="activeItem" class="text-2xl sm:text-4xl md:text-5xl font-black text-center px-8 leading-tight">
             {{ activeItem.label.toUpperCase() }}
           </div>
 
@@ -223,25 +223,25 @@ onBeforeUnmount(() => {
           </div>
 
           <!-- Countdown: DD · HH · MM · SS -->
-          <div v-if="mainCountdown" class="flex items-end justify-center mt-4 gap-1 md:gap-3">
-            <div class="flex flex-col items-center gap-2">
-              <span class="text-[4.5rem] md:text-[8rem] font-black leading-none tabular-nums">{{ mainCountdown.d }}</span>
-              <span class="text-[0.6rem] tracking-[0.25em] uppercase opacity-60">DAYS</span>
+          <div v-if="mainCountdown" class="flex flex-col sm:flex-row sm:items-end justify-center mt-4 gap-0 sm:gap-1 md:gap-3 w-full px-8 sm:px-0">
+            <div class="flex sm:flex-col items-center sm:items-center justify-between sm:justify-start gap-2 py-2 sm:py-0 border-b sm:border-b-0 last:border-b-0" style="border-color: color-mix(in srgb, var(--color-primary) 20%, transparent)">
+              <span class="text-[0.6rem] tracking-[0.25em] uppercase opacity-60 w-10 sm:w-auto sm:order-last">DAYS</span>
+              <span class="text-[4rem] sm:text-[4.5rem] md:text-[8rem] font-black leading-none tabular-nums">{{ mainCountdown.d }}</span>
             </div>
-            <span class="text-[3.5rem] md:text-[6rem] font-black leading-none pb-7" style="color: var(--color-primary);">·</span>
-            <div class="flex flex-col items-center gap-2">
-              <span class="text-[4.5rem] md:text-[8rem] font-black leading-none tabular-nums">{{ mainCountdown.h }}</span>
-              <span class="text-[0.6rem] tracking-[0.25em] uppercase opacity-60">HRS</span>
+            <span class="hidden sm:block text-[3.5rem] md:text-[6rem] font-black leading-none pb-7" style="color: var(--color-primary);">·</span>
+            <div class="flex sm:flex-col items-center sm:items-center justify-between sm:justify-start gap-2 py-2 sm:py-0 border-b sm:border-b-0 last:border-b-0" style="border-color: color-mix(in srgb, var(--color-primary) 20%, transparent)">
+              <span class="text-[0.6rem] tracking-[0.25em] uppercase opacity-60 w-10 sm:w-auto sm:order-last">HRS</span>
+              <span class="text-[4rem] sm:text-[4.5rem] md:text-[8rem] font-black leading-none tabular-nums">{{ mainCountdown.h }}</span>
             </div>
-            <span class="text-[3.5rem] md:text-[6rem] font-black leading-none pb-7" style="color: var(--color-primary);">·</span>
-            <div class="flex flex-col items-center gap-2">
-              <span class="text-[4.5rem] md:text-[8rem] font-black leading-none tabular-nums">{{ mainCountdown.m }}</span>
-              <span class="text-[0.6rem] tracking-[0.25em] uppercase opacity-60">MIN</span>
+            <span class="hidden sm:block text-[3.5rem] md:text-[6rem] font-black leading-none pb-7" style="color: var(--color-primary);">·</span>
+            <div class="flex sm:flex-col items-center sm:items-center justify-between sm:justify-start gap-2 py-2 sm:py-0 border-b sm:border-b-0 last:border-b-0" style="border-color: color-mix(in srgb, var(--color-primary) 20%, transparent)">
+              <span class="text-[0.6rem] tracking-[0.25em] uppercase opacity-60 w-10 sm:w-auto sm:order-last">MIN</span>
+              <span class="text-[4rem] sm:text-[4.5rem] md:text-[8rem] font-black leading-none tabular-nums">{{ mainCountdown.m }}</span>
             </div>
-            <span class="text-[3.5rem] md:text-[6rem] font-black leading-none pb-7" style="color: var(--color-primary);">·</span>
-            <div class="flex flex-col items-center gap-2">
-              <span class="text-[4.5rem] md:text-[8rem] font-black leading-none tabular-nums">{{ mainCountdown.s }}</span>
-              <span class="text-[0.6rem] tracking-[0.25em] uppercase opacity-60">SEC</span>
+            <span class="hidden sm:block text-[3.5rem] md:text-[6rem] font-black leading-none pb-7" style="color: var(--color-primary);">·</span>
+            <div class="flex sm:flex-col items-center sm:items-center justify-between sm:justify-start gap-2 py-2 sm:py-0">
+              <span class="text-[0.6rem] tracking-[0.25em] uppercase opacity-60 w-10 sm:w-auto sm:order-last">SEC</span>
+              <span class="text-[4rem] sm:text-[4.5rem] md:text-[8rem] font-black leading-none tabular-nums">{{ mainCountdown.s }}</span>
             </div>
           </div>
         </div>
@@ -305,7 +305,7 @@ onBeforeUnmount(() => {
           class="w-full flex flex-col items-center py-24"
           style="background: var(--color-base-100); border: 2px solid var(--color-primary);"
         >
-          <div class="text-6xl font-black uppercase tracking-tight" style="color: var(--color-primary);">
+          <div class="text-4xl sm:text-6xl font-black uppercase tracking-tight text-center px-4" style="color: var(--color-primary);">
             THAT'S A WRAP
           </div>
           <div class="text-sm uppercase tracking-widest opacity-60 mt-4 font-bold">
@@ -318,17 +318,22 @@ onBeforeUnmount(() => {
     <!-- Announcement ticker -->
     <footer
       v-if="currentAnnouncement"
-      class="flex items-center gap-4 px-6 py-3 shrink-0"
+      class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 px-6 py-3 shrink-0"
       style="background: var(--color-base-100); border: 2px solid var(--color-primary);"
     >
-      <div
-        class="px-3 py-1 text-xs font-black uppercase tracking-widest shrink-0"
-        style="background: var(--color-primary); color: #000;"
-      >
-        ANNOUNCEMENTS
+      <div class="flex items-center gap-3 sm:gap-4">
+        <div
+          class="px-2 py-0.5 text-[0.6rem] font-black uppercase tracking-widest shrink-0"
+          style="background: var(--color-primary); color: #000;"
+        >
+          ANNOUNCE
+        </div>
+        <span class="text-xs opacity-60 shrink-0 tabular-nums font-bold sm:hidden">
+          {{ (announcementIndex % announcements.length) + 1 }}/{{ announcements.length }}
+        </span>
       </div>
-      <span class="text-sm font-bold flex-1 truncate">{{ currentAnnouncement.body }}</span>
-      <span class="text-xs opacity-60 shrink-0 tabular-nums font-bold">
+      <span class="text-sm font-bold flex-1">{{ currentAnnouncement.body }}</span>
+      <span class="text-xs opacity-60 shrink-0 tabular-nums font-bold hidden sm:block">
         {{ (announcementIndex % announcements.length) + 1 }}/{{ announcements.length }}
       </span>
     </footer>
