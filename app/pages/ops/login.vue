@@ -89,6 +89,11 @@ async function login() {
         No account?
         <NuxtLink to="/ops/register" class="link">Register</NuxtLink>
       </p>
+      <p class="text-sm text-center">
+        <NuxtLink to="/ops/forgot-password" class="link"
+          >Forgot password?</NuxtLink
+        >
+      </p>
     </form>
   </main>
 </template>
