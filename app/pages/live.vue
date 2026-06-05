@@ -214,6 +214,7 @@ onBeforeUnmount(() => {
 <template>
   <div
     class="font-cygrotesk flex-1 w-full flex flex-col p-4 sm:p-6 md:p-8 overflow-hidden"
+    :class="currentAnnouncement ? 'pb-28 sm:pb-24' : ''"
   >
     <main
       class="flex-1 flex flex-col items-center justify-center w-full overflow-y-auto gap-4 py-2"
@@ -422,7 +423,7 @@ onBeforeUnmount(() => {
 
     <footer
       v-if="currentAnnouncement"
-      class="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 px-6 py-3 shrink-0 w-full bg-base-100 border-2 border-primary mt-2"
+      class="fixed bottom-0 inset-x-0 z-50 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 px-6 py-3 shrink-0 bg-base-100 border-2 border-primary"
     >
       <div class="flex items-center gap-3 sm:gap-4">
         <div
