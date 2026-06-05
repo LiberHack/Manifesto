@@ -58,9 +58,49 @@
       <p class="text-base md:text-lg leading-relaxed">
         Всяко предизвикателство носи своя специална награда в допълнение към основното класиране.
       </p>
-      <div class="bg-primary/10 border-primary border-2 p-4 mt-2">
-        <p class="text-lg font-bold text-center">
-          Предизвикателствата ще бъдат обявени на официалното откриване на 5 юни.
+      <p class="text-sm opacity-70">
+        Ако вашата идея не попада в нито едно от тях, но е достатъчно гневна, честна и работеща, също сте на правилното място.
+      </p>
+
+      <!-- Challenge 4.1 -->
+      <div class="flex flex-col gap-3 border-l-2 border-primary pl-4 mt-2">
+        <h3 class="text-xl font-bold">4.1. Държавен ремонт <span class="opacity-60 font-normal">(The System Roast)</span></h3>
+        <p class="text-base md:text-lg leading-relaxed opacity-80">
+          Българската държавна администрация онлайн изглежда като 15 различни страни, залепени с тиксо. Всеки сайт — различен шрифт, различна логика, различна степен на нефункционалност. Тези сайтове не са само грозни — те активно пречат на хората да свършат работата си.
+        </p>
+        <p class="text-base md:text-lg leading-relaxed">
+          <strong>Задачата:</strong> Вземете 2–3 от най-ужасните съществуващи държавни сайта и ги преправете изцяло. Не козметични промени — пълен ремонт на UX и визията. По-добра навигация, четима типография, достъпност, работещи на мобилно. Покажете публично контраста.
+        </p>
+        <p class="text-base md:text-lg leading-relaxed opacity-80">
+          <strong>Краен продукт:</strong> Работещи фронтенд прототипи на реновираните сайтове. Презентацията е Roast — безпощадно сравнение преди и след, с конкретни примери защо оригиналът е провал.
+        </p>
+      </div>
+
+      <!-- Challenge 4.2 -->
+      <div class="flex flex-col gap-3 border-l-2 border-primary pl-4 mt-2">
+        <h3 class="text-xl font-bold">4.2. Оръжия за прозрачност <span class="opacity-60 font-normal">(Weaponized Transparency)</span></h3>
+        <p class="text-base md:text-lg leading-relaxed opacity-80">
+          Данните съществуват. Проблемът е, че са скрити в сканирани PDF-и, бюрократични регистри и таблици, за които трябва специализиран софтуер от 2003 г. Институциите не лъжат директно — просто публикуват информацията така, че никой нормален човек да не може да я прочете.
+        </p>
+        <p class="text-base md:text-lg leading-relaxed">
+          <strong>Задачата:</strong> Изградете инструмент, който извлича, анализира и визуализира тези данни така, че да стане невъзможно да бъдат игнорирани — разходи на общината, качество на въздуха, резултати от обществени поръчки.
+        </p>
+        <p class="text-base md:text-lg leading-relaxed opacity-80">
+          <strong>Краен продукт:</strong> Платформа за данни, интерактивна карта, dashboard или публично API — изградено върху реални данни (Open Data / Scraping).
+        </p>
+      </div>
+
+      <!-- Challenge 4.3 -->
+      <div class="flex flex-col gap-3 border-l-2 border-primary pl-4 mt-2">
+        <h3 class="text-xl font-bold">4.3. Свидетелят <span class="opacity-60 font-normal">(The Anonymous Signal)</span></h3>
+        <p class="text-base md:text-lg leading-relaxed opacity-80">
+          Има неща, които хората знаят, но не могат да кажат с името си. Корупция, нередности, счупени процеси. Проблемът не е липса на информация — проблемът е, че истината без анонимност е твърде скъпа.
+        </p>
+        <p class="text-base md:text-lg leading-relaxed">
+          <strong>Задачата:</strong> Изградете сигурна платформа за събиране, верификация и усилване на анонимни сигнали. Централното предизвикателство е парадоксът на доверието: как да отличите истинския сигнал от спама, без да жертвате сигурността на подателя?
+        </p>
+        <p class="text-base md:text-lg leading-relaxed opacity-80">
+          <strong>Краен продукт:</strong> Работещ прототип — автоматично премахване на метаданни, криптиране или иновативен механизъм за краудсорс верификация на достоверността.
         </p>
       </div>
     </section>
