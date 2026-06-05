@@ -10,7 +10,7 @@
     </div>
 
     <!-- 1. Philosophy -->
-    <section class="flex flex-col gap-4 bg-base-100/70 border-primary border-l-4 pl-6 py-4">
+    <section id="filosofiya" class="flex flex-col gap-4 bg-base-100/70 border-primary border-l-4 pl-6 py-4">
       <h2 class="text-2xl md:text-3xl font-bold">01. Философия</h2>
       <p class="text-base md:text-lg leading-relaxed">
         LiberHack не е поредното място, където се прави „иновация". Тук имаш разрешение да бъдеш гневен, смешен и честен.
@@ -21,7 +21,7 @@
     </section>
 
     <!-- 2. Participants -->
-    <section class="flex flex-col gap-4 bg-base-100/70 border-primary border-l-4 pl-6 py-4">
+    <section id="uchastnitsi" class="flex flex-col gap-4 bg-base-100/70 border-primary border-l-4 pl-6 py-4">
       <h2 class="text-2xl md:text-3xl font-bold">02. Участници</h2>
       <p class="text-base md:text-lg leading-relaxed">
         LiberHack е за младежи от <strong>14 до 25 години</strong>, подредени в отбори от <strong>2 до 6 души</strong>.
@@ -35,7 +35,7 @@
     </section>
 
     <!-- 3. Theme -->
-    <section class="flex flex-col gap-4 bg-base-100/70 border-primary border-l-4 pl-6 py-4">
+    <section id="tema" class="flex flex-col gap-4 bg-base-100/70 border-primary border-l-4 pl-6 py-4">
       <h2 class="text-2xl md:text-3xl font-bold">03. Основна тема</h2>
       <p class="text-xl font-bold">Социално въздействие и граждански технологии — но направете го пънк.</p>
       <p class="text-base md:text-lg leading-relaxed">
@@ -50,7 +50,7 @@
     </section>
 
     <!-- 4. Challenges -->
-    <section class="flex flex-col gap-4 bg-base-100/70 border-primary border-l-4 pl-6 py-4">
+    <section id="predizvikatelstva" class="flex flex-col gap-4 bg-base-100/70 border-primary border-l-4 pl-6 py-4">
       <h2 class="text-2xl md:text-3xl font-bold">04. Предизвикателства</h2>
       <p class="text-base md:text-lg leading-relaxed">
         Изберете едно от предизвикателствата или работете по собствена идея, стига да е в духа на LiberHack: реален продукт, реален проблем, реална България. Никакви безсъдържателни слайдове, никакви хиляди пъти дъвкани концепции.
@@ -63,7 +63,7 @@
       </p>
 
       <!-- Challenge 4.1 -->
-      <div class="flex flex-col gap-3 border-l-2 border-primary pl-4 mt-2">
+      <div id="darzhaven-remont" class="flex flex-col gap-3 border-l-2 border-primary pl-4 mt-2">
         <h3 class="text-xl font-bold">4.1. Държавен ремонт <span class="opacity-60 font-normal">(The System Roast)</span></h3>
         <p class="text-base md:text-lg leading-relaxed opacity-80">
           Българската държавна администрация онлайн изглежда като 15 различни страни, залепени с тиксо. Всеки сайт — различен шрифт, различна логика, различна степен на нефункционалност. Тези сайтове не са само грозни — те активно пречат на хората да свършат работата си.
@@ -77,7 +77,7 @@
       </div>
 
       <!-- Challenge 4.2 -->
-      <div class="flex flex-col gap-3 border-l-2 border-primary pl-4 mt-2">
+      <div id="orazhiya-za-prozrachnost" class="flex flex-col gap-3 border-l-2 border-primary pl-4 mt-2">
         <h3 class="text-xl font-bold">4.2. Оръжия за прозрачност <span class="opacity-60 font-normal">(Weaponized Transparency)</span></h3>
         <p class="text-base md:text-lg leading-relaxed opacity-80">
           Данните съществуват. Проблемът е, че са скрити в сканирани PDF-и, бюрократични регистри и таблици, за които трябва специализиран софтуер от 2003 г. Институциите не лъжат директно — просто публикуват информацията така, че никой нормален човек да не може да я прочете.
@@ -91,7 +91,7 @@
       </div>
 
       <!-- Challenge 4.3 -->
-      <div class="flex flex-col gap-3 border-l-2 border-primary pl-4 mt-2">
+      <div id="svidetelat" class="flex flex-col gap-3 border-l-2 border-primary pl-4 mt-2">
         <h3 class="text-xl font-bold">4.3. Свидетелят <span class="opacity-60 font-normal">(The Anonymous Signal)</span></h3>
         <p class="text-base md:text-lg leading-relaxed opacity-80">
           Има неща, които хората знаят, но не могат да кажат с името си. Корупция, нередности, счупени процеси. Проблемът не е липса на информация — проблемът е, че истината без анонимност е твърде скъпа.
@@ -106,7 +106,7 @@
     </section>
 
     <!-- 5. Rules -->
-    <section class="flex flex-col gap-4 bg-base-100/70 border-primary border-l-4 pl-6 py-4">
+    <section id="pravila" class="flex flex-col gap-4 bg-base-100/70 border-primary border-l-4 pl-6 py-4">
       <h2 class="text-2xl md:text-3xl font-bold">05. Правила за разработка</h2>
       <ul class="flex flex-col gap-4 text-base md:text-lg">
         <li class="flex flex-col gap-0.5">
@@ -133,7 +133,7 @@
     </section>
 
     <!-- 6. Judging -->
-    <section class="flex flex-col gap-6 bg-base-100/70 border-primary border-l-4 pl-6 py-4">
+    <section id="kriterii" class="flex flex-col gap-6 bg-base-100/70 border-primary border-l-4 pl-6 py-4">
       <h2 class="text-2xl md:text-3xl font-bold">06. Критерии за оценяване</h2>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div class="border-primary border-2 p-4 flex flex-col gap-2">
@@ -168,7 +168,7 @@
     </section>
 
     <!-- 7. Schedule -->
-    <section class="flex flex-col gap-4 bg-base-100/70 border-primary border-l-4 pl-6 py-4">
+    <section id="programa" class="flex flex-col gap-4 bg-base-100/70 border-primary border-l-4 pl-6 py-4">
       <h2 class="text-2xl md:text-3xl font-bold">07. Програма</h2>
       <p class="text-base opacity-80">5, 6 и 7 юни — от петък следобед до неделя на обяд (~48 часа)</p>
       <div class="overflow-x-auto">
@@ -218,7 +218,7 @@
     </section>
 
     <!-- 8. Mentors -->
-    <section class="flex flex-col gap-4 bg-base-100/70 border-primary border-l-4 pl-6 py-4">
+    <section id="mentori" class="flex flex-col gap-4 bg-base-100/70 border-primary border-l-4 pl-6 py-4">
       <h2 class="text-2xl md:text-3xl font-bold">08. Ментори</h2>
       <p class="text-base md:text-lg leading-relaxed">
         По време на хакатона ще има достъпни ментори — разработчици, дизайнери, журналисти и граждански активисти.
@@ -231,7 +231,7 @@
     </section>
 
     <!-- 9. Registration -->
-    <section class="flex flex-col gap-4 bg-base-100/70 border-primary border-l-4 pl-6 py-4">
+    <section id="registratsiya" class="flex flex-col gap-4 bg-base-100/70 border-primary border-l-4 pl-6 py-4">
       <h2 class="text-2xl md:text-3xl font-bold">09. Регистрация</h2>
       <ul class="flex flex-col gap-2 text-base md:text-lg">
         <li>→ Регистрацията се извършва чрез <strong>онлайн форма</strong> на сайта.</li>
@@ -242,7 +242,7 @@
     </section>
 
     <!-- 10. Awards -->
-    <section class="flex flex-col gap-4 bg-base-100/70 border-primary border-l-4 pl-6 py-4">
+    <section id="nagradi" class="flex flex-col gap-4 bg-base-100/70 border-primary border-l-4 pl-6 py-4">
       <h2 class="text-2xl md:text-3xl font-bold">10. Награди</h2>
       <div class="flex flex-col gap-4">
         <div>
@@ -277,7 +277,7 @@
     </section>
 
     <!-- 11. Jury -->
-    <section class="flex flex-col gap-4 bg-base-100/70 border-primary border-l-4 pl-6 py-4">
+    <section id="zhuri" class="flex flex-col gap-4 bg-base-100/70 border-primary border-l-4 pl-6 py-4">
       <h2 class="text-2xl md:text-3xl font-bold">11. Жури</h2>
       <p class="text-base md:text-lg leading-relaxed">
         Проектите се оценяват от <strong>независимо жури</strong> от специалисти в областите технологии, дизайн, журналистика и гражданско общество.
@@ -290,7 +290,7 @@
     </section>
 
     <!-- 12. IP -->
-    <section class="flex flex-col gap-4 bg-base-100/70 border-primary border-l-4 pl-6 py-4">
+    <section id="ip" class="flex flex-col gap-4 bg-base-100/70 border-primary border-l-4 pl-6 py-4">
       <h2 class="text-2xl md:text-3xl font-bold">12. Интелектуална собственост</h2>
       <p class="text-base md:text-lg leading-relaxed">
         Всичко, което създадете, си остава <strong>ваше</strong>. Задължаваме Open Source лицензи, защото бунтът е по-силен, когато може да бъде продължен от следващия.
@@ -301,7 +301,7 @@
     </section>
 
     <!-- 13. General -->
-    <section class="flex flex-col gap-4 bg-base-100/70 border-primary border-l-4 pl-6 py-4">
+    <section id="obshti-razporedbi" class="flex flex-col gap-4 bg-base-100/70 border-primary border-l-4 pl-6 py-4">
       <h2 class="text-2xl md:text-3xl font-bold">13. Общи разпоредби</h2>
       <ul class="flex flex-col gap-2 text-base md:text-lg">
         <li>→ Участието в LiberHack означава пълно съгласие с настоящия регламент.</li>
