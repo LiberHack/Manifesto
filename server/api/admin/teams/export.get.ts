@@ -8,6 +8,8 @@ const COLUMNS = [
   "member_count",
   "member_names",
   "member_emails",
+  "leader_name",
+  "leader_email",
   "created_at",
 ] as const;
 
@@ -25,7 +27,7 @@ export default defineEventHandler(async (event) => {
 
   const { data, error } = await supabase
     .from("teams")
-    .select("id, name, description, skills_wanted, created_at, members:participants(name, email)")
+    .select("id, name, description, skills_wanted, created_at, leader_id, members:participants(id, name, email)")
     .order("created_at", { ascending: true });
 
   if (error) {
@@ -35,7 +37,8 @@ export default defineEventHandler(async (event) => {
   const rows = [
     COLUMNS.join(","),
     ...(data ?? []).map((team) => {
-      const members = (team.members as { name: string; email: string }[]) ?? [];
+      const members = (team.members as { id: string; name: string; email: string }[]) ?? [];
+      const leader = members.find((m) => m.id === team.leader_id);
       return [
         escapeCsv(team.id),
         escapeCsv(team.name),
@@ -44,6 +47,8 @@ export default defineEventHandler(async (event) => {
         escapeCsv(members.length),
         escapeCsv(members.map((m) => m.name)),
         escapeCsv(members.map((m) => m.email)),
+        escapeCsv(leader?.name ?? ""),
+        escapeCsv(leader?.email ?? ""),
         escapeCsv(team.created_at),
       ].join(",");
     }),
