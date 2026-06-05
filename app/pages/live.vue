@@ -270,7 +270,7 @@ onBeforeUnmount(() => {
           </div>
         </div>
         <div
-          v-else-if="displayMode === 'next-up' && eventEndCountdown"
+          v-else-if="eventEndCountdown"
           class="w-full flex flex-col items-center px-8 py-4 gap-3 mt-[2px]"
           style="background: var(--color-base-100); border: 2px solid var(--color-primary);"
         >
