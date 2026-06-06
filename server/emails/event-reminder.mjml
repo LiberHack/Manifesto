@@ -1,0 +1,158 @@
+<mjml lang="bg">
+  <mj-head>
+    <mj-title>LiberHack ИДВА</mj-title>
+    <mj-preview>ДНЕС избухваме с LiberHack и те чакаме с целия ти отбор.</mj-preview>
+    <mj-attributes>
+      <mj-all font-family="'Courier New', Courier, monospace" />
+      <mj-text color="#f0f0f0" font-size="14px" line-height="22px" padding="0 32px" />
+      <mj-section background-color="#191919" padding="0" />
+    </mj-attributes>
+    <mj-html-attributes>
+      <mj-selector path=".email-heading div">
+        <mj-html-attribute name="role">heading</mj-html-attribute>
+        <mj-html-attribute name="aria-level">1</mj-html-attribute>
+      </mj-selector>
+    </mj-html-attributes>
+  </mj-head>
+  <mj-body background-color="#191919" width="600px">
+
+    <mj-section padding="32px 0 0 0">
+      <mj-column>
+        <mj-text font-size="11px" color="#d946ef" font-weight="bold" letter-spacing="4px" padding="0 32px">
+          LIBERHACK
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="10px 0">
+      <mj-column>
+        <mj-divider border-color="#d946ef" border-width="2px" padding="0 32px" />
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="4px 0 0 0">
+      <mj-column>
+        <mj-text css-class="email-heading" font-size="20px" font-weight="bold" letter-spacing="2px" padding="0 32px 20px 32px">
+          LIBERHACK ИДВА
+        </mj-text>
+        <mj-text padding="0 32px 16px 32px">
+          Хей, <strong style="color:#d946ef">{{LEADER_NAME}}</strong>,
+        </mj-text>
+        <mj-text padding="0 32px 16px 32px">
+          ДНЕС избухваме с LiberHack и те чакаме с целия ти отбор.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="16px 0 0 0">
+      <mj-column>
+        <mj-divider border-color="#2a2a2a" border-width="1px" padding="0 32px" />
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="16px 0 0 0">
+      <mj-column>
+        <mj-text font-size="11px" color="#d946ef" font-weight="bold" letter-spacing="3px" padding="0 32px 10px 32px">
+          КАКВО ТРЯБВА ДА ДОВЛЕЧЕТЕ
+        </mj-text>
+        <mj-text padding="0 32px 10px 32px">
+          <strong>- Лаптопи</strong> — всеки сам си носи машината, ясно е.
+        </mj-text>
+        <mj-text padding="0 32px 10px 32px">
+          <strong>- Разклонители</strong> — сериозно, вземете колкото можете. Токът никога не стига.
+        </mj-text>
+        <mj-text padding="0 32px 10px 32px">
+          <strong>- Заряд и хъс</strong> — кодът е от вас, другото от нас.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="16px 0 0 0">
+      <mj-column>
+        <mj-divider border-color="#2a2a2a" border-width="1px" padding="0 32px" />
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="16px 0 0 0">
+      <mj-column>
+        <mj-text font-size="11px" color="#d946ef" font-weight="bold" letter-spacing="3px" padding="0 32px 10px 32px">
+          КАКВО ПРЕДОСТАВЯМЕ
+        </mj-text>
+        <mj-text padding="0 32px 16px 32px">
+          Храна, вода и тонове кафе. Няма да останете гладни или заспали.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="16px 0 0 0">
+      <mj-column>
+        <mj-divider border-color="#2a2a2a" border-width="1px" padding="0 32px" />
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="16px 0 0 0">
+      <mj-column>
+        <mj-text padding="0 32px 16px 32px">
+          Моля, прочетете <a href="https://liberhack.org/reglament" style="color:#d946ef">регламента</a> преди събитието, ако още не сте го направили.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="16px 0 0 0">
+      <mj-column>
+        <mj-divider border-color="#2a2a2a" border-width="1px" padding="0 32px" />
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="16px 0 0 0">
+      <mj-column>
+        <mj-button
+          href="https://liberhack.org/programme"
+          background-color="#d946ef"
+          color="#ffffff"
+          font-family="'Courier New', Courier, monospace"
+          font-size="12px"
+          font-weight="bold"
+          letter-spacing="2px"
+          border-radius="0px"
+          inner-padding="14px 28px"
+          align="left"
+          padding="0 32px">
+          ВИЖ ПРОГРАМАТА ТУК →
+        </mj-button>
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="32px 0 0 0">
+      <mj-column>
+        <mj-divider border-color="#2a2a2a" border-width="1px" padding="0 32px" />
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="16px 0 4px 0">
+      <mj-column>
+        <mj-text padding="0 32px 4px 32px">
+          Идвайте готови. Време е да готвим.
+        </mj-text>
+        <mj-text padding="8px 32px 0 32px" color="#888888" font-size="13px">
+          С нетърпение,<br />Екипът на LiberHack
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="24px 0 0 0">
+      <mj-column>
+        <mj-divider border-color="#2a2a2a" border-width="1px" padding="0 32px" />
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="12px 0 28px 0">
+      <mj-column>
+        <mj-text font-size="11px" color="#444444" padding="0 32px">
+          LiberHack · Получаваш това, защото си лидер на отбор.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+  </mj-body>
+</mjml>
