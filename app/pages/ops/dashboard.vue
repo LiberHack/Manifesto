@@ -97,6 +97,35 @@ async function leaveTeam() {
   leavingTeam.value = false;
 }
 
+// ── Project repo ──────────────────────────────────────────────────────────────
+const repoUrl = ref("");
+const repoSaving = ref(false);
+const repoMessage = ref("");
+
+watch(
+  () => me.value?.team,
+  (team) => {
+    if (team) repoUrl.value = team.github_url ?? "";
+  },
+  { immediate: true },
+);
+
+async function saveRepo() {
+  repoSaving.value = true;
+  repoMessage.value = "";
+  try {
+    await $fetch(`/api/teams/${me.value.team.id}/github-url`, {
+      method: "PATCH",
+      body: { github_url: repoUrl.value || null },
+    });
+    await refreshMe();
+    repoMessage.value = "Saved!";
+  } catch (e: any) {
+    repoMessage.value = e.data?.message ?? "Something went wrong";
+  }
+  repoSaving.value = false;
+}
+
 // ── Invite link ───────────────────────────────────────────────────────────────
 const copyingInvite = ref(false);
 const rotatingInvite = ref(false);
@@ -153,7 +182,7 @@ async function logout() {
       </div>
 
       <!-- Profile -->
-      <section v-if="me">
+      <section v-if="me" id="profile">
         <h2 class="text-xl font-bold mb-3">Profile</h2>
         <p class="mb-1"><strong>Name:</strong> {{ me.name }}</p>
         <p class="mb-2"><strong>Email:</strong> {{ me.email }}</p>
@@ -205,7 +234,7 @@ async function logout() {
 
       <!-- Has team -->
       <section v-if="me?.team" class="space-y-8">
-        <section>
+        <section id="your-team">
           <div class="flex items-center justify-between gap-4 flex-wrap">
             <h2 class="text-xl font-bold">Your Team</h2>
             <button
@@ -244,7 +273,7 @@ async function logout() {
           </div>
         </section>
 
-        <section v-if="isLeader">
+        <section v-if="isLeader" id="edit-team">
           <h2 class="text-xl font-bold mb-3">Edit Team</h2>
 
           <label class="form-control mb-3">
@@ -280,12 +309,12 @@ async function logout() {
           </button>
         </section>
 
-        <section v-if="isLeader">
+        <section v-if="isLeader" id="pending-requests">
           <h2 class="text-xl font-bold mb-2">Pending requests</h2>
           <ManageRequests />
         </section>
 
-        <section>
+        <section id="invite-link">
           <h2 class="text-xl font-bold mb-3">Invite Link</h2>
           <p class="text-sm opacity-60 mb-3">
             Share this link to invite people directly to your team.
@@ -311,8 +340,34 @@ async function logout() {
             {{ inviteCopyMessage }}
           </p>
         </section>
+
+        <section id="project-repo">
+          <h2 class="text-xl font-bold mb-3">Project Repo</h2>
+          <p class="text-sm opacity-60 mb-3">Link your team's GitHub repository.</p>
+          <input
+            v-model="repoUrl"
+            type="text"
+            maxlength="500"
+            placeholder="https://github.com/your-team/your-project"
+            class="input input-bordered w-full mb-3"
+          />
+          <div
+            v-if="repoMessage"
+            class="text-sm mb-2"
+            :class="repoMessage === 'Saved!' ? 'text-success' : 'text-error'"
+          >
+            {{ repoMessage }}
+          </div>
+          <button
+            class="btn btn-sm btn-outline font-black uppercase"
+            :disabled="repoSaving"
+            @click="saveRepo"
+          >
+            {{ repoSaving ? "Saving…" : "Save Repo" }}
+          </button>
+        </section>
       </section>
-      <section v-else>
+      <section v-else id="no-team">
         <h2 class="text-xl font-bold mb-2">No Team Yet</h2>
         <div class="flex flex-col md:flex-row gap-3">
           <NuxtLink to="/ops/teams" class="btn btn-primary btn-sm font-black uppercase">
@@ -324,7 +379,7 @@ async function logout() {
         </div>
       </section>
 
-      <section v-if="me?.role === 'admin'">
+      <section v-if="me?.role === 'admin'" id="admin">
         <NuxtLink to="/ops/admin" class="btn btn-warning btn-sm font-black uppercase">
           Admin Panel
         </NuxtLink>
