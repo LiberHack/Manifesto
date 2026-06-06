@@ -5,6 +5,17 @@ const route = useRoute();
 const { data: team } = await useFetch<any>(`/api/teams/${route.params.id}`);
 const { data: me } = await useFetch<any>("/api/me");
 
+const safeRepoUrl = computed(() => {
+  const url = team.value?.github_url;
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" || parsed.protocol === "http:" ? url : null;
+  } catch {
+    return null;
+  }
+});
+
 const sending = ref(false);
 const message = ref("");
 
@@ -65,6 +76,16 @@ async function sendRequest() {
           </div>
         </li>
       </ul>
+
+      <div v-if="safeRepoUrl" class="mt-6">
+        <h2 class="text-xl font-bold mb-1">Project Repo</h2>
+        <a
+          :href="safeRepoUrl"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="link link-primary break-all"
+        >{{ team.github_url }}</a>
+      </div>
 
       <div class="mt-8">
         <div

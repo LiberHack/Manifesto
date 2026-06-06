@@ -62,17 +62,19 @@ const showAnnouncements = ref(true)
 
 // ── Event Config ─────────────────────────────────────────────────────────────
 interface EventConfig {
-  event_name:  string
-  event_start: string | null
-  event_end:   string | null
+  event_name:         string
+  event_start:        string | null
+  event_end:          string | null
+  github_urls_public: boolean
 }
 
 const { data: rawConfig, refresh: refreshConfig } = await useFetch<EventConfig>("/api/admin/live/config")
 
 const configForm = ref({
-  event_name:  rawConfig.value?.event_name  ?? '',
-  event_start: toSofiaLocal(rawConfig.value?.event_start ?? null),
-  event_end:   toSofiaLocal(rawConfig.value?.event_end   ?? null),
+  event_name:         rawConfig.value?.event_name         ?? '',
+  event_start:        toSofiaLocal(rawConfig.value?.event_start ?? null),
+  event_end:          toSofiaLocal(rawConfig.value?.event_end   ?? null),
+  github_urls_public: rawConfig.value?.github_urls_public ?? false,
 })
 
 const configSaving = ref(false)
@@ -83,9 +85,10 @@ async function saveConfig() {
     await $fetch('/api/admin/live/config', {
       method: 'PATCH',
       body: {
-        event_name:  configForm.value.event_name,
-        event_start: configForm.value.event_start ? fromSofiaLocal(configForm.value.event_start) : null,
-        event_end:   configForm.value.event_end   ? fromSofiaLocal(configForm.value.event_end)   : null,
+        event_name:         configForm.value.event_name,
+        event_start:        configForm.value.event_start ? fromSofiaLocal(configForm.value.event_start) : null,
+        event_end:          configForm.value.event_end   ? fromSofiaLocal(configForm.value.event_end)   : null,
+        github_urls_public: configForm.value.github_urls_public,
       },
     })
     await refreshConfig()
@@ -291,6 +294,14 @@ async function addAnnouncement() {
                   class="input input-bordered input-sm w-full"
                 />
               </div>
+            </div>
+            <div class="flex items-center gap-3">
+              <label class="text-sm font-semibold opacity-70">Show project repos</label>
+              <input
+                v-model="configForm.github_urls_public"
+                type="checkbox"
+                class="toggle toggle-primary"
+              />
             </div>
             <button
               class="btn btn-primary btn-sm"
