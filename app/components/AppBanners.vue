@@ -11,12 +11,16 @@ const { data: me } = await useFetch<any>(
 
 const isLeader = computed(() => me.value?.team?.leader_id === me.value?.id);
 
-const profileBannerDismissed = ref(false);
-const teamEditBannerDismissed = ref(false);
+const profileBannerDismissed = ref(true);
+const teamEditBannerDismissed = ref(true);
 
 onMounted(() => {
-  profileBannerDismissed.value = !!localStorage.getItem("profile_banner_dismissed");
-  teamEditBannerDismissed.value = !!localStorage.getItem("team_edit_banner_dismissed");
+  profileBannerDismissed.value = !!localStorage.getItem(
+    "profile_banner_dismissed",
+  );
+  teamEditBannerDismissed.value = !!localStorage.getItem(
+    "team_edit_banner_dismissed",
+  );
 });
 
 const showProfileBanner = computed(
@@ -47,10 +51,15 @@ function dismissTeamEditBanner() {
     class="flex justify-between items-start gap-3 border-b-2 border-warning bg-base-100 text-sm font-bold py-2 px-4"
   >
     <span>
-      Missing profile info — Help us plan catering and workshops by filling in your
-      <NuxtLink to="/ops/dashboard" class="underline">dietary requirements and experience level</NuxtLink>.
+      Missing profile info — Help us plan catering and workshops by filling in
+      your
+      <NuxtLink to="/ops/dashboard" class="underline"
+        >dietary requirements and experience level</NuxtLink
+      >.
     </span>
-    <button class="btn btn-ghost btn-xs shrink-0" @click="dismissProfileBanner">✕</button>
+    <button class="btn btn-ghost btn-xs shrink-0" @click="dismissProfileBanner">
+      ✕
+    </button>
   </div>
 
   <div
@@ -61,6 +70,11 @@ function dismissTeamEditBanner() {
       New: You can now edit your team's description and wanted skills from the
       <NuxtLink to="/ops/dashboard" class="underline">dashboard</NuxtLink>.
     </span>
-    <button class="btn btn-ghost btn-xs shrink-0" @click="dismissTeamEditBanner">✕</button>
+    <button
+      class="btn btn-ghost btn-xs shrink-0"
+      @click="dismissTeamEditBanner"
+    >
+      ✕
+    </button>
   </div>
 </template>
