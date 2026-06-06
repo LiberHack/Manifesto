@@ -164,6 +164,26 @@ const currentAnnouncement = computed(() => {
   ];
 });
 
+const footerRef = ref<HTMLElement | null>(null);
+const footerHeight = ref(0);
+let footerObserver: ResizeObserver | null = null;
+
+watch(footerRef, (el) => {
+  if (footerObserver) {
+    footerObserver.disconnect();
+    footerObserver = null;
+  }
+  if (el) {
+    footerObserver = new ResizeObserver(() => {
+      footerHeight.value = el.offsetHeight;
+    });
+    footerObserver.observe(el);
+    footerHeight.value = el.offsetHeight;
+  } else {
+    footerHeight.value = 0;
+  }
+});
+
 let countdownInterval: ReturnType<typeof setInterval> | null = null;
 let announcementInterval: ReturnType<typeof setInterval> | null = null;
 let eventSource: EventSource | null = null;
@@ -208,13 +228,13 @@ onBeforeUnmount(() => {
   if (countdownInterval) clearInterval(countdownInterval);
   if (announcementInterval) clearInterval(announcementInterval);
   if (eventSource) eventSource.close();
+  if (footerObserver) footerObserver.disconnect();
 });
 </script>
 
 <template>
   <div
     class="font-cygrotesk flex-1 w-full flex flex-col p-4 sm:p-6 md:p-8 overflow-hidden"
-    :class="currentAnnouncement ? 'pb-28 sm:pb-24' : ''"
   >
     <main
       class="flex-1 flex flex-col items-center justify-center w-full overflow-y-auto gap-4 py-2"
@@ -353,7 +373,7 @@ onBeforeUnmount(() => {
         </div>
 
         <div
-          v-else-if="eventEndCountdown"
+          v-else-if="eventEndCountdown && displayMode !== 'event-end'"
           class="w-full max-w-5xl flex flex-col items-center px-8 py-3 gap-2 bg-base-100 border-2 border-primary shrink-0"
         >
           <span class="text-xs font-bold tracking-[0.25em] uppercase opacity-60"
@@ -421,8 +441,16 @@ onBeforeUnmount(() => {
       </template>
     </main>
 
+    <div
+      v-if="currentAnnouncement"
+      aria-hidden="true"
+      class="shrink-0"
+      :style="{ height: footerHeight + 'px' }"
+    />
+
     <footer
       v-if="currentAnnouncement"
+      ref="footerRef"
       class="fixed bottom-0 inset-x-0 z-50 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 px-6 py-3 shrink-0 bg-base-100 border-2 border-primary"
     >
       <div class="flex items-center gap-3 sm:gap-4">
