@@ -1,6 +1,6 @@
 <script setup lang="ts">
 const { data: page } = await useAsyncData("programme", () =>
-  queryCollection("programme").path("/programme").first()
+  queryCollection("programme").path("/programme").first(),
 );
 
 if (!page.value) {
@@ -19,7 +19,7 @@ useSeoMeta({ title: "Програма — LiberHack" });
     >
       <div class="flex items-start justify-between gap-4 flex-wrap">
         <h1
-          class="text-4xl md:text-6xl font-bold text-shadow-lg/80 text-shadow-4 break-words"
+          class="text-4xl md:text-6xl font-bold text-shadow-lg/80 text-shadow-4 wrap-break-word"
         >
           Програма
         </h1>
@@ -27,15 +27,18 @@ useSeoMeta({ title: "Програма — LiberHack" });
           <NuxtLink
             to="/live"
             class="px-5 py-2 font-black uppercase tracking-widest text-sm text-black transition-colors"
-            style="background: var(--color-primary);"
+            style="background: var(--color-primary)"
           >
             → LIVE
           </NuxtLink>
-          <span class="text-[0.65rem] uppercase tracking-widest opacity-60 font-bold">Следи на живо</span>
+          <span
+            class="text-[0.65rem] uppercase tracking-widest opacity-60 font-bold"
+            >Следи на живо</span
+          >
         </div>
       </div>
       <p class="text-xl md:text-2xl opacity-80">
-        5, 6 и 7 юни &mdash; ~48 часа от петък следобед до неделя на обяд.
+        5, 6 и 7 юни - ~48 часа от петък следобед до неделя на обяд.
       </p>
     </div>
 
@@ -43,17 +46,7 @@ useSeoMeta({ title: "Програма — LiberHack" });
       <ContentRenderer
         v-if="page"
         :value="page"
-        class="
-          prose prose-invert max-w-none
-          prose-headings:font-black prose-headings:uppercase prose-headings:tracking-tight
-          prose-h2:text-primary prose-h2:border-b-2 prose-h2:border-primary prose-h2:pb-2 prose-h2:mt-10
-          prose-table:border-collapse prose-table:w-full
-          prose-th:border prose-th:border-primary/60 prose-th:p-3 prose-th:bg-primary/20 prose-th:text-left
-          prose-td:border prose-td:border-primary/30 prose-td:p-3
-          prose-tr:even:bg-base-100/60
-          prose-strong:text-primary
-          prose-a:text-primary prose-a:no-underline hover:prose-a:underline
-        "
+        class="prose prose-invert max-w-none prose-headings:font-black prose-headings:uppercase prose-headings:tracking-tight prose-h2:text-primary prose-h2:border-b-2 prose-h2:border-primary prose-h2:pb-2 prose-h2:mt-10 prose-table:border-collapse prose-table:w-full prose-th:border prose-th:border-primary/60 prose-th:p-3 prose-th:bg-primary/20 prose-th:text-left prose-td:border prose-td:border-primary/30 prose-td:p-3 prose-tr:even:bg-base-100/60 prose-strong:text-primary prose-a:text-primary prose-a:no-underline hover:prose-a:underline"
       />
     </div>
 

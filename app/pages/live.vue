@@ -467,9 +467,10 @@ onBeforeUnmount(() => {
           }}
         </span>
       </div>
-      <span class="text-sm font-bold flex-1 truncate sm:whitespace-normal">{{
-        currentAnnouncement.body
-      }}</span>
+      <span
+        class="text-sm font-bold flex-1 whitespace-normal wrap-break-word"
+        >{{ currentAnnouncement.body }}</span
+      >
       <span
         class="text-xs opacity-60 shrink-0 tabular-nums font-bold hidden sm:block"
       >
