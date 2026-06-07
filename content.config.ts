@@ -10,5 +10,9 @@ export default defineContentConfig({
       type: "page",
       source: "programme.md",
     }),
+    order: defineCollection({
+      type: "page",
+      source: "order.md",
+    }),
   },
 });
