@@ -43,6 +43,14 @@ Naming: editions are identified by a **natural key `slug`** (e.g. `2026`,
 `/archive/[slug]`. Foreign keys reference it with `ON UPDATE CASCADE` as a safety
 net. All other tables keep UUID surrogate keys (rationale in the sweep below).
 
+**`ON DELETE` policy (explicit everywhere):** editions are never deleted in normal
+operation, but the schema states intent regardless. Content-bearing references —
+`teams.edition_slug`, `registrations.edition_slug`, `join_requests.edition_slug` —
+use **`ON DELETE RESTRICT`** so an edition holding real data cannot be deleted by
+accident. Owned-config references — `event_config`, `schedule_items`,
+`announcements` — use **`ON DELETE CASCADE`** (meaningless without their edition;
+they vanish only if an already-emptied edition is deliberately removed).
+
 ### New: `editions`
 
 ```
@@ -89,7 +97,7 @@ This is the table the returning-user pre-fill reads from.
 registrations (
   id              uuid primary key default gen_random_uuid(),
   participant_id  uuid not null references participants(id) on delete cascade,
-  edition_slug    text not null references editions(slug) on update cascade on delete cascade,
+  edition_slug    text not null references editions(slug) on update cascade on delete restrict,
   role            participant_role not null default 'participant',  -- participant | leader
   team_id         uuid null references teams(id) on delete set null,
   skills          text[] not null default '{}',
@@ -108,14 +116,14 @@ create index registrations_team_idx on registrations (team_id);
 ```
 teams (
   id                  uuid primary key default gen_random_uuid(),
-  edition_slug        text not null references editions(slug) on update cascade,
+  edition_slug        text not null references editions(slug) on update cascade on delete restrict,
   name                varchar(32) not null,
-  leader_id           uuid not null references auth.users(id) on delete cascade,
+  leader_id           uuid not null references registrations(id) on delete cascade,
   skills_wanted       text[] not null,
   description         varchar(200) null,
   github_url          text null,
   placement           int null,        -- winners: 1/2/3...; null = no placement
-  award               text null,       -- e.g. 'Best Design'; free-form
+  awards              text[] not null default '{}',  -- multiple, free-form: 'Best Design', 'Most Unhinged Codebase'
   presentation_order  int null,        -- replaces content/order.md, per edition
   created_at          timestamptz not null default now()
 )
@@ -126,12 +134,31 @@ create index teams_edition_idx on teams (edition_slug);
 not unique even within one edition (`varchar(32)`, no unique constraint), and get
 renamed — a natural key would have to be both composite and mutable.
 
+**`leader_id → registrations(id)`** (not `auth.users` or `participants`). This is
+consistent with the "never hang app FKs off the `auth` schema" rule *and*
+guarantees at the DB level that a team's leader is actually registered for the
+**same edition the team belongs to**. The leader is simply the `registration` with
+`role = 'leader'` whose `team_id` points back at this team.
+
+**Creation ordering (resolves the teams↔registrations cycle):** `registrations.team_id`
+is nullable, so there is no circular-insert problem. A team is created by:
+(1) ensure the leader's `registration` exists for the edition (`team_id` null);
+(2) `insert into teams (..., leader_id = that registration.id)`;
+(3) `update registrations set team_id = new team.id` for the leader.
+On leader deletion, `on delete cascade` removes the team (replicating today's
+"delete leader → delete team"), and the team deletion sets `team_id = null` on the
+remaining members' registrations.
+
+**`awards text[]`** (not a single `text` or a normalized table): a team often wins
+several awards ("1st Place Overall" *and* "Best Use of Supabase"). An array keeps
+the schema structure-free while natively supporting multiples.
+
 ### Changed: `join_requests`
 
 ```
 join_requests (
   ... existing columns ...,
-  edition_slug  text not null references editions(slug) on update cascade
+  edition_slug  text not null references editions(slug) on update cascade on delete restrict
 )
 ```
 
@@ -150,8 +177,8 @@ event_config (
   event_end     timestamptz not null
 )
 
-schedule_items ( ... existing ..., edition_slug text not null references editions(slug) on update cascade )
-announcements  ( ... existing ..., edition_slug text not null references editions(slug) on update cascade )
+schedule_items ( ... existing ..., edition_slug text not null references editions(slug) on update cascade on delete cascade )
+announcements  ( ... existing ..., edition_slug text not null references editions(slug) on update cascade on delete cascade )
 ```
 
 Each edition owns its own programme; nothing is a global singleton.
@@ -202,8 +229,9 @@ fully-static dormant decision.
 A generator (Nitro task / script) queries Postgres and writes one `archive.json` —
 the showcase dataset and the dormant-mode read source. Per edition it contains:
 
-- **Meta:** slug, name, starts_at, ends_at, participant count, team count.
-- **Teams:** name, description, github_url, placement, award, presentation_order,
+- **Meta:** slug, name, starts_at, ends_at, total participant count, total team
+  count, **`hidden_members` count** (registrations with `public = false`).
+- **Teams:** name, description, github_url, placement, awards, presentation_order,
   and `members: [{ name, skills }]` — **only registrations with `public = true`**.
 
 Runs on close and on demand. The committed `archive.json` is what dormant builds
@@ -211,10 +239,42 @@ consume.
 
 **Privacy:**
 - Per-member opt-out via `registrations.public` (default visible). Non-public
-  members are excluded from the export entirely.
+  members are excluded from the export body entirely, but **counted** in
+  `hidden_members` so the archive page can show e.g. *"+ N participants who opted
+  out of the public archive."* (Counts only — no identifying data.)
+- **LIVE registration UI copy (transparency / GDPR):** the registration form must
+  state visibility explicitly, e.g. *"Your profile and team will be shown in the
+  public showcase."* with a clearly-labelled opt-out:
+  *"[ ] Hide my profile from the public archive."* Default = visible (unchecked).
 - In DORMANT/static mode, a persistent banner on archive pages:
   > *This is an archived edition. To request removal of your data, email
   > **privacy@liberhack.org**.*
+
+### Dormant-mode privacy-drift mechanism (DB ↔ static sync)
+
+During DORMANT the Postgres stack is **off**, so a removal request cannot be
+applied to the DB immediately. Hand-editing `archive.json` alone causes **drift**:
+when Supabase is next booted and a fresh export runs, the deleted person reappears.
+To prevent this, removals are **never** applied by editing `archive.json` directly.
+Instead:
+
+1. **Redaction tooling** — an admin runs a small script
+   `redact <edition_slug> <participant-email-or-id> <mode: hide|delete>` that:
+   - rewrites `archive.json` to drop the member (and increments `hidden_members`),
+     and
+   - appends the request to a git-tracked **`redactions.pending.json`** log
+     (edition, identifier, mode, requested_at).
+   Both changes are committed together, so the queued DB action survives the entire
+   dormant period in version control.
+2. **Reconciliation on boot** — a predeploy/startup step `apply-redactions` runs
+   when Supabase comes back up for the next edition: it reads
+   `redactions.pending.json`, applies each to Postgres (`mode=hide` →
+   `registrations.public = false`; `mode=delete` → delete the registration / the
+   participant + auth user per the request), then moves applied entries to
+   `redactions.applied.json`.
+3. **Export guard** — the exporter **refuses to write a fresh `archive.json` while
+   `redactions.pending.json` is non-empty**, forcing reconciliation before any new
+   export can reintroduce removed data. This closes the drift loop.
 
 ## Site modes & build
 
@@ -224,6 +284,14 @@ consume.
   programme from `archive.json` (+ `@nuxt/content`). `/ops/*` and `/api/*` are
   excluded and replaced by a static "next edition coming soon" page. No Node, no
   Supabase — Caddy serves static files.
+  - **Client auth short-circuit (avoid token churn):** returning visitors may carry
+    stale Supabase tokens in `localStorage`/cookies from the previous live season.
+    The Nuxt Supabase plugin **must skip initialization entirely when
+    `NUXT_PUBLIC_SITE_MODE === 'dormant'`** (no client construction, no session
+    refresh, no API ping) — otherwise it floods the console with connection errors
+    against the shut-down backend and can hang the UI. Because the static build
+    excludes `/ops/*` and `/api/*`, nothing legitimately needs the client; the
+    guard simply makes that explicit and discards/ignores stale sessions.
 - **LIVE:** SSR as today. **Current** edition reads from the DB; **past** editions
   still read from `archive.json` (golden rule).
 
@@ -267,27 +335,37 @@ from `participants` + per-edition fields from `registrations`):
 - `/order` page + admin (reads/writes `teams.presentation_order` instead of
   `content/order.md`).
 - Live CMS admin (`event_config` now per-edition).
+- **Nuxt Supabase client plugin** — short-circuit when `NUXT_PUBLIC_SITE_MODE` is
+  `dormant` (see Site modes).
+- **New tooling** — `archive-export` (DB → `archive.json`, with export guard),
+  `redact` (queue removal + rewrite static), `apply-redactions` (reconcile on boot).
 
 ## Testing
 
-- **Unit:** export serializer (DB rows → `archive.json` shape, including
-  `public = false` exclusion); mode resolver (live edition present/absent + env
-  override); returning-user pre-fill (reads most recent prior registration).
+- **Unit:** export serializer (DB rows → `archive.json` shape; `public = false`
+  excluded from body but counted in `hidden_members`; `awards` array passthrough);
+  mode resolver (live edition present/absent + env override); returning-user
+  pre-fill (reads most recent prior registration); export guard refuses to run
+  while `redactions.pending.json` is non-empty.
 - **Integration:** close → create-draft → go-live empties the live scope while all
   prior-edition data persists; `registrations` uniqueness per
   `(participant_id, edition_slug)`; partial-unique enforces a single current
-  edition.
+  edition; `apply-redactions` applies `hide`/`delete` and drains the pending log;
+  `ON DELETE RESTRICT` blocks deleting an edition that still has teams.
 - **Build:** dormant `bun generate` produces `/archive` + `/archive/[slug]` from a
   fixture `archive.json` **with no Supabase env present**; `/ops/*` and `/api/*`
-  excluded; privacy banner present.
+  excluded; privacy banner present; Supabase plugin does not initialize in dormant
+  mode.
 
 ## Decisions (resolved)
 
 1. **Per-member public opt-out** — included; `registrations.public`, default
-   visible. Non-public members excluded from export.
+   visible. Non-public members excluded from export body, counted in
+   `hidden_members`; LIVE registration UI states visibility + offers opt-out.
 2. **`/order.md`** — migrated into `teams.presentation_order`; markdown retired.
 3. **Mode flag** — derived from live-edition existence, with
-   `NUXT_PUBLIC_SITE_MODE` override.
+   `NUXT_PUBLIC_SITE_MODE` override; Supabase client plugin short-circuits in
+   dormant mode.
 4. **`editions` PK** — natural key `slug` (not `name`).
 5. **Durable identity** — `auth.users.id`, surfaced via the thin `participants`
    mirror (not built directly on the `auth` schema).
@@ -297,6 +375,42 @@ from `participants` + per-edition fields from `registrations`):
    promotes it.
 8. **Static-mode privacy banner** — present; directs removal requests to
    `privacy@liberhack.org`.
+9. **`teams.awards`** — `text[]` (multiple free-form awards per team).
+10. **`teams.leader_id`** — references `registrations(id)` (edition-integrity +
+    consistent with the no-`auth`-FK rule); creation ordering documented.
+11. **`ON DELETE`** — explicit everywhere: `RESTRICT` on content-bearing edition
+    FKs, `CASCADE` on owned-config FKs.
+12. **Dormant privacy-drift** — git-tracked `redactions.pending.json` queue +
+    `apply-redactions` reconciliation on DB boot + export guard.
+13. **Deployment trigger for static rebuild** — **manual runbook** for the first
+    iterations (see Deployment & runbook); automate later once proven.
+
+## Deployment & runbook (transitions between modes)
+
+The archive→static rebuild is a **manual developer runbook** for the first
+iterations (rare, high-consequence; a human reviews the `archive.json` diff before
+it ships). Automation (GitHub Action) is a deliberate fast-follow once the flow has
+run cleanly.
+
+**LIVE → DORMANT (closing an edition):**
+1. Admin records results (placements/awards/order) and runs **Close current** in
+   `/ops/admin` (`status='archived'`, `is_current=false`).
+2. Developer runs `archive-export` against the DB → updated `archive.json`
+   (export guard blocks if `redactions.pending.json` is non-empty).
+3. Review the `archive.json` diff, commit.
+4. Build with `NUXT_PUBLIC_SITE_MODE=dormant` → `bun generate`; deploy the static
+   output (Caddy-only). Shut down the Node app and the Supabase/Postgres stack.
+
+**DORMANT → LIVE (opening the next edition):**
+1. Bring the Supabase stack up; run `apply-redactions` to drain any
+   `redactions.pending.json` accumulated during dormancy (reconciles DB ↔ static).
+2. In `/ops/admin`: the next edition already exists as a `draft` (created before
+   going dormant) or is created now; finalize slug/name/dates and **Publish / Go
+   live** (`draft→live`, `is_current=true`).
+3. Redeploy the SSR app (`NUXT_PUBLIC_SITE_MODE=live`) with Supabase env present.
+
+This runbook lives in the repo (e.g. `docs/runbooks/edition-transition.md`) as part
+of the implementation phase.
 
 ## Out of scope (this design)
 
