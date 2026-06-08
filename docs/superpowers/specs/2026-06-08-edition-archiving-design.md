@@ -61,12 +61,21 @@ editions (
   ends_at     timestamptz null,
   status      edition_status not null default 'draft',  -- draft | live | archived
   is_current  boolean not null default false,
-  created_at  timestamptz not null default now()
+  created_at  timestamptz not null default now(),
+  -- is_current and status are not independent: only a live edition may be current.
+  constraint current_implies_live check (not is_current or status = 'live')
 )
 -- enum: create type edition_status as enum ('draft','live','archived');
 -- only one current edition at a time:
 create unique index editions_one_current on editions (is_current) where is_current;
 ```
+
+**`is_current` vs `status` — one fact, guarded.** `is_current = true` always
+coincides with `status = 'live'`; both flip together on close/go-live. The `CHECK`
+constraint above forbids the inconsistent states (e.g. `is_current=true,
+status='archived'`) that would silently break mode resolution. `is_current` is kept
+as a separate column (rather than derived) only so the partial unique index can
+enforce "exactly one current."
 
 ### Changed: `participants` → durable identity mirror only
 
@@ -87,7 +96,11 @@ participants (
 ```
 
 The existing `handle_new_user()` trigger continues to create the `participants`
-profile row on signup.
+profile row on signup. **Caveat (deferred):** `participants.email` is a mirror set
+at signup and will *not* track later changes to the auth email unless a companion
+`AFTER UPDATE ON auth.users` trigger is added to sync it. Acceptable to defer (email
+changes are rare and the auth email remains canonical), but noted so the mirror
+isn't assumed authoritative.
 
 ### New: `registrations` (per-edition participation)
 
@@ -152,13 +165,20 @@ strand teammates, and it must work even when the delete arrives via the
 `auth.users → participants → registrations` cascade (which bypasses app code). A
 **`BEFORE DELETE` trigger on `registrations`** (`handle_leader_departure`) handles
 it: for any team the departing registration leads, it reassigns `leader_id` to the
-**earliest-joined remaining member** (by `registered_at`) and promotes that
-member's `role` to `'leader'`; because the team no longer references the departing
-row, the cascade leaves it intact. If **no** members remain, the pointer stays and
-the existing `ON DELETE CASCADE` dissolves the team as the fallback (its
-now-teamless members, if any, are unaffected). This keeps `leader_id` `NOT NULL`
-and avoids an `ON DELETE RESTRICT` that would otherwise make a leader's account
-undeletable (a GDPR problem). Account deletion always succeeds.
+**earliest-registered remaining member** and promotes that member's `role` to
+`'leader'`; because the team no longer references the departing row, the cascade
+leaves it intact. If **no** members remain, the pointer stays and the existing
+`ON DELETE CASCADE` dissolves the team as the fallback (its now-teamless members, if
+any, are unaffected). This keeps `leader_id` `NOT NULL` and avoids an
+`ON DELETE RESTRICT` that would otherwise make a leader's account undeletable (a
+GDPR problem). Account deletion always succeeds.
+
+Successor selection is `ORDER BY registered_at, id` (deterministic tiebreaker on
+equal timestamps). Note "earliest-registered" is edition-*registration* time, not
+team-*join* time — there is no join timestamp; if join order ever matters, add one.
+The trigger assumes single-row deletes; a bulk `DELETE FROM registrations` could
+promote a member who is also being deleted in the same statement, so account/erasure
+deletions must be issued per registration (which the cascade path naturally does).
 
 **`awards text[]`** (not a single `text` or a normalized table): a team often wins
 several awards ("1st Place Overall" *and* "Best Use of Supabase"). An array keeps
@@ -250,18 +270,35 @@ A generator (Nitro task / script) queries Postgres and writes one `archive.json`
 the showcase dataset and the dormant-mode read source. Per edition it contains:
 
 - **Meta:** slug, name, starts_at, ends_at, total participant count, total team
-  count, **`hidden_members` count** (registrations with `public = false`).
+  count, **`opted_out` count** (registrations with `public = false`).
 - **Teams:** name, description, github_url, placement, awards, presentation_order,
-  and `members: [{ name, skills }]` — **only registrations with `public = true`**.
+  and `members: [{ token, name, skills }]` — **only registrations with
+  `public = true`**.
+
+**Per-member opaque token.** Each public member entry carries a `token`: a random,
+non-PII value generated **per export** (not the registration UUID — preserving the
+identifier split). Display names aren't unique (two "Alex Ivanov" on one team), so
+the token is what makes a redaction target unambiguous. Because it's regenerated
+each export, it leaks nothing about identity or row ids.
+
+**Private keyring (not deployed).** Alongside `archive.json`, the export also writes
+**`redaction-keyring.json`** mapping `auth.users.id`/email → `[{ edition_slug,
+token }]` for **every** occurrence across **all** editions. This file is the bridge
+that lets an erasure request be resolved to all of a person's tokens **without the
+DB** during dormancy. It contains PII, so it is **kept out of the deployed static
+bundle** (git-ignored or stored in the admin's secure location), and regenerated on
+each export.
 
 Runs on close and on demand. The committed `archive.json` is what dormant builds
-consume.
+consume; `redaction-keyring.json` stays admin-side.
 
 **Privacy:**
-- Per-member opt-out via `registrations.public` (default visible). Non-public
-  members are excluded from the export body entirely, but **counted** in
-  `hidden_members` so the archive page can show e.g. *"+ N participants who opted
-  out of the public archive."* (Counts only — no identifying data.)
+- Per-member opt-out via `registrations.public` (default visible). Opt-out members
+  are excluded from the export body but **counted** in `opted_out` so the archive
+  page can show e.g. *"+ N participants opted out of the public archive."* (Counts
+  only — no identifying data.) **Erasures are not counted** in `opted_out` — an
+  erased person did not "opt out"; they are removed entirely and leave no trace,
+  including no count (so the public wording and the number agree).
 - **LIVE registration UI copy (transparency / GDPR):** the registration form must
   state visibility explicitly, e.g. *"Your profile and team will be shown in the
   public showcase."* with a clearly-labelled opt-out:
@@ -276,36 +313,63 @@ During DORMANT the Postgres stack is **off**, so a removal request cannot be
 applied to the DB immediately. Hand-editing `archive.json` alone causes **drift**:
 when Supabase is next booted and a fresh export runs, the deleted person reappears.
 To prevent this, removals are **never** applied by editing `archive.json` directly.
-Instead:
 
-1. **Redaction tooling** — `archive.json` deliberately stores only
-   `{ name, skills }` per member (no email), so the JSON edit and the DB action key
-   off **different identifiers**. The admin runs
-   `redact <edition_slug> --team "<team name>" --member "<member name>" --who <email|auth-id> <mode: hide|delete>`:
-   - the **`--team`/`--member`** pair locates and rewrites the entry in
-     `archive.json` (drop the member, increment `hidden_members`); and
-   - the DB-resolvable **`--who`** identifier (email or `auth.users.id`) is recorded
-     in a git-tracked **`redactions.pending.json`** log (edition, who, mode,
-     requested_at) for later reconciliation.
-   Both changes are committed together, so the queued DB action survives the entire
-   dormant period in version control.
-2. **Reconciliation on boot** — a predeploy/startup step `apply-redactions` runs
-   when Supabase comes back up for the next edition: it reads
-   `redactions.pending.json`, applies each to Postgres (`mode=hide` →
-   `registrations.public = false`; `mode=delete` → delete the registration / the
-   participant + auth user per the request), then moves applied entries to
-   `redactions.applied.json`. It **must be idempotent** — a re-run after a crash or
-   timeout must safely no-op on already-hidden/already-deleted records (treat
-   "record not found" / "already false" as success) and only drain entries that
-   fully succeeded.
+**Two distinct modes — different scopes:**
+- **`hide` is per-edition** — a cosmetic opt-out of *one* edition's public entry
+  (`registrations.public = false` for that edition). The person stays in the DB and
+  in other editions.
+- **`delete` is whole-account (GDPR erasure)** — removes the person from **every**
+  edition: globally in the DB (delete the participant + auth user, which cascades to
+  all their registrations across all editions; the leader trigger handles any teams
+  they led) **and** from **every** occurrence in `archive.json`. A naive
+  single-edition redaction would leave the person publicly listed in their other
+  editions — a real privacy gap — so `delete` always fans out across all editions.
+
+Flow:
+
+1. **Redaction tooling** —
+   - **`redact-hide <edition_slug> --token <member-token>`** removes that one
+     member entry from that edition's body and **increments that edition's
+     `opted_out` count by one** (they are now opted out, so the count reflects them),
+     and queues `{edition_slug, who, mode:'hide'}` in `redactions.pending.json`. The
+     `--token` (from the export) disambiguates members with identical display names;
+     the operator resolves token→person via the private `redaction-keyring.json`.
+   - **`redact-delete --who <email|auth-id>`** looks the person up in
+     `redaction-keyring.json`, removes **all** their tokened entries across **all**
+     editions in `archive.json` (uncounted — see "Erasures are not counted"), and
+     queues a single `{who, mode:'delete'}` (account-scoped, no `edition_slug`) in
+     `redactions.pending.json`.
+   In both cases the JSON edit and the log entry are committed together so the queued
+   DB action survives the dormant period in version control.
+2. **Reconciliation (manual runbook step, in a dev checkout with repo + DB)** —
+   `apply-redactions` runs as part of the DORMANT→LIVE runbook on a machine that has
+   the git repo *and* DB access (not in the deployed app — see "Where the logs live"
+   below). It reads `redactions.pending.json` and applies each to Postgres
+   (`mode=hide` → `registrations.public = false` for that edition; `mode=delete` →
+   delete the participant + auth user, cascading globally), then moves applied
+   entries to `redactions.applied.json` and **commits both files back to the repo**.
+   It **must be idempotent** — a re-run after a crash/timeout safely no-ops on
+   already-hidden/already-deleted records (treat "record not found" / "already false"
+   as success) and only drains entries that fully succeeded.
+
+**Where the logs live (source of truth).** `redactions.pending.json` /
+`redactions.applied.json` and `redaction-keyring.json` are **git the source of
+truth**, mutated only on a developer/admin machine — never by the deployed runtime.
+This is consistent with the manual-runbook-first decision and avoids a deployed
+process making git commits. (If/when reconciliation is later automated, the logs
+move to durable storage or the CI job commits back with a dedicated token — called
+out as a prerequisite of that automation, not assumed.)
 3. **Export guard** — the exporter **refuses to write a fresh `archive.json` while
    `redactions.pending.json` is non-empty**, forcing reconciliation before any new
    export can reintroduce removed data. This closes the drift loop.
 
 ## Site modes & build
 
-- **Mode resolution:** derived from whether a `live` edition exists, with a
-  `NUXT_PUBLIC_SITE_MODE` env override.
+- **Mode resolution:** in **LIVE**, mode is confirmed by the DB (a `live` edition
+  exists). In **DORMANT** there is no DB to query, so the mode is **set at build
+  time by `NUXT_PUBLIC_SITE_MODE=dormant`** — the env var is *load-bearing* there,
+  not a mere override of a DB-derived value. The runbook always builds dormant with
+  this flag set.
 - **DORMANT:** `bun generate` renders landing + `/archive` + legal / reglament /
   programme from `archive.json` (+ `@nuxt/content`). `/ops/*` and `/api/*` are
   excluded and replaced by a static "next edition coming soon" page. No Node, no
@@ -335,6 +399,12 @@ Instead:
   presentation order + placements/awards.
 - Reuses the existing punk/brutalist styling.
 
+**The current/live edition is intentionally absent from `/archive`.** It is not in
+`archive.json` until it is closed (the export runs on close); mid-season it lives on
+the main site (teams, `/order`, live CMS), not the archive. So `/archive/[current-slug]`
+having no static source mid-season is by design, not a gap. `/archive` only ever
+lists *closed* editions.
+
 ## Migration (wrap current live data as Edition 1)
 
 1. Create `edition_status` enum and `editions`; insert the current run as
@@ -344,11 +414,20 @@ Instead:
    current `team_id / role / skills / dietary / experience`, `edition_slug = '2026'`,
    `public = true`.
 3. Add `edition_slug` to `teams` and `join_requests`; backfill `= '2026'`.
-4. Convert `event_config` to per-edition (key by `edition_slug = '2026'`); add
+4. **Repoint `teams.leader_id` → `registrations(id)`.** Today `leader_id` references
+   the old identity (participant/auth id). For each team, resolve its current leader
+   to **that participant's new 2026 `registration.id`** and update `leader_id` to it.
+   This must run **after** step 2 (registrations exist) and **before** the FK is
+   changed to `references registrations(id)` and `NOT NULL` is (re)asserted —
+   otherwise the new constraint cannot hold. Then install the
+   `handle_leader_departure` `BEFORE DELETE` trigger.
+5. Convert `event_config` to per-edition (key by `edition_slug = '2026'`); add
    `edition_slug` to `schedule_items` and `announcements`, backfill `= '2026'`.
-5. Backfill `teams.presentation_order` from the current `content/order.md`, then
+6. Backfill `teams.presentation_order` from the current `content/order.md`, then
    retire `order.md` (the `/order` page reads `presentation_order` from the DB).
-6. Drop the moved columns from `participants` **after** backfill is verified — done
+7. Add the `teams_unique_name_per_edition` index (verify no existing intra-edition
+   duplicate names first; resolve any before the unique index can be created).
+8. Drop the moved columns from `participants` **after** backfill is verified — done
    in a **follow-up migration** for safety, not in the same step.
 
 All steps are additive-then-cleanup so the running edition is never disrupted.
@@ -369,35 +448,51 @@ from `participants` + per-edition fields from `registrations`):
 - Live CMS admin (`event_config` now per-edition).
 - **Nuxt Supabase client plugin** — short-circuit when `NUXT_PUBLIC_SITE_MODE` is
   `dormant` (see Site modes).
-- **New tooling** — `archive-export` (DB → `archive.json`, with export guard),
-  `redact` (queue removal + rewrite static), `apply-redactions` (reconcile on boot).
+- **New tooling** — `archive-export` (DB → `archive.json` + `redaction-keyring.json`,
+  with export guard), `redact-hide` / `redact-delete` (rewrite static + queue DB
+  action), `apply-redactions` (idempotent reconcile, commits drained logs).
 
 ## Testing
 
-- **Unit:** export serializer (DB rows → `archive.json` shape; `public = false`
-  excluded from body but counted in `hidden_members`; `awards` array passthrough);
-  mode resolver (live edition present/absent + env override); returning-user
-  pre-fill (reads most recent prior registration); export guard refuses to run
-  while `redactions.pending.json` is non-empty.
+The **redaction/erasure flow is the part that warrants the most coverage** — it is
+the novel, fiddly subsystem.
+
+- **Unit:** export serializer (DB rows → `archive.json` shape; opt-out excluded from
+  body but counted in `opted_out`; erasure excluded *and uncounted*; per-member
+  `token` emitted; `awards` array passthrough); `redaction-keyring.json` maps a
+  person to every `(edition_slug, token)` across all editions; mode resolver
+  (live = DB-confirmed; dormant = env-set); returning-user pre-fill (reads most
+  recent prior registration); export guard refuses to run while
+  `redactions.pending.json` is non-empty.
 - **Integration:** close → create-draft → go-live empties the live scope while all
   prior-edition data persists; `registrations` uniqueness per
-  `(participant_id, edition_slug)`; partial-unique enforces a single current
-  edition; `apply-redactions` applies `hide`/`delete`, is idempotent on re-run, and
-  drains the pending log; `ON DELETE RESTRICT` blocks deleting an edition that still
-  has teams; **leader departure** auto-promotes the earliest-joined member and
-  dissolves a sole-leader team (verified through the `auth.users` cascade path too);
-  duplicate team name within an edition is rejected case-insensitively while the
-  same name is allowed across editions.
+  `(participant_id, edition_slug)`; partial-unique + `current_implies_live` CHECK
+  enforce a single, consistent current edition; `apply-redactions` applies
+  `hide`/`delete`, is **idempotent** on re-run, and drains→`applied`;
+  `ON DELETE RESTRICT` blocks deleting an edition that still has teams; **leader
+  departure** auto-promotes by `(registered_at, id)` and dissolves a sole-leader
+  team (verified through the `auth.users` cascade path too); duplicate team name
+  within an edition rejected case-insensitively while the same name is allowed
+  across editions; migration `leader_id` repoint resolves every existing leader to
+  their 2026 registration before the FK/NOT NULL is asserted.
+- **Worst-case erasure scenario (written-out, must pass):** a person in **three**
+  editions, **sole leader** of a team in one of them, requests **full deletion
+  mid-dormancy**. Assert: removed from all three editions in `archive.json`
+  (uncounted); the sole-leader team is dissolved (no successor) while their other
+  teams in other editions either survive with a promoted successor or dissolve
+  correctly; one account-scoped `delete` entry queued; static rebuild removes them
+  from the served site; `apply-redactions` on next boot deletes participant + auth
+  user, cascades to all three registrations, and is safe to re-run.
 - **Build:** dormant `bun generate` produces `/archive` + `/archive/[slug]` from a
   fixture `archive.json` **with no Supabase env present**; `/ops/*` and `/api/*`
   excluded; privacy banner present; Supabase plugin does not initialize in dormant
-  mode.
+  mode; archive dates render without hydration mismatch.
 
 ## Decisions (resolved)
 
 1. **Per-member public opt-out** — included; `registrations.public`, default
-   visible. Non-public members excluded from export body, counted in
-   `hidden_members`; LIVE registration UI states visibility + offers opt-out.
+   visible. Opt-out members excluded from export body, counted in `opted_out`; LIVE
+   registration UI states visibility + offers opt-out.
 2. **`/order.md`** — migrated into `teams.presentation_order`; markdown retired.
 3. **Mode flag** — derived from live-edition existence, with
    `NUXT_PUBLIC_SITE_MODE` override; Supabase client plugin short-circuits in
@@ -414,19 +509,31 @@ from `participants` + per-edition fields from `registrations`):
 9. **`teams.awards`** — `text[]` (multiple free-form awards per team).
 10. **`teams.leader_id`** — references `registrations(id)` (edition-integrity +
     consistent with the no-`auth`-FK rule); creation ordering documented. Leader
-    departure = **auto-promote earliest-joined member, else dissolve**, via a
+    departure = **auto-promote earliest-registered member, else dissolve**, via a
     `BEFORE DELETE` trigger; `leader_id` stays `NOT NULL ON DELETE CASCADE` (no
     `RESTRICT`, so account deletion always succeeds).
 11. **`ON DELETE`** — explicit everywhere: `RESTRICT` on content-bearing edition
     FKs, `CASCADE` on owned-config FKs.
 12. **Dormant privacy-drift** — git-tracked `redactions.pending.json` queue +
-    `apply-redactions` reconciliation on DB boot + export guard.
+    idempotent `apply-redactions` (manual runbook step, commits drained logs back) +
+    export guard. Git is the source of truth for the logs/keyring; the deployed
+    runtime never mutates them.
 13. **Deployment trigger for static rebuild** — **manual runbook** for the first
     iterations (see Deployment & runbook); automate later once proven.
 14. **Unique team name per edition** — `unique (edition_slug, lower(name))`.
-15. **Redaction identifier split** — JSON edit keys off `--team`/`--member` name;
-    `redactions.pending.json` stores a DB-resolvable `--who` (email/auth id).
-    `apply-redactions` is idempotent.
+15. **Redaction identifier split + token** — `archive.json` carries a per-export
+    opaque per-member `token` (disambiguates duplicate names); the private,
+    non-deployed `redaction-keyring.json` maps `who` (email/auth id) → all
+    `(edition, token)` occurrences.
+16. **`hide` vs `delete` scope** — `hide` is **per-edition** (cosmetic opt-out);
+    `delete` is **whole-account GDPR erasure**, fanned out across **all** editions in
+    both the DB (global cascade) and `archive.json`.
+17. **`is_current`/`status` consistency** — `CHECK (not is_current or status='live')`.
+18. **Migration `leader_id` repoint** — explicit step; resolve each leader to their
+    2026 registration before changing the FK to `registrations(id)`.
+19. **Mid-dormancy removal** — triggers an immediate static rebuild + redeploy; DB
+    action stays queued for next boot.
+20. **`opted_out` count** — counts opt-outs only; erasures are uncounted.
 
 ## Deployment & runbook (transitions between modes)
 
@@ -445,15 +552,56 @@ run cleanly.
    output (Caddy-only). Shut down the Node app and the Supabase/Postgres stack.
 
 **DORMANT → LIVE (opening the next edition):**
-1. Bring the Supabase stack up; run `apply-redactions` to drain any
-   `redactions.pending.json` accumulated during dormancy (reconciles DB ↔ static).
+1. Bring the Supabase stack up; run `apply-redactions` (dev checkout with repo + DB)
+   to drain any `redactions.pending.json` accumulated during dormancy, then commit
+   the drained logs back. This reconciles DB ↔ static *before* any fresh export.
 2. In `/ops/admin`: the next edition already exists as a `draft` (created before
    going dormant) or is created now; finalize slug/name/dates and **Publish / Go
    live** (`draft→live`, `is_current=true`).
 3. Redeploy the SSR app (`NUXT_PUBLIC_SITE_MODE=live`) with Supabase env present.
 
+**Removal request *during* dormancy (timeliness path):** the served site is the
+last static build, so a redaction is not public-visible until rebuilt. On receiving
+a request while dormant:
+1. Run `redact-hide`/`redact-delete` (edits `archive.json` + the keyring, queues the
+   DB action in `redactions.pending.json`), commit.
+2. **Rebuild + redeploy the static site** (`bun generate` → push to Caddy) so the
+   person is removed from the live public site promptly — do **not** wait for the
+   next DORMANT→LIVE cycle. The DB action stays queued and is applied at the next
+   boot via `apply-redactions`. (Supabase stays off throughout; only the static
+   bundle is rebuilt.)
+
 This runbook lives in the repo (e.g. `docs/runbooks/edition-transition.md`) as part
 of the implementation phase.
+
+## Dual-source reads (JSON vs live DB) — what actually needs both
+
+Holding the golden rule strictly keeps the dual-source surface **tiny**: `/archive`
+reads *only* `archive.json` (it only ever shows closed editions), and the live/main
+pages read *only* the DB. They don't overlap, so most code is single-source. A
+**read abstraction** is worth it only at the showcase boundary, and only if you ever
+want the *current* edition rendered in the archive's showcase shape while live.
+
+- **`useArchive()` composable / `server/utils/archive.ts`** — the single accessor
+  for showcase data, exposing `listEditions()` and `getEdition(slug)`. One backend
+  reads the bundled/imported `archive.json` (used in **both** modes for **past**
+  editions); an optional second backend reads the DB and maps a *live* edition into
+  the same showcase shape. Everything downstream (pages, components) consumes the
+  unified shape and never knows the source.
+- **`app/pages/archive/index.vue` and `app/pages/archive/[slug].vue`** — consume the
+  composable only; no direct DB or JSON access.
+- **`nuxt.config` route rules** — `/archive/**` prerendered from `archive.json` in
+  dormant; in live it can stay prerendered (past editions only) or SSR if you opt to
+  surface the current edition there.
+- **The shared showcase serializer** — the DB→showcase mapper and the
+  `archive.json` shape must be **the same type**, so the JSON exporter and the live
+  DB backend produce identical structures. This single shared type is the only thing
+  that genuinely "supports both sources"; keep it in one module imported by both the
+  exporter and `useArchive()`.
+
+If you never render the current edition inside `/archive` (the current default), the
+DB backend above is unnecessary and the whole showcase layer is JSON-only — the DB
+is touched solely by the existing live pages and the exporter.
 
 ## Out of scope (this design)
 
@@ -462,3 +610,6 @@ of the implementation phase.
   later).
 - Cross-edition analytics dashboards (the relational model supports them; no UI
   designed here).
+- `archive.json` is monotonic — fully regenerated and growing each export. Not a
+  concern at hackathon scale for many years; flagged only so the growth is a known,
+  accepted property rather than a surprise.
