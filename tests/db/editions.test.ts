@@ -33,4 +33,12 @@ describe('editions table constraints', () => {
     await db.auth.admin.deleteUser(uid)
     await db.from('editions').delete().eq('slug', `reg-ed-${tag}`)
   })
+
+  it('teams has edition_slug, placement, awards, presentation_order columns', async () => {
+    const { error } = await db
+      .from('teams')
+      .select('edition_slug, placement, awards, presentation_order')
+      .limit(1)
+    expect(error).toBeNull()
+  })
 })
