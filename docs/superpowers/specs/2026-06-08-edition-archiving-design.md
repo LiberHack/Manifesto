@@ -28,11 +28,12 @@ project:
 - **Site mode**
   - **LIVE** — SSR Nuxt against Supabase. Registration, teams, join requests, and
     live CMS are active.
-  - **DORMANT** — fully static site produced by `bun generate` from `archive.json`,
-    served by Caddy alone. Both the Node app *and* the Supabase/Postgres stack are
-    shut down. Re-opening an edition = redeploy the SSR app + bring Supabase up.
+  - **DORMANT** — fully static site produced by `bun generate` from the per-edition
+    archive files, served by Caddy alone. Both the Node app *and* the
+    Supabase/Postgres stack are shut down. Re-opening an edition = redeploy the SSR
+    app + bring Supabase up.
 - **Golden rule (keeps both modes simple):** *past editions are always read from
-  the static `archive.json`; only the current/live edition is read from the DB.*
+  the static archive files; only the current/live edition is read from the DB.*
   Showcase code is then identical in both modes — **dormant mode is simply "there
   is no current edition."**
 
@@ -264,10 +265,28 @@ edition. Old data is untouched.
 app is redeployed and Supabase is brought back up — consistent with the
 fully-static dormant decision.
 
-## Static archive export (`archive.json`)
+## Static archive export (per-edition files)
 
-A generator (Nitro task / script) queries Postgres and writes one `archive.json` —
-the showcase dataset and the dormant-mode read source. Per edition it contains:
+The archive dataset is **split per edition**, not one monolithic blob:
+
+- **`archive/<slug>.json`** — one file per **closed** edition (e.g.
+  `archive/2026.json`, `archive/2026-spring.json`): the full showcase data for that
+  edition.
+- **`archive/index.json`** — a lightweight catalog for the `/archive` index page:
+  one entry per edition with `slug`, `name`, `starts_at`, `ends_at`, team count,
+  participant count, `opted_out` count, and a winners highlight. No per-member
+  detail.
+
+*(Throughout this doc, "the archive files" means this set: `archive/index.json` +
+the per-edition `archive/<slug>.json`.)*
+
+**Why per-edition:** closing an edition rewrites **only that edition's file + the
+index** — the corpus is **not** monotonically rewritten, git diffs are focused (one
+new file + an index line) for easy human review, `/archive/[slug]` prerenders 1:1
+from its own file, and a visitor loads only the edition they're viewing.
+
+A generator (Nitro task / script) queries Postgres and writes these files. Each
+per-edition file contains:
 
 - **Meta:** slug, name, starts_at, ends_at, total participant count, total team
   count, **`opted_out` count** (registrations with `public = false`).
@@ -281,15 +300,16 @@ identifier split). Display names aren't unique (two "Alex Ivanov" on one team), 
 the token is what makes a redaction target unambiguous. Because it's regenerated
 each export, it leaks nothing about identity or row ids.
 
-**Private keyring (not deployed).** Alongside `archive.json`, the export also writes
-**`redaction-keyring.json`** mapping `auth.users.id`/email → `[{ edition_slug,
-token }]` for **every** occurrence across **all** editions. This file is the bridge
-that lets an erasure request be resolved to all of a person's tokens **without the
-DB** during dormancy. It contains PII, so it is **kept out of the deployed static
+**Private keyring (not deployed).** Alongside the archive files, the export also
+writes **`redaction-keyring.json`** mapping `auth.users.id`/email →
+`[{ edition_slug, token }]` for **every** occurrence across **all** editions. This
+file is the bridge that lets an erasure request be resolved to all of a person's
+tokens — and therefore exactly which per-edition files to edit — **without the DB**
+during dormancy. It contains PII, so it is **kept out of the deployed static
 bundle** (git-ignored or stored in the admin's secure location), and regenerated on
 each export.
 
-Runs on close and on demand. The committed `archive.json` is what dormant builds
+Runs on close and on demand. The committed archive files are what dormant builds
 consume; `redaction-keyring.json` stays admin-side.
 
 **Privacy:**
@@ -310,9 +330,10 @@ consume; `redaction-keyring.json` stays admin-side.
 ### Dormant-mode privacy-drift mechanism (DB ↔ static sync)
 
 During DORMANT the Postgres stack is **off**, so a removal request cannot be
-applied to the DB immediately. Hand-editing `archive.json` alone causes **drift**:
-when Supabase is next booted and a fresh export runs, the deleted person reappears.
-To prevent this, removals are **never** applied by editing `archive.json` directly.
+applied to the DB immediately. Hand-editing the archive files alone causes
+**drift**: when Supabase is next booted and a fresh export runs, the deleted person
+reappears. To prevent this, removals are **never** applied by editing the archive
+files directly.
 
 **Two distinct modes — different scopes:**
 - **`hide` is per-edition** — a cosmetic opt-out of *one* edition's public entry
@@ -321,25 +342,27 @@ To prevent this, removals are **never** applied by editing `archive.json` direct
 - **`delete` is whole-account (GDPR erasure)** — removes the person from **every**
   edition: globally in the DB (delete the participant + auth user, which cascades to
   all their registrations across all editions; the leader trigger handles any teams
-  they led) **and** from **every** occurrence in `archive.json`. A naive
-  single-edition redaction would leave the person publicly listed in their other
-  editions — a real privacy gap — so `delete` always fans out across all editions.
+  they led) **and** from **every** per-edition archive file they appear in (the
+  keyring lists exactly which). A naive single-file redaction would leave the person
+  publicly listed in their other editions — a real privacy gap — so `delete` always
+  fans out across all editions.
 
 Flow:
 
 1. **Redaction tooling** —
    - **`redact-hide <edition_slug> --token <member-token>`** removes that one
-     member entry from that edition's body and **increments that edition's
-     `opted_out` count by one** (they are now opted out, so the count reflects them),
-     and queues `{edition_slug, who, mode:'hide'}` in `redactions.pending.json`. The
-     `--token` (from the export) disambiguates members with identical display names;
-     the operator resolves token→person via the private `redaction-keyring.json`.
+     member entry from `archive/<slug>.json` and **increments that edition's
+     `opted_out` count by one** in both that file and `archive/index.json` (they are
+     now opted out, so the count reflects them), and queues
+     `{edition_slug, who, mode:'hide'}` in `redactions.pending.json`. The `--token`
+     (from the export) disambiguates members with identical display names; the
+     operator resolves token→person via the private `redaction-keyring.json`.
    - **`redact-delete --who <email|auth-id>`** looks the person up in
-     `redaction-keyring.json`, removes **all** their tokened entries across **all**
-     editions in `archive.json` (uncounted — see "Erasures are not counted"), and
-     queues a single `{who, mode:'delete'}` (account-scoped, no `edition_slug`) in
-     `redactions.pending.json`.
-   In both cases the JSON edit and the log entry are committed together so the queued
+     `redaction-keyring.json`, opens **each** `archive/<slug>.json` the keyring lists
+     for them, removes their tokened entry from each (uncounted — see "Erasures are
+     not counted"), and queues a single `{who, mode:'delete'}` (account-scoped, no
+     `edition_slug`) in `redactions.pending.json`.
+   In both cases the file edits and the log entry are committed together so the queued
    DB action survives the dormant period in version control.
 2. **Reconciliation (manual runbook step, in a dev checkout with repo + DB)** —
    `apply-redactions` runs as part of the DORMANT→LIVE runbook on a machine that has
@@ -359,7 +382,7 @@ This is consistent with the manual-runbook-first decision and avoids a deployed
 process making git commits. (If/when reconciliation is later automated, the logs
 move to durable storage or the CI job commits back with a dedicated token — called
 out as a prerequisite of that automation, not assumed.)
-3. **Export guard** — the exporter **refuses to write a fresh `archive.json` while
+3. **Export guard** — the exporter **refuses to write any archive file while
    `redactions.pending.json` is non-empty**, forcing reconciliation before any new
    export can reintroduce removed data. This closes the drift loop.
 
@@ -371,7 +394,7 @@ out as a prerequisite of that automation, not assumed.)
   not a mere override of a DB-derived value. The runbook always builds dormant with
   this flag set.
 - **DORMANT:** `bun generate` renders landing + `/archive` + legal / reglament /
-  programme from `archive.json` (+ `@nuxt/content`). `/ops/*` and `/api/*` are
+  programme from the archive files (+ `@nuxt/content`). `/ops/*` and `/api/*` are
   excluded and replaced by a static "next edition coming soon" page. No Node, no
   Supabase — Caddy serves static files.
   - **Client auth short-circuit (avoid token churn):** returning visitors may carry
@@ -389,7 +412,7 @@ out as a prerequisite of that automation, not assumed.)
     must use a fixed UTC/standardized formatter (or a `<ClientOnly>` wrapper) to
     avoid SSR/client hydration mismatches across time zones.
 - **LIVE:** SSR as today. **Current** edition reads from the DB; **past** editions
-  still read from `archive.json` (golden rule).
+  still read from their `archive/<slug>.json` (golden rule).
 
 ## Showcase pages
 
@@ -399,11 +422,11 @@ out as a prerequisite of that automation, not assumed.)
   presentation order + placements/awards.
 - Reuses the existing punk/brutalist styling.
 
-**The current/live edition is intentionally absent from `/archive`.** It is not in
-`archive.json` until it is closed (the export runs on close); mid-season it lives on
-the main site (teams, `/order`, live CMS), not the archive. So `/archive/[current-slug]`
-having no static source mid-season is by design, not a gap. `/archive` only ever
-lists *closed* editions.
+**The current/live edition is intentionally absent from `/archive`.** It has no
+`archive/<slug>.json` and no `index.json` entry until it is closed (the export runs
+on close); mid-season it lives on the main site (teams, `/order`, live CMS), not the
+archive. So `/archive/[current-slug]` having no static source mid-season is by
+design, not a gap. `/archive` only ever lists *closed* editions.
 
 ## Migration (wrap current live data as Edition 1)
 
@@ -448,8 +471,9 @@ from `participants` + per-edition fields from `registrations`):
 - Live CMS admin (`event_config` now per-edition).
 - **Nuxt Supabase client plugin** — short-circuit when `NUXT_PUBLIC_SITE_MODE` is
   `dormant` (see Site modes).
-- **New tooling** — `archive-export` (DB → `archive.json` + `redaction-keyring.json`,
-  with export guard), `redact-hide` / `redact-delete` (rewrite static + queue DB
+- **New tooling** — `archive-export` (DB → per-edition `archive/<slug>.json` +
+  `archive/index.json` + `redaction-keyring.json`, with export guard), `redact-hide`
+  / `redact-delete` (rewrite the affected per-edition file(s) + index + queue DB
   action), `apply-redactions` (idempotent reconcile, commits drained logs).
 
 ## Testing
@@ -457,10 +481,12 @@ from `participants` + per-edition fields from `registrations`):
 The **redaction/erasure flow is the part that warrants the most coverage** — it is
 the novel, fiddly subsystem.
 
-- **Unit:** export serializer (DB rows → `archive.json` shape; opt-out excluded from
-  body but counted in `opted_out`; erasure excluded *and uncounted*; per-member
-  `token` emitted; `awards` array passthrough); `redaction-keyring.json` maps a
-  person to every `(edition_slug, token)` across all editions; mode resolver
+- **Unit:** export serializer (DB rows → per-edition `archive/<slug>.json` +
+  `index.json` shape; opt-out excluded from body but counted in `opted_out`; erasure
+  excluded *and uncounted*; per-member `token` emitted; `awards` array passthrough;
+  closing one edition writes only that file + index, leaving other files byte-stable);
+  `redaction-keyring.json` maps a person to every `(edition_slug, token)` across all
+  editions; mode resolver
   (live = DB-confirmed; dormant = env-set); returning-user pre-fill (reads most
   recent prior registration); export guard refuses to run while
   `redactions.pending.json` is non-empty.
@@ -477,16 +503,17 @@ the novel, fiddly subsystem.
   their 2026 registration before the FK/NOT NULL is asserted.
 - **Worst-case erasure scenario (written-out, must pass):** a person in **three**
   editions, **sole leader** of a team in one of them, requests **full deletion
-  mid-dormancy**. Assert: removed from all three editions in `archive.json`
-  (uncounted); the sole-leader team is dissolved (no successor) while their other
+  mid-dormancy**. Assert: removed from all three `archive/<slug>.json` files the
+  keyring lists (uncounted); the sole-leader team is dissolved (no successor) while their other
   teams in other editions either survive with a promoted successor or dissolve
   correctly; one account-scoped `delete` entry queued; static rebuild removes them
   from the served site; `apply-redactions` on next boot deletes participant + auth
   user, cascades to all three registrations, and is safe to re-run.
-- **Build:** dormant `bun generate` produces `/archive` + `/archive/[slug]` from a
-  fixture `archive.json` **with no Supabase env present**; `/ops/*` and `/api/*`
-  excluded; privacy banner present; Supabase plugin does not initialize in dormant
-  mode; archive dates render without hydration mismatch.
+- **Build:** dormant `bun generate` produces `/archive` (from `index.json`) +
+  `/archive/[slug]` (each from its own `archive/<slug>.json`) **with no Supabase env
+  present**; `/ops/*` and `/api/*` excluded; privacy banner present; Supabase plugin
+  does not initialize in dormant mode; archive dates render without hydration
+  mismatch.
 
 ## Decisions (resolved)
 
@@ -521,33 +548,38 @@ the novel, fiddly subsystem.
 13. **Deployment trigger for static rebuild** — **manual runbook** for the first
     iterations (see Deployment & runbook); automate later once proven.
 14. **Unique team name per edition** — `unique (edition_slug, lower(name))`.
-15. **Redaction identifier split + token** — `archive.json` carries a per-export
-    opaque per-member `token` (disambiguates duplicate names); the private,
-    non-deployed `redaction-keyring.json` maps `who` (email/auth id) → all
-    `(edition, token)` occurrences.
+15. **Redaction identifier split + token** — each per-edition `archive/<slug>.json`
+    carries a per-export opaque per-member `token` (disambiguates duplicate names);
+    the private, non-deployed `redaction-keyring.json` maps `who` (email/auth id) →
+    all `(edition, token)` occurrences (i.e. exactly which files to edit).
 16. **`hide` vs `delete` scope** — `hide` is **per-edition** (cosmetic opt-out);
     `delete` is **whole-account GDPR erasure**, fanned out across **all** editions in
-    both the DB (global cascade) and `archive.json`.
+    both the DB (global cascade) and every per-edition archive file.
 17. **`is_current`/`status` consistency** — `CHECK (not is_current or status='live')`.
 18. **Migration `leader_id` repoint** — explicit step; resolve each leader to their
     2026 registration before changing the FK to `registrations(id)`.
 19. **Mid-dormancy removal** — triggers an immediate static rebuild + redeploy; DB
     action stays queued for next boot.
 20. **`opted_out` count** — counts opt-outs only; erasures are uncounted.
+21. **Per-edition archive files** — `archive/<slug>.json` per closed edition +
+    lightweight `archive/index.json` catalog (not a single monolithic blob). Closing
+    rewrites only the changed edition's file + index; corpus is non-monotonic.
 
 ## Deployment & runbook (transitions between modes)
 
 The archive→static rebuild is a **manual developer runbook** for the first
-iterations (rare, high-consequence; a human reviews the `archive.json` diff before
+iterations (rare, high-consequence; a human reviews the archive-file diff before
 it ships). Automation (GitHub Action) is a deliberate fast-follow once the flow has
 run cleanly.
 
 **LIVE → DORMANT (closing an edition):**
 1. Admin records results (placements/awards/order) and runs **Close current** in
    `/ops/admin` (`status='archived'`, `is_current=false`).
-2. Developer runs `archive-export` against the DB → updated `archive.json`
-   (export guard blocks if `redactions.pending.json` is non-empty).
-3. Review the `archive.json` diff, commit.
+2. Developer runs `archive-export` against the DB → writes the just-closed
+   edition's `archive/<slug>.json` + updates `archive/index.json` (and the
+   admin-side keyring); export guard blocks if `redactions.pending.json` is
+   non-empty.
+3. Review the focused diff (one new edition file + an index line), commit.
 4. Build with `NUXT_PUBLIC_SITE_MODE=dormant` → `bun generate`; deploy the static
    output (Caddy-only). Shut down the Node app and the Supabase/Postgres stack.
 
@@ -563,8 +595,8 @@ run cleanly.
 **Removal request *during* dormancy (timeliness path):** the served site is the
 last static build, so a redaction is not public-visible until rebuilt. On receiving
 a request while dormant:
-1. Run `redact-hide`/`redact-delete` (edits `archive.json` + the keyring, queues the
-   DB action in `redactions.pending.json`), commit.
+1. Run `redact-hide`/`redact-delete` (edits the affected per-edition file(s) + index
+   + the keyring, queues the DB action in `redactions.pending.json`), commit.
 2. **Rebuild + redeploy the static site** (`bun generate` → push to Caddy) so the
    person is removed from the live public site promptly — do **not** wait for the
    next DORMANT→LIVE cycle. The DB action stays queued and is applied at the next
@@ -577,27 +609,29 @@ of the implementation phase.
 ## Dual-source reads (JSON vs live DB) — what actually needs both
 
 Holding the golden rule strictly keeps the dual-source surface **tiny**: `/archive`
-reads *only* `archive.json` (it only ever shows closed editions), and the live/main
-pages read *only* the DB. They don't overlap, so most code is single-source. A
-**read abstraction** is worth it only at the showcase boundary, and only if you ever
-want the *current* edition rendered in the archive's showcase shape while live.
+reads *only* the archive files (it only ever shows closed editions), and the
+live/main pages read *only* the DB. They don't overlap, so most code is
+single-source. A **read abstraction** is worth it only at the showcase boundary, and
+only if you ever want the *current* edition rendered in the archive's showcase shape
+while live.
 
 - **`useArchive()` composable / `server/utils/archive.ts`** — the single accessor
-  for showcase data, exposing `listEditions()` and `getEdition(slug)`. One backend
-  reads the bundled/imported `archive.json` (used in **both** modes for **past**
-  editions); an optional second backend reads the DB and maps a *live* edition into
-  the same showcase shape. Everything downstream (pages, components) consumes the
-  unified shape and never knows the source.
+  for showcase data, exposing `listEditions()` (reads `archive/index.json`) and
+  `getEdition(slug)` (reads `archive/<slug>.json`). This file backend is used in
+  **both** modes for **past** editions; an optional second backend reads the DB and
+  maps a *live* edition into the same showcase shape. Everything downstream (pages,
+  components) consumes the unified shape and never knows the source.
 - **`app/pages/archive/index.vue` and `app/pages/archive/[slug].vue`** — consume the
-  composable only; no direct DB or JSON access.
-- **`nuxt.config` route rules** — `/archive/**` prerendered from `archive.json` in
-  dormant; in live it can stay prerendered (past editions only) or SSR if you opt to
-  surface the current edition there.
+  composable only; no direct DB or JSON access. The slug page loads just its own
+  edition file, not the whole corpus.
+- **`nuxt.config` route rules** — `/archive` prerendered from `index.json` and each
+  `/archive/<slug>` from its own file in dormant; in live it can stay prerendered
+  (past editions only) or SSR if you opt to surface the current edition there.
 - **The shared showcase serializer** — the DB→showcase mapper and the
-  `archive.json` shape must be **the same type**, so the JSON exporter and the live
-  DB backend produce identical structures. This single shared type is the only thing
-  that genuinely "supports both sources"; keep it in one module imported by both the
-  exporter and `useArchive()`.
+  `archive/<slug>.json` shape must be **the same type**, so the JSON exporter and the
+  live DB backend produce identical structures. This single shared type is the only
+  thing that genuinely "supports both sources"; keep it in one module imported by
+  both the exporter and `useArchive()`.
 
 If you never render the current edition inside `/archive` (the current default), the
 DB backend above is unnecessary and the whole showcase layer is JSON-only — the DB
@@ -610,6 +644,7 @@ is touched solely by the existing live pages and the exporter.
   later).
 - Cross-edition analytics dashboards (the relational model supports them; no UI
   designed here).
-- `archive.json` is monotonic — fully regenerated and growing each export. Not a
-  concern at hackathon scale for many years; flagged only so the growth is a known,
-  accepted property rather than a surprise.
+- Archive corpus growth — per-edition files mean each export rewrites only the
+  changed edition's file + the index, so growth is incremental (one new file per
+  edition), not a monolithic rewrite. `index.json` grows by one entry per edition;
+  negligible at hackathon scale.
