@@ -128,6 +128,8 @@ teams (
   created_at          timestamptz not null default now()
 )
 create index teams_edition_idx on teams (edition_slug);
+-- No two teams with the same name within one edition:
+create unique index teams_unique_name_per_edition on teams (edition_slug, lower(name));
 ```
 
 `teams` keeps a UUID PK: team names recur across editions ("fsociety" yearly), are
@@ -145,13 +147,31 @@ is nullable, so there is no circular-insert problem. A team is created by:
 (1) ensure the leader's `registration` exists for the edition (`team_id` null);
 (2) `insert into teams (..., leader_id = that registration.id)`;
 (3) `update registrations set team_id = new team.id` for the leader.
-On leader deletion, `on delete cascade` removes the team (replicating today's
-"delete leader → delete team"), and the team deletion sets `team_id = null` on the
-remaining members' registrations.
+**Leader departure — auto-promote, else dissolve.** A leader leaving must not
+strand teammates, and it must work even when the delete arrives via the
+`auth.users → participants → registrations` cascade (which bypasses app code). A
+**`BEFORE DELETE` trigger on `registrations`** (`handle_leader_departure`) handles
+it: for any team the departing registration leads, it reassigns `leader_id` to the
+**earliest-joined remaining member** (by `registered_at`) and promotes that
+member's `role` to `'leader'`; because the team no longer references the departing
+row, the cascade leaves it intact. If **no** members remain, the pointer stays and
+the existing `ON DELETE CASCADE` dissolves the team as the fallback (its
+now-teamless members, if any, are unaffected). This keeps `leader_id` `NOT NULL`
+and avoids an `ON DELETE RESTRICT` that would otherwise make a leader's account
+undeletable (a GDPR problem). Account deletion always succeeds.
 
 **`awards text[]`** (not a single `text` or a normalized table): a team often wins
 several awards ("1st Place Overall" *and* "Best Use of Supabase"). An array keeps
 the schema structure-free while natively supporting multiples.
+
+**Unique team name *within* an edition** — `unique (edition_slug, lower(name))`.
+Names still recur freely *across* editions, but two "fsociety" teams in the same
+edition (confusing for judges/voting) are rejected case-insensitively.
+
+**`slug` rename caveat** — `ON UPDATE CASCADE` propagates an edited `edition_slug`
+through all FK rows, but Postgres cannot cascade to anything outside the DB. If
+team logos/assets in a storage bucket are ever keyed by slug (none today), a rename
+must also move those paths manually.
 
 ### Changed: `join_requests`
 
@@ -258,12 +278,15 @@ when Supabase is next booted and a fresh export runs, the deleted person reappea
 To prevent this, removals are **never** applied by editing `archive.json` directly.
 Instead:
 
-1. **Redaction tooling** — an admin runs a small script
-   `redact <edition_slug> <participant-email-or-id> <mode: hide|delete>` that:
-   - rewrites `archive.json` to drop the member (and increments `hidden_members`),
-     and
-   - appends the request to a git-tracked **`redactions.pending.json`** log
-     (edition, identifier, mode, requested_at).
+1. **Redaction tooling** — `archive.json` deliberately stores only
+   `{ name, skills }` per member (no email), so the JSON edit and the DB action key
+   off **different identifiers**. The admin runs
+   `redact <edition_slug> --team "<team name>" --member "<member name>" --who <email|auth-id> <mode: hide|delete>`:
+   - the **`--team`/`--member`** pair locates and rewrites the entry in
+     `archive.json` (drop the member, increment `hidden_members`); and
+   - the DB-resolvable **`--who`** identifier (email or `auth.users.id`) is recorded
+     in a git-tracked **`redactions.pending.json`** log (edition, who, mode,
+     requested_at) for later reconciliation.
    Both changes are committed together, so the queued DB action survives the entire
    dormant period in version control.
 2. **Reconciliation on boot** — a predeploy/startup step `apply-redactions` runs
@@ -271,7 +294,10 @@ Instead:
    `redactions.pending.json`, applies each to Postgres (`mode=hide` →
    `registrations.public = false`; `mode=delete` → delete the registration / the
    participant + auth user per the request), then moves applied entries to
-   `redactions.applied.json`.
+   `redactions.applied.json`. It **must be idempotent** — a re-run after a crash or
+   timeout must safely no-op on already-hidden/already-deleted records (treat
+   "record not found" / "already false" as success) and only drain entries that
+   fully succeeded.
 3. **Export guard** — the exporter **refuses to write a fresh `archive.json` while
    `redactions.pending.json` is non-empty**, forcing reconciliation before any new
    export can reintroduce removed data. This closes the drift loop.
@@ -292,6 +318,12 @@ Instead:
     against the shut-down backend and can hang the UI. Because the static build
     excludes `/ops/*` and `/api/*`, nothing legitimately needs the client; the
     guard simply makes that explicit and discards/ignores stale sessions.
+    State (`useState`/store) must **default the session to `null`** in dormant mode,
+    and any component that reads user data (e.g. a navbar profile icon) must check
+    site mode before touching reactive session state.
+  - **Hydration safety:** archive pages are statically baked, so any rendered dates
+    must use a fixed UTC/standardized formatter (or a `<ClientOnly>` wrapper) to
+    avoid SSR/client hydration mismatches across time zones.
 - **LIVE:** SSR as today. **Current** edition reads from the DB; **past** editions
   still read from `archive.json` (golden rule).
 
@@ -350,8 +382,12 @@ from `participants` + per-edition fields from `registrations`):
 - **Integration:** close → create-draft → go-live empties the live scope while all
   prior-edition data persists; `registrations` uniqueness per
   `(participant_id, edition_slug)`; partial-unique enforces a single current
-  edition; `apply-redactions` applies `hide`/`delete` and drains the pending log;
-  `ON DELETE RESTRICT` blocks deleting an edition that still has teams.
+  edition; `apply-redactions` applies `hide`/`delete`, is idempotent on re-run, and
+  drains the pending log; `ON DELETE RESTRICT` blocks deleting an edition that still
+  has teams; **leader departure** auto-promotes the earliest-joined member and
+  dissolves a sole-leader team (verified through the `auth.users` cascade path too);
+  duplicate team name within an edition is rejected case-insensitively while the
+  same name is allowed across editions.
 - **Build:** dormant `bun generate` produces `/archive` + `/archive/[slug]` from a
   fixture `archive.json` **with no Supabase env present**; `/ops/*` and `/api/*`
   excluded; privacy banner present; Supabase plugin does not initialize in dormant
@@ -377,13 +413,20 @@ from `participants` + per-edition fields from `registrations`):
    `privacy@liberhack.org`.
 9. **`teams.awards`** — `text[]` (multiple free-form awards per team).
 10. **`teams.leader_id`** — references `registrations(id)` (edition-integrity +
-    consistent with the no-`auth`-FK rule); creation ordering documented.
+    consistent with the no-`auth`-FK rule); creation ordering documented. Leader
+    departure = **auto-promote earliest-joined member, else dissolve**, via a
+    `BEFORE DELETE` trigger; `leader_id` stays `NOT NULL ON DELETE CASCADE` (no
+    `RESTRICT`, so account deletion always succeeds).
 11. **`ON DELETE`** — explicit everywhere: `RESTRICT` on content-bearing edition
     FKs, `CASCADE` on owned-config FKs.
 12. **Dormant privacy-drift** — git-tracked `redactions.pending.json` queue +
     `apply-redactions` reconciliation on DB boot + export guard.
 13. **Deployment trigger for static rebuild** — **manual runbook** for the first
     iterations (see Deployment & runbook); automate later once proven.
+14. **Unique team name per edition** — `unique (edition_slug, lower(name))`.
+15. **Redaction identifier split** — JSON edit keys off `--team`/`--member` name;
+    `redactions.pending.json` stores a DB-resolvable `--who` (email/auth id).
+    `apply-redactions` is idempotent.
 
 ## Deployment & runbook (transitions between modes)
 
