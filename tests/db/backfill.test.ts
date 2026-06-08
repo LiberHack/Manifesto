@@ -54,4 +54,37 @@ describe('backfill: 2026 edition', () => {
     await db.from('teams').delete().eq('edition_slug', slug)
     await db.from('editions').delete().eq('slug', slug)
   })
+
+  it('participants no longer has per-edition columns', async () => {
+    // skills column should not exist
+    const { error } = await db.from('participants').select('skills').limit(1)
+    expect(error).not.toBeNull()
+  })
+
+  it('new user signup creates participant + registration for current edition', async () => {
+    const tag = Date.now()
+    const { data: auth } = await db.auth.admin.createUser({
+      email: `trigger-test-${tag}@ci.test`,
+      password: 'test1234',
+      email_confirm: true,
+      user_metadata: { name: 'Trigger Test', skills: ['TypeScript'], dietary: '', experience: 'beginner' },
+    })
+    const uid = auth.user!.id
+
+    const { data: p } = await db.from('participants').select('id, name, email').eq('id', uid).single()
+    expect(p!.name).toBe('Trigger Test')
+    expect(p!.email).toBe(`trigger-test-${tag}@ci.test`)
+
+    const { data: reg } = await db.from('registrations').select('*').eq('participant_id', uid).maybeSingle()
+    // Only expect a registration if an edition is currently live
+    const { data: current } = await db.from('editions').select('slug').eq('is_current', true).maybeSingle()
+    if (current) {
+      expect(reg).not.toBeNull()
+      expect(reg!.edition_slug).toBe(current.slug)
+      expect(reg!.skills).toContain('TypeScript')
+      expect(reg!.experience).toBe('beginner')
+    }
+
+    await db.auth.admin.deleteUser(uid)
+  })
 })
