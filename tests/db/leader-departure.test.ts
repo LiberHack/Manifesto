@@ -71,6 +71,39 @@ describe('handle_leader_departure trigger', () => {
     await db.from('editions').delete().eq('slug', edSlug)
   })
 
+  it('rejects team insert where leader_id belongs to a different edition', async () => {
+    const tag = Date.now()
+    const edA = `integ-a-${tag}`
+    const edB = `integ-b-${tag}`
+    await db.from('editions').insert([
+      { slug: edA, name: 'Integrity A', status: 'live' },
+      { slug: edB, name: 'Integrity B', status: 'live' },
+    ])
+
+    const userId = await makeUser(`integ-${tag}@ci.test`)
+
+    // Register user in edition A only
+    const { data: regA } = await db.from('registrations')
+      .insert({ participant_id: userId, edition_slug: edA, skills: [] })
+      .select().single()
+
+    // Attempt to create a team in edition B using the edition A registration as leader
+    const { error } = await db.from('teams').insert({
+      edition_slug: edB,
+      name: `IntegTeam${tag}`,
+      leader_id: regA!.id,
+      skills_wanted: [],
+    })
+
+    expect(error).not.toBeNull()
+    // Trigger raises P0001; Supabase wraps it as code '42501' or passes through — check message
+    expect(error!.message).toMatch(/leader_id must belong to the same edition/i)
+
+    await db.auth.admin.deleteUser(userId)
+    await db.from('editions').delete().eq('slug', edA)
+    await db.from('editions').delete().eq('slug', edB)
+  })
+
   it('deletion via auth.users cascade also triggers handle_leader_departure', async () => {
     const tag = Date.now()
     const edSlug = `cascade-${tag}`

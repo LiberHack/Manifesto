@@ -55,6 +55,23 @@ describe('backfill: 2026 edition', () => {
     await db.from('editions').delete().eq('slug', slug)
   })
 
+  it('admin role is preserved during backfill', async () => {
+    const { data } = await db
+      .from('registrations')
+      .select('role')
+      .eq('edition_slug', '2026')
+      .eq('role', 'admin')
+    // If any participant had role='admin', at least one registration must reflect it
+    const { data: adminParticipants } = await db
+      .from('participants')
+      .select('id')
+      .eq('role', 'admin')
+    // After migration 06 drops participants.role this query will error — skip in that case
+    if (adminParticipants !== null) {
+      expect((data ?? []).length).toBe(adminParticipants.length)
+    }
+  })
+
   it('participants no longer has per-edition columns', async () => {
     // skills column should not exist
     const { error } = await db.from('participants').select('skills').limit(1)

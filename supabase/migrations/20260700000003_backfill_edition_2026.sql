@@ -35,7 +35,7 @@ insert into public.registrations (
 select
   p.id,
   '2026',
-  'participant'::public.participant_role,
+  coalesce(p.role, 'participant')::public.participant_role,
   p.team_id,
   p.skills,
   p.dietary,

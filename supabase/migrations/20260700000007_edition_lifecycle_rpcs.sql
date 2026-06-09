@@ -29,5 +29,8 @@ begin
   if not found then
     raise exception 'Edition % is not a draft or does not exist', p_slug;
   end if;
+exception
+  when unique_violation then
+    raise exception 'Another edition is already live. Close it first before going live with %.', p_slug;
 end;
 $$;
