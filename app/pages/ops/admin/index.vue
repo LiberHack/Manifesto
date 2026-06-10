@@ -592,6 +592,9 @@ async function addAnnouncement() {
         </div>
       </div>
     </section>
+
+    <!-- Edition lifecycle panel -->
+    <AdminEditionLifecycle class="mt-8" />
   </main>
 
   <!-- Participant detail modal -->
