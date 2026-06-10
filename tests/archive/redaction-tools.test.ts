@@ -143,3 +143,41 @@ describe('redact-delete', () => {
     expect(() => runRedactDelete({ who: 'nobody@test.com' })).toThrow(/keyring/i)
   })
 })
+
+describe('apply-redactions idempotency', () => {
+  it('processes hide entries: sets registrations.public=false', async () => {
+    const mockDb = {
+      from: (_table: string) => ({
+        update: (_data: unknown) => ({
+          eq: () => ({ eq: () => ({ eq: () => ({ error: null, data: null }) }) }),
+        }),
+        delete: () => ({
+          eq: () => ({ error: null }),
+        }),
+        select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }) }),
+      }),
+    }
+    const { applyRedactions } = await import('../../scripts/apply-redactions')
+    const pending: import('../../server/utils/archive-types').RedactionEntry[] = [{ mode: 'hide', edition_slug: '2026', token: 'tok-x', who: 'alice@test.com' }]
+    const applied: import('../../server/utils/archive-types').RedactionEntry[] = []
+    await applyRedactions(mockDb as never, pending, applied)
+    expect(applied).toHaveLength(1)
+    expect(pending).toHaveLength(0)
+  })
+
+  it('is idempotent: re-running with same entries does not fail', async () => {
+    const mockDb = {
+      from: () => ({
+        update: () => ({ eq: () => ({ eq: () => ({ eq: () => ({ error: null }) }) }) }),
+        delete: () => ({ eq: () => ({ error: null }) }),
+        select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }) }),
+      }),
+    }
+    const { applyRedactions } = await import('../../scripts/apply-redactions')
+    const pending: import('../../server/utils/archive-types').RedactionEntry[] = [{ mode: 'delete', who: 'alice@test.com' }]
+    const applied: import('../../server/utils/archive-types').RedactionEntry[] = []
+    await applyRedactions(mockDb as never, pending, applied)
+    await applyRedactions(mockDb as never, [], applied)
+    expect(applied).toHaveLength(1)
+  })
+})
