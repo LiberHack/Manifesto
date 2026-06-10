@@ -1,5 +1,26 @@
+export interface ArchiveWinner {
+  team_name: string
+  placement: number
+  awards: string[]
+}
+
+export interface ArchiveIndexEntry {
+  slug: string
+  name: string
+  starts_at: string | null
+  ends_at: string | null
+  team_count: number
+  participant_count: number
+  opted_out: number
+  winners: ArchiveWinner[]
+}
+
+export interface ArchiveIndex {
+  editions: ArchiveIndexEntry[]
+}
+
 export interface ArchiveMember {
-  token: string
+  token: string // opaque, non-reversible token
   name: string
   skills: string[]
 }
@@ -23,21 +44,6 @@ export interface EditionArchive {
   team_count: number
   opted_out: number
   teams: ArchiveTeam[]
-}
-
-export interface ArchiveIndexEntry {
-  slug: string
-  name: string
-  starts_at: string | null
-  ends_at: string | null
-  team_count: number
-  participant_count: number
-  opted_out: number
-  winners: Array<{ team_name: string; placement: number; awards: string[] }>
-}
-
-export interface ArchiveIndex {
-  editions: ArchiveIndexEntry[]
 }
 
 export interface HideEntry {
