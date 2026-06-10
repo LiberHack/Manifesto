@@ -25,6 +25,7 @@ const form = reactive({
   skills: [] as string[],
   dietary: "",
   experience: "" as "" | "beginner" | "intermediate" | "experienced",
+  public: true,
   coc: false,
 });
 const error = ref("");
@@ -40,7 +41,7 @@ async function register() {
     email: form.email,
     password: form.password,
     options: {
-      data: { name: form.name, skills, dietary, experience },
+      data: { name: form.name, skills, dietary, experience, public: form.public },
       emailRedirectTo: inviteCode
         ? `${config.public.emailVerifiedUrl}?invite=${inviteCode}`
         : config.public.emailVerifiedUrl,
@@ -124,6 +125,23 @@ async function register() {
           class="input input-bordered w-full"
         />
       </label>
+
+      <fieldset class="space-y-2">
+        <legend class="text-sm font-semibold text-base-content/70 uppercase tracking-wide">Archive visibility</legend>
+        <p class="text-sm text-base-content/60">
+          Your profile and team will be shown in the public showcase after the event.
+        </p>
+        <label class="flex items-start gap-3 cursor-pointer">
+          <input
+            v-model="form.public"
+            type="checkbox"
+            class="checkbox checkbox-sm mt-0.5"
+            :true-value="false"
+            :false-value="true"
+          />
+          <span class="text-sm">Hide my profile from the public archive.</span>
+        </label>
+      </fieldset>
 
       <label class="flex items-start gap-3 cursor-pointer">
         <input v-model="form.coc" type="checkbox" required class="checkbox checkbox-primary mt-1 shrink-0" />
