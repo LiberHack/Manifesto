@@ -60,6 +60,12 @@ export default defineNuxtConfig({
       supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL ?? "",
       supabaseAnonKey: process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
       emailVerifiedUrl: "https://liberhack.org/ops/confirm",
+      siteMode: process.env.NUXT_PUBLIC_SITE_MODE ?? 'live',  // 'live' | 'dormant'
     },
+  },
+
+  routeRules: {
+    '/archive': { prerender: true },
+    '/archive/**': { prerender: true },
   },
 });
