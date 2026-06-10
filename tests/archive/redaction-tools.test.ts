@@ -156,6 +156,11 @@ describe('apply-redactions idempotency', () => {
         }),
         select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }) }),
       }),
+      auth: {
+        admin: {
+          deleteUser: async (_id: string) => ({ error: null })
+        }
+      }
     }
     const { applyRedactions } = await import('../../scripts/apply-redactions')
     const pending: import('../../server/utils/archive-types').RedactionEntry[] = [{ mode: 'hide', edition_slug: '2026', token: 'tok-x', who: 'alice@test.com' }]
@@ -172,6 +177,11 @@ describe('apply-redactions idempotency', () => {
         delete: () => ({ eq: () => ({ error: null }) }),
         select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }) }),
       }),
+      auth: {
+        admin: {
+          deleteUser: async (_id: string) => ({ error: null })
+        }
+      }
     }
     const { applyRedactions } = await import('../../scripts/apply-redactions')
     const pending: import('../../server/utils/archive-types').RedactionEntry[] = [{ mode: 'delete', who: 'alice@test.com' }]

@@ -41,17 +41,9 @@ export async function applyRedactions(
           if (p) authId = p.id
         }
 
-        // db.auth.admin may be absent in test mocks — treat that as "already gone"
-        const deleteUser = db.auth?.admin?.deleteUser
-        if (deleteUser) {
-          const { error } = await deleteUser.call(db.auth.admin, authId)
-          if (
-            error &&
-            !error.message.includes('not found') &&
-            !error.message.includes('User not found')
-          ) {
-            throw error
-          }
+        const { error } = await (db.auth.admin as { deleteUser: (id: string) => Promise<{ error: { message: string } | null }> }).deleteUser(authId)
+        if (error && !error.message.includes('not found') && !error.message.includes('User not found')) {
+          throw error
         }
       }
       applied.push(entry)
