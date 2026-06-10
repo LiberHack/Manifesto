@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { createClient } from '@supabase/supabase-js'
-import type { EditionArchive, ArchiveIndex, ArchiveIndexEntry, KeyringEntry, Keyring } from '../server/utils/archive-types'
+import type { EditionArchive, ArchiveIndex, ArchiveIndexEntry, Keyring } from '../server/utils/archive-types'
 import type { ArchiveTeam, ArchiveMember } from '../server/utils/archive-types'
 
 const ROOT = join(import.meta.dirname, '..')
