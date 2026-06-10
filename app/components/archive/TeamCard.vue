@@ -18,7 +18,7 @@ defineProps<{
         </div>
         <div class="flex flex-col items-end gap-1 shrink-0">
           <span v-if="team.placement" class="badge badge-primary font-bold">#{{ team.placement }}</span>
-          <span v-if="presentationOrder" class="badge badge-ghost text-xs">Slot {{ presentationOrder }}</span>
+          <span v-if="presentationOrder != null" class="badge badge-ghost text-xs">Slot {{ presentationOrder }}</span>
         </div>
       </header>
 
