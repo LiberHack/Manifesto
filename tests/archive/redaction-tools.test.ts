@@ -68,3 +68,78 @@ describe('redact-hide', () => {
     expect(() => runRedactHide({ slug: testSlug, token: 'nonexistent', who: 'x@x.com' })).toThrow()
   })
 })
+
+describe('redact-delete', () => {
+  const slugA = 'delete-test-a'
+  const slugB = 'delete-test-b'
+
+  function seedEdition(slug: string, tokens: string[]) {
+    writeJson(join(ARCHIVE_DIR, `${slug}.json`), {
+      slug, name: 'Del Test', starts_at: null, ends_at: null,
+      participant_count: tokens.length, team_count: 1, opted_out: 0,
+      teams: [{
+        name: 'Team', description: null, github_url: null, placement: null, awards: [], presentation_order: null,
+        members: tokens.map(t => ({ token: t, name: `User-${t}`, skills: [] })),
+      }],
+    })
+  }
+
+  function seedKeyring() {
+    writeJson(join(ARCHIVE_DIR, 'redaction-keyring.json'), [
+      {
+        who: 'uid-alice', email: 'alice@test.com',
+        occurrences: [
+          { edition_slug: slugA, token: 'tok-a-alice' },
+          { edition_slug: slugB, token: 'tok-b-alice' },
+        ]
+      },
+      { who: 'uid-bob', email: 'bob@test.com', occurrences: [{ edition_slug: slugA, token: 'tok-a-bob' }] },
+    ])
+  }
+
+  beforeEach(() => {
+    seedEdition(slugA, ['tok-a-alice', 'tok-a-bob'])
+    seedEdition(slugB, ['tok-b-alice'])
+    seedKeyring()
+    writeJson(join(ARCHIVE_DIR, 'redactions.pending.json'), [])
+    writeJson(join(ARCHIVE_DIR, 'index.json'), { editions: [
+      { slug: slugA, name: 'A', starts_at: null, ends_at: null, team_count: 1, participant_count: 2, opted_out: 0, winners: [] },
+      { slug: slugB, name: 'B', starts_at: null, ends_at: null, team_count: 1, participant_count: 1, opted_out: 0, winners: [] },
+    ]})
+  })
+
+  it('removes the person from ALL editions they appear in', async () => {
+    const { runRedactDelete } = await import('../../scripts/redact-delete')
+    runRedactDelete({ who: 'alice@test.com' })
+
+    const archA = readJson<{ teams: Array<{ members: Array<{ name: string }> }> }>(join(ARCHIVE_DIR, `${slugA}.json`))
+    const archB = readJson<{ teams: Array<{ members: Array<{ name: string }> }> }>(join(ARCHIVE_DIR, `${slugB}.json`))
+
+    expect(archA.teams[0].members.some(m => m.name === 'User-tok-a-alice')).toBe(false)
+    expect(archB.teams[0].members).toHaveLength(0)
+  })
+
+  it('does NOT increment opted_out (erasure is uncounted)', async () => {
+    const { runRedactDelete } = await import('../../scripts/redact-delete')
+    runRedactDelete({ who: 'alice@test.com' })
+
+    const archA = readJson<{ opted_out: number }>(join(ARCHIVE_DIR, `${slugA}.json`))
+    const archB = readJson<{ opted_out: number }>(join(ARCHIVE_DIR, `${slugB}.json`))
+    expect(archA.opted_out).toBe(0)
+    expect(archB.opted_out).toBe(0)
+  })
+
+  it('queues a single account-scoped delete entry', async () => {
+    const { runRedactDelete } = await import('../../scripts/redact-delete')
+    runRedactDelete({ who: 'alice@test.com' })
+
+    const pending = readJson<Array<{ mode: string; who: string }>>(join(ARCHIVE_DIR, 'redactions.pending.json'))
+    expect(pending).toHaveLength(1)
+    expect(pending[0]).toMatchObject({ mode: 'delete', who: 'alice@test.com' })
+  })
+
+  it('throws if who not found in keyring', async () => {
+    const { runRedactDelete } = await import('../../scripts/redact-delete')
+    expect(() => runRedactDelete({ who: 'nobody@test.com' })).toThrow(/keyring/i)
+  })
+})
