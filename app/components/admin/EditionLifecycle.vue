@@ -1,6 +1,7 @@
 <script setup lang="ts">
 const { data: current, refresh } = await useFetch<{ slug: string; name: string; status: string } | null>('/api/editions/current')
 
+const draftListRef = useTemplateRef<{ refresh: () => void }>('draftList')
 const draftForm = reactive({ slug: '', name: '', starts_at: '', ends_at: '' })
 const error = ref('')
 const loading = ref(false)
@@ -8,6 +9,7 @@ const loading = ref(false)
 async function closeEdition() {
   if (!current.value) return
   if (!confirm(`Archive "${current.value.name}"? This cannot be undone.`)) return
+  error.value = ''
   loading.value = true
   try {
     await $fetch('/api/admin/editions/close', { method: 'POST', body: { slug: current.value.slug } })
@@ -18,6 +20,7 @@ async function closeEdition() {
 }
 
 async function createDraft() {
+  error.value = ''
   if (!draftForm.slug.trim() || !draftForm.name.trim()) { error.value = 'Slug and name are required'; return }
   loading.value = true
   try {
@@ -31,10 +34,12 @@ async function createDraft() {
 
 async function goLive(slug: string) {
   if (!confirm(`Go live with "${slug}"?`)) return
+  error.value = ''
   loading.value = true
   try {
     await $fetch('/api/admin/editions/go-live', { method: 'POST', body: { slug } })
     await refresh()
+    await draftListRef.value?.refresh()
   } catch (e: unknown) {
     error.value = (e as { data?: { message?: string } }).data?.message ?? 'Failed'
   } finally { loading.value = false }
@@ -75,6 +80,6 @@ async function goLive(slug: string) {
     </div>
 
     <!-- Draft editions list -->
-    <AdminDraftEditionsList @go-live="goLive" />
+    <AdminDraftEditionsList ref="draftList" @go-live="goLive" />
   </section>
 </template>

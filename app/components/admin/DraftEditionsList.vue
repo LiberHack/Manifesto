@@ -2,6 +2,8 @@
 const emit = defineEmits<{ 'go-live': [slug: string] }>()
 
 const { data: drafts, refresh } = await useFetch<Array<{ slug: string; name: string; starts_at: string | null; ends_at: string | null }>>('/api/admin/editions/drafts')
+
+defineExpose({ refresh })
 </script>
 
 <template>
