@@ -40,6 +40,10 @@ jobs:
           rsync -az \
             Dockerfile docker-compose.yml Caddyfile \
             root@${{ secrets.DEPLOY_HOST }}:/opt/liberhack/
+          rsync -az \
+            archive/ root@${{ secrets.DEPLOY_HOST }}:/opt/liberhack/archive/
+          rsync -az \
+            scripts/ root@${{ secrets.DEPLOY_HOST }}:/opt/liberhack/scripts/
 
       - name: Redeploy
         run: |
