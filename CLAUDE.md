@@ -128,6 +128,8 @@ Production runs via Docker Compose with Caddy for automatic SSL (Let's Encrypt):
 ```bash
 rsync -avz \
   --include='.output/***' \
+  --include='archive/***' \
+  --include='scripts/***' \
   --include='Dockerfile' \
   --include='docker-compose.yml' \
   --include='Caddyfile' \

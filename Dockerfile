@@ -11,6 +11,7 @@ RUN VERSION=$(node -e "console.log(require('./.output/server/node_modules/better
 FROM node:22-alpine
 WORKDIR /app
 COPY --from=native-builder /app/.output/ .output/
+COPY archive/ archive/
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3000
