@@ -1,1 +1,14 @@
-{ "editions": [] }
+{
+  "editions": [
+    {
+      "slug": "2026",
+      "name": "LiberHack 2026",
+      "starts_at": "2026-06-06T09:00:00Z",
+      "ends_at": "2026-06-08T18:00:00Z",
+      "participant_count": 0,
+      "team_count": 0,
+      "opted_out": 0,
+      "winners": []
+    }
+  ]
+}
