@@ -69,6 +69,10 @@ NUXT_RESEND_FROM_EMAIL=             # Sender address on a domain verified in Res
 NUXT_SITE_URL=                      # Full app URL, used in email links (e.g. http://localhost:3000)
 ```
 
+`NUXT_PUBLIC_APP_ENV` (`production` | `staging` | `development`, default `development`) is set per
+environment in `wrangler.jsonc`; anything but `production` sends `X-Robots-Tag: noindex`. Leave it
+unset locally.
+
 ## Auth & Routes
 
 - `/ops/*` pages are protected by the `auth` client middleware — redirects to `/ops/login` if no session, `/ops/verify-email` if email not confirmed
@@ -77,6 +81,27 @@ NUXT_SITE_URL=                      # Full app URL, used in email links (e.g. ht
 - `/api/live/stream` is SSE: each connection polls Supabase every 5s and only emits on change (Workers isolates share no memory, so there is no server-side broadcast)
 - Admin role: set `role = 'admin'` in the `participants` table to expose `/ops/admin`
 - `emailRedirectTo` in `signUp` is `<current origin>/ops/confirm`, so every host the app is served from (production, staging, PR previews) must be in `additional_redirect_urls` in `supabase/config.toml`
+
+## Testing
+
+`bun run test` runs vitest. Tests live in `tests/` and are e2e: `setup({ server: true })` from
+`@nuxt/test-utils/e2e` builds the app once per file and starts it, then tests hit
+`http://localhost:3000` with plain `fetch`. No Supabase or Resend credentials are needed for the
+existing tests (they assert unauthenticated behaviour); anything that needs a session should mock
+`serverSupabaseUser`, not talk to the real project.
+
+Two pieces of config exist only for the test run — do not remove them:
+
+- `$test` in `nuxt.config.ts` builds the fixture with the `node-server` preset and SQLite content.
+  A `cloudflare_module` bundle cannot be started by Node, and its export conditions leak into the
+  test workers (below).
+- The `manifesto:drop-import-condition` plugin in `vitest.config.ts`. vitest 4 forwards Vite's SSR
+  `resolve.conditions` to its workers as `node --conditions`; Nuxt adds `import`, which makes
+  Node's native `require()` of dual packages pick the ESM build and crashes `@vue/compiler-sfc`
+  (`default is not defined` / `MagicString is not a constructor`). The plugin strips it.
+
+The same suite gates every Workers Builds deploy (production, staging and PR previews), so a red
+test blocks the deploy.
 
 ## Emails
 
@@ -116,9 +141,27 @@ bunx supabase db reset                    # rebuild local DB from migrations
 
 ## Deployment
 
-Production (`main` → liberhack.org) and staging (`dev` → staging.liberhack.org, wrangler env
-`staging`) run on Cloudflare Workers; PRs get preview URLs on the staging Worker. See
-`docs/cloudflare-workers.md` for the one-time setup (D1, secrets, custom domains, Workers Builds).
+Everything runs on Cloudflare Workers via Workers Builds — no GitHub Actions. What you push
+decides where it goes:
+
+| Push to | Worker | URL |
+| --- | --- | --- |
+| `main` | `manifesto` | https://liberhack.org |
+| `dev` | `manifesto-staging` (wrangler env `staging`) | https://staging.liberhack.org |
+| any other branch | preview **version** of `manifesto-staging` | `<version>-manifesto-staging.hexchap.workers.dev`, commented on the PR |
+
+Every build runs `bun install --frozen-lockfile && bun run test && bun run build` first. Previews
+share staging's bindings and secrets, never production's. Full setup and the Workers Builds
+settings are in `docs/cloudflare-workers.md`.
+
+Rules that follow from this layout:
+
+- `wrangler.jsonc` `env.staging` does **not** inherit the top level. A new binding or var must be
+  added in both places or staging/previews will crash on it.
+- Secrets are per environment: `bunx wrangler secret put NAME` and `... --env staging`.
+- A new host that users can land on after email confirmation must be added to
+  `additional_redirect_urls` in `supabase/config.toml` and pushed with `bunx supabase config push`.
+- `bunx wrangler deploy` from a laptop is for emergencies; normal deploys are merges.
 
 ```bash
 bunx wrangler login                        # once per machine

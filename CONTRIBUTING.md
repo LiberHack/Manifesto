@@ -12,8 +12,11 @@
 
 1. Branch off `dev`: `git checkout dev && git pull && git checkout -b feat/my-thing`
 2. Commit in small, reviewable chunks. Use [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, `chore:`, `test:`, `refactor:`).
-3. Open a PR into `dev`. Fill in the PR template.
-4. `dev` is merged into `main` for releases, not merged into ad-hoc.
+3. Open a PR into `dev`. Fill in the PR template. Every push to your branch builds a preview
+   (`<version>-manifesto-staging.hexchap.workers.dev`) and Workers Builds comments the URL on the
+   PR; the build runs the test suite first, so a red check means tests fail.
+4. Merging into `dev` deploys https://staging.liberhack.org. `dev` is merged into `main` for
+   releases (→ https://liberhack.org), not merged into ad-hoc.
 
 ## Rules for AI coding agents
 
@@ -30,3 +33,5 @@ If you're an AI agent (Claude, Copilot, Cursor, etc.) working in this repo, see 
 - [ ] `bun.lock` is staged if dependencies changed (no `package-lock.json` / other lockfiles)
 - [ ] No secrets, `.env` values, or Supabase service-role keys in the diff
 - [ ] New migrations are additive/reversible where possible
+- [ ] The Workers Builds check on the PR is green and the preview URL works
+- [ ] Anything added to `wrangler.jsonc` (binding, var) is also added under `env.staging`
