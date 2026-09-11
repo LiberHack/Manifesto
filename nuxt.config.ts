@@ -22,6 +22,10 @@ export default defineNuxtConfig({
   $test: {
     nitro: { preset: "node-server" },
     content: { database: { type: "sqlite", filename: ".data/content/test.sqlite" } },
+    // Dummy Supabase config so the fixture boots without credentials (CI has no .env).
+    // Tests must not depend on a reachable project; unauthenticated paths never hit the
+    // network because there is no session cookie to validate.
+    supabase: { url: "http://127.0.0.1:1", key: "sb_publishable_test" },
   },
 
   // Workers cannot run sharp/ipx, so <NuxtImg> renders plain <img> tags.
