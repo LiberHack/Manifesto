@@ -1,0 +1,57 @@
+# Supabase project configuration.
+# Applied to the linked cloud project with `npx supabase config push`.
+# Secrets referenced via env(...) are read from `supabase/.env` (git-ignored).
+
+project_id = "manifesto"
+
+[api]
+schemas = ["public", "storage", "graphql_public"]
+max_rows = 1000
+
+[db]
+major_version = 17
+
+[auth]
+site_url = "https://liberhack.org"
+additional_redirect_urls = [
+  "https://liberhack.org/**",
+  "https://staging.liberhack.org/**",
+  # PR preview versions of the staging Worker (Workers Builds `versions upload --env staging`)
+  "https://*-manifesto-staging.hexchap.workers.dev/**",
+  "http://localhost:3000/**",
+]
+jwt_expiry = 3600
+enable_signup = true
+enable_anonymous_sign_ins = false
+
+[auth.rate_limit]
+email_sent = 3
+
+[auth.email]
+enable_signup = true
+enable_confirmations = true
+secure_password_change = false
+
+[auth.email.template.confirmation]
+subject = "Verify your email — LiberHack"
+content_path = "./server/emails/dist/verify-email.html"
+
+[auth.email.template.magic_link]
+subject = "Your LiberHack login link"
+content_path = "./server/emails/dist/magic-link.html"
+
+[auth.email.template.recovery]
+subject = "Reset your LiberHack password"
+content_path = "./server/emails/dist/reset-password.html"
+
+[auth.email.smtp]
+enabled = true
+host = "smtp.resend.com"
+port = 587
+user = "resend"
+pass = "env(RESEND_API_KEY)"
+admin_email = "noreply@liberhack.org"
+sender_name = "LiberHack"
+
+[auth.sms]
+enable_signup = false

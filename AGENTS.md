@@ -14,15 +14,23 @@ your defaults for this repo.
 - Never touch `archive/`, `scripts/redact-*.ts`, `scripts/apply-redactions.ts`, or anything in the
   edition-archiving/GDPR-erasure path without flagging it for explicit human review. This code
   deletes or redacts real user data.
-- Never commit `.env`, `supabase-docker/.env`, or any Supabase service-role key.
-- Never commit `bun.lock` / `bun.lockb`. `package-lock.json` is the dependency source of truth.
-- Never modify `.github/workflows/*` (CI/CD, deploy) without explicit human sign-off.
+- Never commit `.env`, `supabase/.env`, or any Supabase service-role key.
+- Never commit `package-lock.json`, `yarn.lock` or `pnpm-lock.yaml`. `bun.lock` is the dependency source of truth; commit it with every dependency change.
+- Never run `wrangler deploy` against production or `wrangler secret put` / `secret delete` in
+  any environment. Deploys happen by merging (`dev` → staging, `main` → production); a preview of
+  your branch is built automatically. `wrangler deploy --env staging` is acceptable only when a
+  human asks for it in the current conversation.
+- Never loosen `additional_redirect_urls` in `supabase/config.toml` with a wildcard that could
+  match hosts outside our Cloudflare account, and never set `preview_urls` on the production Worker.
 - Never merge your own PR or dismiss/override a review.
 
 ## Expected behavior
 
 - Open small, focused PRs against `dev`. Follow [CONTRIBUTING.md](./CONTRIBUTING.md).
-- Run `bun test` before proposing a change is done.
+- Run `bun run test` before proposing a change is done. Do not skip, delete or `.skip` a test to
+  get there; the same suite gates every deploy.
+- When you touch `wrangler.jsonc`, mirror the change under `env.staging` (nothing is inherited)
+  and run `bunx wrangler deploy --dry-run --env staging` to confirm both configs still resolve.
 - If a task requires one of the "never" actions above, stop and ask the human instead of finding
   a workaround.
 - If you're unsure whether a change is in-scope (schema change, auth logic, redaction/erasure

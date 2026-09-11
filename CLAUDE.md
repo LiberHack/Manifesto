@@ -10,29 +10,33 @@ Nuxt 4 app with Vue 3, Tailwind CSS v4, DaisyUI, and @nuxt/content.
 
 - **Framework**: Nuxt 4 (`nuxt ^4.4.2`)
 - **UI**: Tailwind CSS v4 via `@tailwindcss/vite`, DaisyUI v5
-- **Content**: `@nuxt/content` with better-sqlite3
-- **Email**: Postmark (transactional), MJML templates
+- **Content**: `@nuxt/content` (SQLite locally, Cloudflare D1 in production)
+- **Email**: Resend (transactional, plain HTTP call), MJML templates
+- **Hosting**: Cloudflare Workers (`cloudflare_module` Nitro preset), Supabase Cloud for DB/auth
 - **Language**: TypeScript
 - **Modules**: `@nuxt/fonts`, `@nuxt/icon`, `@nuxt/image`, `@nuxt/hints`
 
 ## Commands
 
 ```bash
-bun dev        # start dev server
-bun build      # production build
-bun generate   # static generation
-bun preview    # preview production build
-bun test       # run vitest unit tests
+bun run dev        # start dev server
+bun run build      # production build
+bun run generate   # static generation
+bun run preview    # preview production build (node)
+bun run preview:cf # run the built worker locally with wrangler dev (D1 + rate limits via miniflare)
+bun run deploy     # nuxt build && wrangler deploy
+bun run test       # vitest (unit + e2e; also gates every Workers Builds deploy)
 ```
 
 ## Package Manager
 
-We use **bun** locally for speed, but infra/CI relies on **npm** for reproducibility.
+**bun** is the only package manager (`packageManager` in `package.json`; Workers Builds
+picks it up from `bun.lock`).
 
-- Never commit `bun.lock`, `bun.lockb`, or any bun-specific lockfiles
-- `package-lock.json` is the source of truth for dependencies
-- When adding packages: `bun add <pkg>` is fine locally, but verify `package-lock.json` is updated before committing
-- `.gitignore` must always exclude bun lockfiles
+- `bun.lock` is the dependency source of truth — commit it with every dependency change
+- Never add `package-lock.json`, `yarn.lock` or `pnpm-lock.yaml`
+- `bun install --frozen-lockfile` is what CI runs; if it fails, run `bun install` and commit the lock
+- Run package scripts with `bun run <script>` (`bun test` alone is bun's own test runner, not vitest)
 
 ## Project Structure
 
@@ -45,11 +49,11 @@ app/middleware/   # auth.ts — client-side route guard (checks session + email_
 server/           # Nitro API routes, middleware, email utils
 server/api/       # REST API endpoints
 server/emails/    # MJML email templates — edit .mjml, run generate-ts.mjs to rebuild
-server/middleware/ # 01.auth.ts (attaches user to context), 02.rateLimit.ts (60 req/min/IP)
+server/middleware/ # 00.noindex.ts (X-Robots-Tag off production), 01.auth.ts (attaches user to context), 02.rateLimit.ts (60 req/min/IP)
 public/           # Static assets (tailwind.css lives here)
 nuxt.config.ts    # Nuxt configuration
-supabase/         # Supabase CLI config & migrations
-supabase-docker/  # Self-hosted Supabase via Docker Compose
+wrangler.jsonc    # Cloudflare Workers config (assets, D1, rate limits, public vars)
+supabase/         # Supabase CLI config (config.toml) & migrations
 ```
 
 ## Environment Variables
@@ -57,23 +61,49 @@ supabase-docker/  # Self-hosted Supabase via Docker Compose
 Required in `.env`:
 
 ```bash
-NUXT_SUPABASE_SERVICE_KEY=          # Supabase service role key (bypasses RLS)
-NUXT_PUBLIC_SUPABASE_URL=           # e.g. http://localhost:8000
-NUXT_PUBLIC_SUPABASE_ANON_KEY=      # Supabase anon key
-NUXT_POSTMARK_TOKEN=                # Postmark server token (transactional email)
-NUXT_POSTMARK_FROM_EMAIL=           # Sender address verified in Postmark
+NUXT_SUPABASE_SECRET_KEY=          # Supabase secret key (sb_secret_..., bypasses RLS)
+NUXT_PUBLIC_SUPABASE_URL=           # https://<project-ref>.supabase.co (or http://127.0.0.1:54321 with `supabase start`)
+NUXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=      # Supabase publishable key (sb_publishable_...)
+NUXT_RESEND_API_KEY=                # Resend API key (transactional email)
+NUXT_RESEND_FROM_EMAIL=             # Sender address on a domain verified in Resend
 NUXT_SITE_URL=                      # Full app URL, used in email links (e.g. http://localhost:3000)
-# Optional:
-NUXT_PUBLIC_EMAIL_VERIFIED_REDIRECT_URL=  # defaults to /ops/confirm — must be allowed in ADDITIONAL_REDIRECT_URLS in supabase-docker/.env
 ```
+
+`NUXT_PUBLIC_APP_ENV` (`production` | `staging` | `development`, default `development`) is set per
+environment in `wrangler.jsonc`; anything but `production` sends `X-Robots-Tag: noindex`. Leave it
+unset locally.
 
 ## Auth & Routes
 
 - `/ops/*` pages are protected by the `auth` client middleware — redirects to `/ops/login` if no session, `/ops/verify-email` if email not confirmed
 - Server-side: `01.auth.ts` attaches the Supabase user to `event.context.user`
-- Rate limiting: 60 req/min per IP on all `/api/*` routes (`02.rateLimit.ts`)
+- Rate limiting: 60 req/min per IP on all `/api/*` routes (`02.rateLimit.ts`) via Workers Rate Limiting bindings (`RL_*` in `wrangler.jsonc`); falls back to an in-memory map in `nuxt dev`
+- `/api/live/stream` is SSE: each connection polls Supabase every 5s and only emits on change (Workers isolates share no memory, so there is no server-side broadcast)
 - Admin role: set `role = 'admin'` in the `participants` table to expose `/ops/admin`
-- `emailRedirectTo` in `signUp` requires the URL to be in `ADDITIONAL_REDIRECT_URLS` in `supabase-docker/.env` (e.g. `http://localhost:3000/**`)
+- `emailRedirectTo` in `signUp` is `<current origin>/ops/confirm`, so every host the app is served from (production, staging, PR previews) must be in `additional_redirect_urls` in `supabase/config.toml`
+
+## Testing
+
+`bun run test` runs vitest. Tests live in `tests/server/` and are e2e against one shared server:
+`tests/global-setup.ts` builds the app once into `.nuxt/test-fixture` (via
+`tests/build-fixture.mjs`), starts the built server once, and publishes its URL to the workers
+through `NUXT_TEST_CONTEXT`. Test files therefore need no `setup()` call — just import `fetch`,
+`$fetch` or `url` from `@nuxt/test-utils/e2e` and request relative paths. Never hard-code
+`http://localhost:3000`: the server listens on a random port, so that only "works" when a dev
+server happens to be running there and fails in CI. No credentials are needed: `$test` in
+`nuxt.config.ts` gives the fixture a dummy Supabase URL/key and unauthenticated paths never hit the
+network; anything that needs a session should mock `serverSupabaseUser`, not talk to the real
+project. Tests share the server, so keep them stateless (no writes that another file could see).
+
+Two pieces of config exist only for the test run — do not remove them:
+
+- `$test` in `nuxt.config.ts`: `node-server` preset (a `cloudflare_module` bundle cannot be started
+  by Node), SQLite content, dummy Supabase config.
+- The build runs in a child process (`build-fixture.mjs`) because Nuxt's `close` hook makes the
+  vitest main process exit before any test runs when the build happens in-process.
+
+The same suite gates every Workers Builds deploy (production, staging and PR previews), so a red
+test blocks the deploy.
 
 ## Emails
 
@@ -85,56 +115,65 @@ bunx mjml server/emails/<name>.mjml -o server/emails/dist/<name>.html
 node server/emails/generate-ts.mjs   # regenerates server/utils/email-templates.ts
 ```
 
-Auth emails (signup, magic link, password reset) are served as static files by a Caddy container (`templates-server`) inside the Docker network. GoTrue fetches the template HTML via HTTP, renders Go template variables (`{{ .ConfirmationURL }}`, `{{ .Email }}`), and sends via SMTP.
+Auth emails (signup, magic link, password reset) are Supabase Auth templates declared in `supabase/config.toml` (`[auth.email.template.*]`), pointing at the compiled HTML in `server/emails/dist/`. Supabase renders Go template variables (`{{ .ConfirmationURL }}`, `{{ .Email }}`) and sends via the Postmark SMTP configured in `[auth.email.smtp]`.
 
-- Template files are served directly from `server/emails/dist/` — no duplication needed.
-- After editing MJML: recompile to `dist/`, then restart `templates-server` (or it auto-serves the new file).
-- `MAILER_SUBJECTS_*` vars in `supabase-docker/.env` control email subjects.
+- After editing MJML: recompile to `dist/`, then `bunx supabase config push` to upload the new template to the cloud project.
+- Subjects are set in `supabase/config.toml`.
 
 Templates: `verify-email.html` (signup), `magic-link.html` (magic link), `reset-password.html` (recovery).
 
-## Supabase (Self-Hosted)
+## Supabase (Cloud)
 
-The project runs Supabase locally via Docker, not via Supabase CLI's `supabase start`.
+Production and staging run on Supabase cloud; the repo holds migrations and auth config only.
 
 ```bash
-# Start Supabase
-cd supabase-docker && docker compose up -d
+bunx supabase login                       # once per machine
+bunx supabase link --project-ref <ref>    # once per checkout
+bunx supabase db push                     # apply supabase/migrations/ to the linked project
+bunx supabase config push                 # apply supabase/config.toml (auth, SMTP, email templates)
 
-# Stop Supabase
-cd supabase-docker && docker compose down
-
-# View logs
-cd supabase-docker && docker compose logs -f
-
-# Dashboard: http://localhost:8000
-# Username: supabase  Password: see supabase-docker/.env DASHBOARD_PASSWORD
+# Optional local stack for development (Postgres + Auth + Studio on http://127.0.0.1:54323)
+bunx supabase start
+bunx supabase db reset                    # rebuild local DB from migrations
 ```
 
-- Kong (API gateway) on port 8000, Postgres on port 5432
-- The app `.env` points to `SUPABASE_URL=http://localhost:8000`
-- Secrets live in `supabase-docker/.env` (git-ignored)
-- Migrations managed via Supabase CLI: `supabase db push --local`
+- `supabase/config.toml` `env(...)` values come from `supabase/.env` (git-ignored, see `supabase/.env.example`)
+- API keys and the project URL are in Dashboard > Project Settings > API
+- Auth users, hashed passwords and app data were migrated from the old self-hosted instance via `pg_dump`/`psql` (see `docs/supabase-cloud-migration.md`)
 
 ## Deployment
 
-Production runs via Docker Compose with Caddy for automatic SSL (Let's Encrypt):
-- `Dockerfile` — copies pre-built `.output/` into `node:22-alpine`, runs `node .output/server/index.mjs`
-- `docker-compose.yml` — `app` + `caddy` services; Caddy proxies to `app:3000`
-- `Caddyfile` — reads domain from `$DOMAIN` env var
-- Set `DOMAIN=yourdomain.com` in `.env` before `docker compose up -d`
-- Ports 80/443 must be open; DNS must point to server before first start
+Everything runs on Cloudflare Workers via Workers Builds — no GitHub Actions. What you push
+decides where it goes:
 
-### Deploying to server
+| Push to | Worker | URL |
+| --- | --- | --- |
+| `main` | `manifesto` | https://liberhack.org |
+| `dev` | `manifesto-staging` (wrangler env `staging`) | https://staging.liberhack.org |
+| any other branch | preview **version** of `manifesto-staging` | `<version>-manifesto-staging.hexchap.workers.dev`, commented on the PR |
+
+Every build runs `bun install --frozen-lockfile && bun run test && bun run build` first. Previews
+share staging's bindings and secrets, never production's. Full setup and the Workers Builds
+settings are in `docs/cloudflare-workers.md`.
+
+Rules that follow from this layout:
+
+- `wrangler.jsonc` `env.staging` does **not** inherit the top level. A new binding or var must be
+  added in both places or staging/previews will crash on it.
+- Secrets are per environment: `bunx wrangler secret put NAME` and `... --env staging`.
+- A new host that users can land on after email confirmation must be added to
+  `additional_redirect_urls` in `supabase/config.toml` and pushed with `bunx supabase config push`.
+- `bunx wrangler deploy` from a laptop is for emergencies; normal deploys are merges.
 
 ```bash
-rsync -avz \
-  --include='.output/***' \
-  --include='Dockerfile' \
-  --include='docker-compose.yml' \
-  --include='Caddyfile' \
-  --include='.env' \
-  --exclude='*' \
-  /home/hexchap/Projects/LiberHack/Manifesto/ \
-  user@your-server:/opt/librehack/
+bunx wrangler login                        # once per machine
+bun run build                             # Nitro cloudflare_module preset -> .output/
+bunx wrangler dev                          # local worker + miniflare D1 / rate limits
+bunx wrangler deploy                       # ship it
+bunx wrangler secret put NUXT_SUPABASE_SECRET_KEY   # secrets live in Cloudflare, not in vars
+bunx wrangler tail                         # live logs
 ```
+
+- `wrangler.jsonc` holds bindings and **non-secret** vars only; secrets go through `wrangler secret put`
+- `<NuxtImg>` uses `provider: "none"` (no sharp on Workers); switch to `cloudflare` after enabling Images > Transformations on the zone
+- The markdown collections are loaded into D1 on first request after each deploy

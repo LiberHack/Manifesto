@@ -3,7 +3,7 @@
  * Excludes TechnoLab. Run with: bun scripts/send-event-reminder.ts
  *
  * Required env vars (same as app .env):
- *   NUXT_PUBLIC_SUPABASE_URL, NUXT_SUPABASE_SERVICE_KEY, NUXT_RESEND_API_KEY, NUXT_RESEND_FROM_EMAIL
+ *   NUXT_PUBLIC_SUPABASE_URL, NUXT_SUPABASE_SECRET_KEY, NUXT_RESEND_API_KEY, NUXT_RESEND_FROM_EMAIL
  */
 
 import { createClient } from "@supabase/supabase-js";
@@ -22,14 +22,14 @@ const supabaseUrl = REMOTE
   : process.env.NUXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = REMOTE
   ? process.env.SUPABASE_REMOTE_SERVICE_KEY
-  : process.env.NUXT_SUPABASE_SERVICE_KEY;
+  : process.env.NUXT_SUPABASE_SECRET_KEY;
 const resendKey = process.env.NUXT_RESEND_API_KEY;
 const fromEmail = process.env.NUXT_RESEND_FROM_EMAIL;
 
 if (!supabaseUrl || !supabaseKey || !resendKey || !fromEmail) {
   const missing = REMOTE
     ? "SUPABASE_REMOTE_URL, SUPABASE_REMOTE_SERVICE_KEY, NUXT_RESEND_API_KEY, NUXT_RESEND_FROM_EMAIL"
-    : "NUXT_PUBLIC_SUPABASE_URL, NUXT_SUPABASE_SERVICE_KEY, NUXT_RESEND_API_KEY, NUXT_RESEND_FROM_EMAIL";
+    : "NUXT_PUBLIC_SUPABASE_URL, NUXT_SUPABASE_SECRET_KEY, NUXT_RESEND_API_KEY, NUXT_RESEND_FROM_EMAIL";
   console.error(`Missing required env vars: ${missing}`);
   process.exit(1);
 }

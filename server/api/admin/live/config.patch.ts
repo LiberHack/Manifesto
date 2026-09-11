@@ -1,5 +1,4 @@
 import { requireAdmin } from '#server/utils/adminAuth'
-import { broadcastLive } from '#server/utils/liveStream'
 
 export default defineEventHandler(async (event) => {
   const { supabase } = await requireAdmin(event)
@@ -11,6 +10,5 @@ export default defineEventHandler(async (event) => {
     .select()
     .single()
   if (error) throw createError({ statusCode: 500, message: error.message })
-  await broadcastLive()
   return data
 })

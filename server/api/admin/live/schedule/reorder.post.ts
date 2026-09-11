@@ -1,5 +1,4 @@
 import { requireAdmin } from '#server/utils/adminAuth'
-import { broadcastLive } from '#server/utils/liveStream'
 
 export default defineEventHandler(async (event) => {
   const { supabase } = await requireAdmin(event)
@@ -10,6 +9,5 @@ export default defineEventHandler(async (event) => {
   )
 
   await Promise.all(updates)
-  await broadcastLive()
   return { success: true }
 })
