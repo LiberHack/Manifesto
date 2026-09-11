@@ -6,7 +6,11 @@ export default defineNuxtConfig({
 
   nitro: {
     preset: "cloudflare_module",
-    cloudflare: { nodeCompat: true },
+    // deployConfig defaults to true inside Workers Builds and makes Nitro emit a
+    // redirected wrangler config that copies `env.staging` — which wrangler rejects
+    // ("Redirected configurations cannot include environments"). Always deploy from
+    // the hand-written wrangler.jsonc instead, the same way it works locally.
+    cloudflare: { nodeCompat: true, deployConfig: false },
   },
 
   // Markdown content is served from a D1 database in production (see wrangler.jsonc).
