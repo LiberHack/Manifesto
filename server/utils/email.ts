@@ -1,4 +1,3 @@
-import { Resend } from "resend";
 import {
   joinRequestHtml,
   decisionApprovedHtml,
@@ -19,18 +18,26 @@ interface EmailOptions {
   text: string;
 }
 
+// Plain HTTP call instead of the resend SDK: the SDK drags in an optional
+// @react-email/render peer that cannot be bundled for Cloudflare Workers.
 async function sendEmail(options: EmailOptions) {
   const config = useRuntimeConfig();
-  const resend = new Resend(config.resendApiKey as string);
-  const { error } = await resend.emails.send({
-    from: config.resendFromEmail as string,
-    to: [options.to],
-    subject: options.subject,
-    html: options.html,
-    text: options.text,
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${config.resendApiKey as string}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: config.resendFromEmail as string,
+      to: [options.to],
+      subject: options.subject,
+      html: options.html,
+      text: options.text,
+    }),
   });
-  if (error) {
-    console.error("[email] failed to send to", options.to, error);
+  if (!res.ok) {
+    console.error("[email] failed to send to", options.to, res.status, await res.text());
   }
 }
 

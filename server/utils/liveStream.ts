@@ -1,5 +1,7 @@
-// Module-level set of active SSE controllers
-const controllers = new Set<ReadableStreamDefaultController>()
+// Interval between Supabase polls per open SSE connection. Workers isolates do not
+// share memory, so admin writes cannot push to connected clients; each stream polls
+// instead and only forwards a payload when the content actually changed.
+export const LIVE_POLL_MS = 5_000
 
 // Fetch current live data snapshot from Supabase
 export async function fetchLiveData() {
@@ -19,31 +21,7 @@ export async function fetchLiveData() {
   }
 }
 
-// Broadcast fresh data to all connected SSE clients
-export async function broadcastLive() {
-  if (controllers.size === 0) return
-
-  const data = await fetchLiveData()
-  const message = `data: ${JSON.stringify(data)}\n\n`
-  const encoded = new TextEncoder().encode(message)
-
-  for (const controller of controllers) {
-    try {
-      controller.enqueue(encoded)
-    } catch {
-      // Controller is closed — remove it
-      controllers.delete(controller)
-    }
-  }
-}
-
-// Add a controller to the active set
-export function addLiveController(controller: ReadableStreamDefaultController) {
-  controllers.add(controller)
-}
-
-// Remove a controller from the active set
-export function removeLiveController(controller: ReadableStreamDefaultController) {
-  controllers.delete(controller)
-  try { controller.close() } catch { /* already closed */ }
+// Stable fingerprint of the parts that matter for change detection (serverTime excluded)
+export function liveFingerprint(data: Awaited<ReturnType<typeof fetchLiveData>>): string {
+  return JSON.stringify([data.config, data.schedule, data.announcements])
 }

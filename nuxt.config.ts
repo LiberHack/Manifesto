@@ -4,6 +4,23 @@ export default defineNuxtConfig({
   compatibilityDate: "2025-07-15",
   devtools: { enabled: process.env.NODE_ENV !== "production" },
 
+  nitro: {
+    preset: "cloudflare_module",
+    cloudflare: { nodeCompat: true },
+  },
+
+  // Markdown content is served from a D1 database in production (see wrangler.jsonc).
+  // In dev/build Nuxt Content still uses a local SQLite file under .data/.
+  content: {
+    database: { type: "d1", bindingName: "DB" },
+  },
+
+  // Workers cannot run sharp/ipx, so <NuxtImg> renders plain <img> tags.
+  // Switch to provider "cloudflare" after enabling Images > Transformations on the zone.
+  image: {
+    provider: "none",
+  },
+
   vite: {
     plugins: [tailwindcss() as any],
   },

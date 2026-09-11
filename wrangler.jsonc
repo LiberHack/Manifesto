@@ -1,0 +1,46 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "manifesto",
+  "main": ".output/server/index.mjs",
+  "compatibility_date": "2026-09-11",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "assets": {
+    "directory": ".output/public",
+    "binding": "ASSETS"
+  },
+  "observability": {
+    "enabled": true
+  },
+
+  // Custom domain — DNS record + certificate are managed by Cloudflare on first deploy.
+  "routes": [{ "pattern": "liberhack.org", "custom_domain": true }],
+
+  // Nuxt Content stores the markdown collections here (content.database in nuxt.config.ts).
+  // Create with: npx wrangler d1 create manifesto-content
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "manifesto-content",
+      "database_id": "<paste id from `wrangler d1 create`>"
+    }
+  ],
+
+  // Per-IP limits for /api/* — consumed by server/middleware/02.rateLimit.ts.
+  // Counters live per Cloudflare location; namespace_id must be unique per binding.
+  "ratelimits": [
+    { "name": "RL_API", "namespace_id": "1001", "simple": { "limit": 60, "period": 60 } },
+    { "name": "RL_INVITE", "namespace_id": "1002", "simple": { "limit": 10, "period": 60 } },
+    { "name": "RL_SKILLS", "namespace_id": "1003", "simple": { "limit": 20, "period": 60 } }
+  ],
+
+  // Non-secret runtime config. Secrets (NUXT_SUPABASE_SERVICE_KEY, NUXT_RESEND_API_KEY,
+  // NUXT_RESEND_FROM_EMAIL) are set with `wrangler secret put <NAME>`, never here.
+  "vars": {
+    "NUXT_PUBLIC_SUPABASE_URL": "https://<project-ref>.supabase.co",
+    "NUXT_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_...",
+    "NUXT_PUBLIC_SUPABASE_KEY": "sb_publishable_...",
+    "NUXT_SITE_URL": "https://liberhack.org",
+    "NUXT_PUBLIC_EMAIL_VERIFIED_REDIRECT_URL": "https://liberhack.org/ops/confirm"
+  }
+}
