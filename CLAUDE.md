@@ -60,9 +60,9 @@ supabase/         # Supabase CLI config (config.toml) & migrations
 Required in `.env`:
 
 ```bash
-NUXT_SUPABASE_SERVICE_KEY=          # Supabase service role key (bypasses RLS)
+NUXT_SUPABASE_SECRET_KEY=          # Supabase secret key (sb_secret_..., bypasses RLS)
 NUXT_PUBLIC_SUPABASE_URL=           # https://<project-ref>.supabase.co (or http://127.0.0.1:54321 with `supabase start`)
-NUXT_PUBLIC_SUPABASE_ANON_KEY=      # Supabase anon key
+NUXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=      # Supabase publishable key (sb_publishable_...)
 NUXT_RESEND_API_KEY=                # Resend API key (transactional email)
 NUXT_RESEND_FROM_EMAIL=             # Sender address on a domain verified in Resend
 NUXT_SITE_URL=                      # Full app URL, used in email links (e.g. http://localhost:3000)
@@ -125,7 +125,7 @@ npx wrangler login                        # once per machine
 npm run build                             # Nitro cloudflare_module preset -> .output/
 npx wrangler dev                          # local worker + miniflare D1 / rate limits
 npx wrangler deploy                       # ship it
-npx wrangler secret put NUXT_SUPABASE_SERVICE_KEY   # secrets live in Cloudflare, not in vars
+npx wrangler secret put NUXT_SUPABASE_SECRET_KEY   # secrets live in Cloudflare, not in vars
 npx wrangler tail                         # live logs
 ```
 

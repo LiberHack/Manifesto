@@ -69,13 +69,13 @@ export default defineNuxtConfig({
   },
 
   runtimeConfig: {
-    supabaseServiceKey: process.env.NUXT_SUPABASE_SERVICE_KEY ?? "",
+    supabaseSecretKey: process.env.NUXT_SUPABASE_SECRET_KEY ?? "",
     resendApiKey: process.env.NUXT_RESEND_API_KEY ?? "",
     resendFromEmail: process.env.NUXT_RESEND_FROM_EMAIL ?? "",
     siteUrl: "https://liberhack.org",
     public: {
       supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL ?? "",
-      supabaseAnonKey: process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
+      supabasePublishableKey: process.env.NUXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "",
       emailVerifiedUrl: "https://liberhack.org/ops/confirm",
     },
   },

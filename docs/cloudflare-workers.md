@@ -27,12 +27,12 @@ npx wrangler login
 npx wrangler d1 create manifesto-content
 
 # 2. Secrets (prompted for the value; never put these in wrangler.jsonc)
-npx wrangler secret put NUXT_SUPABASE_SERVICE_KEY
+npx wrangler secret put NUXT_SUPABASE_SECRET_KEY
 npx wrangler secret put NUXT_RESEND_API_KEY
 npx wrangler secret put NUXT_RESEND_FROM_EMAIL
 
 # 3. Public vars: fill in the real values in wrangler.jsonc `vars`
-#    NUXT_PUBLIC_SUPABASE_URL, NUXT_PUBLIC_SUPABASE_ANON_KEY, NUXT_PUBLIC_SUPABASE_KEY
+#    NUXT_PUBLIC_SUPABASE_URL, NUXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, NUXT_PUBLIC_SUPABASE_KEY
 
 # 4. First deploy — also provisions the liberhack.org custom domain + certificate
 npm run deploy
@@ -50,7 +50,7 @@ Settings > Build > connect the `LiberHack/Manifesto` repo.
 - Production branch: `main`
 - Build command: `npm ci --legacy-peer-deps && npm run build`
 - Deploy command: `npx wrangler deploy`
-- Build variables: the same `NUXT_PUBLIC_SUPABASE_URL` / `NUXT_PUBLIC_SUPABASE_ANON_KEY`
+- Build variables: the same `NUXT_PUBLIC_SUPABASE_URL` / `NUXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
   the old workflow passed (the `@nuxtjs/supabase` module reads them at build time;
   the runtime `vars` override them anyway, so missing values only produce warnings)
 

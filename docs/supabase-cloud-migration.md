@@ -30,10 +30,10 @@ URL Configuration lists the production redirect URL.
 
 Dashboard > Project Settings > API. Update:
 
-- `.env` on the server: `NUXT_PUBLIC_SUPABASE_URL`, `NUXT_PUBLIC_SUPABASE_ANON_KEY`,
-  `NUXT_SUPABASE_SERVICE_KEY`
+- `.env` on the server: `NUXT_PUBLIC_SUPABASE_URL`, `NUXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`,
+  `NUXT_SUPABASE_SECRET_KEY`
 - GitHub repository secrets `NUXT_PUBLIC_SUPABASE_URL` and
-  `NUXT_PUBLIC_SUPABASE_ANON_KEY` (baked into the client bundle at build time by
+  `NUXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (baked into the client bundle at build time by
   `.github/workflows/deploy.yml`; the workflow itself does not change)
 
 ## 4. DNS
