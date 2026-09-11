@@ -15,6 +15,15 @@ export default defineNuxtConfig({
     database: { type: "d1", bindingName: "DB" },
   },
 
+  // vitest (NODE_ENV=test): the cloudflare preset's export conditions (workerd, ...,
+  // import) are forwarded to the test workers as `node --conditions`, which makes
+  // native require() of dual packages load their ESM build and crash. Run the e2e
+  // fixture as a plain Node server with local SQLite content instead.
+  $test: {
+    nitro: { preset: "node-server" },
+    content: { database: { type: "sqlite", filename: ".data/content/test.sqlite" } },
+  },
+
   // Workers cannot run sharp/ipx, so <NuxtImg> renders plain <img> tags.
   // Switch to provider "cloudflare" after enabling Images > Transformations on the zone.
   image: {

@@ -25,7 +25,7 @@ bun generate   # static generation
 bun preview    # preview production build (node)
 bun preview:cf # run the built worker locally with wrangler dev (D1 + rate limits via miniflare)
 bun deploy     # nuxt build && wrangler deploy
-bun test       # run vitest unit tests
+bun test       # run vitest (unit + e2e; also gates every Workers Builds deploy)
 ```
 
 ## Package Manager

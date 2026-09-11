@@ -14,5 +14,16 @@ export default defineVitestConfig({
         }
       },
     },
+    {
+      // Nuxt appends "import" to the SSR resolve conditions and vitest 4 forwards
+      // them to the workers as `node --conditions`. With "import" set, Node's native
+      // require() of dual packages (magic-string, estree-walker, ...) picks the ESM
+      // entry and @vue/compiler-sfc crashes when the e2e fixture builds.
+      name: "manifesto:drop-import-condition",
+      configResolved(config) {
+        const ssr = config.ssr.resolve;
+        if (ssr?.conditions) ssr.conditions = ssr.conditions.filter((c) => c !== "import");
+      },
+    },
   ],
 });

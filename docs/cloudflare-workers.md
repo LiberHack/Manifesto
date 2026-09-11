@@ -76,11 +76,15 @@ No GitHub Actions. Connect the `LiberHack/Manifesto` repo to **both** Workers
 | Setting | `manifesto` | `manifesto-staging` |
 | --- | --- | --- |
 | Production branch | `main` | `dev` |
-| Build command | `npm ci --legacy-peer-deps && npm run build` | same |
+| Build command | `npm ci --legacy-peer-deps && npm test && npm run build` | same |
 | Deploy command | `npx wrangler deploy` | `npx wrangler deploy --env staging` |
 | Builds for non-production branches | **off** | **on** |
 | Non-production branch deploy command | — | `npx wrangler versions upload --env staging` |
 | Build variables | `NUXT_PUBLIC_SUPABASE_URL`, `NUXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | same |
+
+`npm test` runs the vitest suite (unit + e2e against a Node build of the app,
+see `$test` in `nuxt.config.ts`) and a failure aborts the deploy. Workers Builds
+runs Node 22 by default; pin it with a `.node-version` file if that ever matters.
 
 Result: push to `main` → liberhack.org; push to `dev` → staging.liberhack.org;
 any other branch → a preview version of `manifesto-staging`, and the GitHub
