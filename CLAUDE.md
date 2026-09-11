@@ -10,8 +10,9 @@ Nuxt 4 app with Vue 3, Tailwind CSS v4, DaisyUI, and @nuxt/content.
 
 - **Framework**: Nuxt 4 (`nuxt ^4.4.2`)
 - **UI**: Tailwind CSS v4 via `@tailwindcss/vite`, DaisyUI v5
-- **Content**: `@nuxt/content` with better-sqlite3
-- **Email**: Postmark (transactional), MJML templates
+- **Content**: `@nuxt/content` (SQLite locally, Cloudflare D1 in production)
+- **Email**: Resend (transactional, plain HTTP call), MJML templates
+- **Hosting**: Cloudflare Workers (`cloudflare_module` Nitro preset), Supabase Cloud for DB/auth
 - **Language**: TypeScript
 - **Modules**: `@nuxt/fonts`, `@nuxt/icon`, `@nuxt/image`, `@nuxt/hints`
 
@@ -21,7 +22,9 @@ Nuxt 4 app with Vue 3, Tailwind CSS v4, DaisyUI, and @nuxt/content.
 bun dev        # start dev server
 bun build      # production build
 bun generate   # static generation
-bun preview    # preview production build
+bun preview    # preview production build (node)
+bun preview:cf # run the built worker locally with wrangler dev (D1 + rate limits via miniflare)
+bun deploy     # nuxt build && wrangler deploy
 bun test       # run vitest unit tests
 ```
 
@@ -48,6 +51,7 @@ server/emails/    # MJML email templates — edit .mjml, run generate-ts.mjs to 
 server/middleware/ # 01.auth.ts (attaches user to context), 02.rateLimit.ts (60 req/min/IP)
 public/           # Static assets (tailwind.css lives here)
 nuxt.config.ts    # Nuxt configuration
+wrangler.jsonc    # Cloudflare Workers config (assets, D1, rate limits, public vars)
 supabase/         # Supabase CLI config (config.toml) & migrations
 ```
 
@@ -59,8 +63,8 @@ Required in `.env`:
 NUXT_SUPABASE_SERVICE_KEY=          # Supabase service role key (bypasses RLS)
 NUXT_PUBLIC_SUPABASE_URL=           # https://<project-ref>.supabase.co (or http://127.0.0.1:54321 with `supabase start`)
 NUXT_PUBLIC_SUPABASE_ANON_KEY=      # Supabase anon key
-NUXT_POSTMARK_TOKEN=                # Postmark server token (transactional email)
-NUXT_POSTMARK_FROM_EMAIL=           # Sender address verified in Postmark
+NUXT_RESEND_API_KEY=                # Resend API key (transactional email)
+NUXT_RESEND_FROM_EMAIL=             # Sender address on a domain verified in Resend
 NUXT_SITE_URL=                      # Full app URL, used in email links (e.g. http://localhost:3000)
 # Optional:
 NUXT_PUBLIC_EMAIL_VERIFIED_REDIRECT_URL=  # defaults to /ops/confirm — must match additional_redirect_urls in supabase/config.toml
@@ -70,7 +74,8 @@ NUXT_PUBLIC_EMAIL_VERIFIED_REDIRECT_URL=  # defaults to /ops/confirm — must ma
 
 - `/ops/*` pages are protected by the `auth` client middleware — redirects to `/ops/login` if no session, `/ops/verify-email` if email not confirmed
 - Server-side: `01.auth.ts` attaches the Supabase user to `event.context.user`
-- Rate limiting: 60 req/min per IP on all `/api/*` routes (`02.rateLimit.ts`)
+- Rate limiting: 60 req/min per IP on all `/api/*` routes (`02.rateLimit.ts`) via Workers Rate Limiting bindings (`RL_*` in `wrangler.jsonc`); falls back to an in-memory map in `nuxt dev`
+- `/api/live/stream` is SSE: each connection polls Supabase every 5s and only emits on change (Workers isolates share no memory, so there is no server-side broadcast)
 - Admin role: set `role = 'admin'` in the `participants` table to expose `/ops/admin`
 - `emailRedirectTo` in `signUp` requires the URL to match `additional_redirect_urls` in `supabase/config.toml` (e.g. `https://liberhack.org/**`)
 
@@ -112,23 +117,18 @@ npx supabase db reset                    # rebuild local DB from migrations
 
 ## Deployment
 
-Production runs via Docker Compose with Caddy for automatic SSL (Let's Encrypt):
-- `Dockerfile` — copies pre-built `.output/` into `node:22-alpine`, runs `node .output/server/index.mjs`
-- `docker-compose.yml` — `app` + `caddy` services; Caddy proxies to `app:3000`
-- `Caddyfile` — reads domain from `$DOMAIN` env var
-- Set `DOMAIN=yourdomain.com` in `.env` before `docker compose up -d`
-- Ports 80/443 must be open; DNS must point to server before first start
-
-### Deploying to server
+Production runs on Cloudflare Workers with static assets served from `.output/public`. See
+`docs/cloudflare-workers.md` for the one-time setup (D1, secrets, custom domain, Workers Builds).
 
 ```bash
-rsync -avz \
-  --include='.output/***' \
-  --include='Dockerfile' \
-  --include='docker-compose.yml' \
-  --include='Caddyfile' \
-  --include='.env' \
-  --exclude='*' \
-  /home/hexchap/Projects/LiberHack/Manifesto/ \
-  user@your-server:/opt/librehack/
+npx wrangler login                        # once per machine
+npm run build                             # Nitro cloudflare_module preset -> .output/
+npx wrangler dev                          # local worker + miniflare D1 / rate limits
+npx wrangler deploy                       # ship it
+npx wrangler secret put NUXT_SUPABASE_SERVICE_KEY   # secrets live in Cloudflare, not in vars
+npx wrangler tail                         # live logs
 ```
+
+- `wrangler.jsonc` holds bindings and **non-secret** vars only; secrets go through `wrangler secret put`
+- `<NuxtImg>` uses `provider: "none"` (no sharp on Workers); switch to `cloudflare` after enabling Images > Transformations on the zone
+- The markdown collections are loaded into D1 on first request after each deploy
