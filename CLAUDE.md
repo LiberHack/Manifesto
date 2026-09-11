@@ -100,8 +100,15 @@ Two pieces of config exist only for the test run — do not remove them:
   Node's native `require()` of dual packages pick the ESM build and crashes `@vue/compiler-sfc`
   (`default is not defined` / `MagicString is not a constructor`). The plugin strips it.
 
+Always request through `fetch` / `$fetch` / `url()` from `@nuxt/test-utils/e2e` — the fixture
+listens on a random port. A hard-coded `http://localhost:3000` only "works" when a dev server
+happens to be running there and fails in CI.
+
 The same suite gates every Workers Builds deploy (production, staging and PR previews), so a red
-test blocks the deploy.
+test blocks the deploy. When reading a build log: each test file builds and boots the app (~50 s
+each), and the `@supabase/ssr: Your project's URL and API key are required` stack trace is noise
+— the test build has no Supabase env, the client plugin throws, Nuxt logs it and carries on. The
+real failure is in the `×` lines and the assertion block at the end.
 
 ## Emails
 
