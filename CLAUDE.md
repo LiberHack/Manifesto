@@ -84,31 +84,25 @@ unset locally.
 
 ## Testing
 
-`bun run test` runs vitest. Tests live in `tests/` and are e2e: `setup({ server: true })` from
-`@nuxt/test-utils/e2e` builds the app once per file and starts it, then tests hit
-`http://localhost:3000` with plain `fetch`. No Supabase or Resend credentials are needed for the
-existing tests (they assert unauthenticated behaviour); anything that needs a session should mock
-`serverSupabaseUser`, not talk to the real project.
+`bun run test` runs vitest. Tests live in `tests/server/` and are e2e: a vitest `globalSetup`
+(`tests/global-setup.ts` → `tests/build-fixture.mjs`) builds the app **once** into
+`.nuxt/test-fixture`, and each file calls `useFixture()` from `tests/fixture.ts` to boot a server
+from that output (~2 s) instead of `setup({ server: true })` (a ~45 s build per file). Requests go
+through `fetch` / `$fetch` / `url()` from `@nuxt/test-utils/e2e` — the server listens on a random
+port, so a hard-coded `http://localhost:3000` only "works" when a dev server happens to be running
+there and fails in CI. No credentials are needed: `$test` in `nuxt.config.ts` gives the fixture a
+dummy Supabase URL/key and unauthenticated paths never hit the network; anything that needs a
+session should mock `serverSupabaseUser`, not talk to the real project.
 
 Two pieces of config exist only for the test run — do not remove them:
 
-- `$test` in `nuxt.config.ts` builds the fixture with the `node-server` preset and SQLite content.
-  A `cloudflare_module` bundle cannot be started by Node, and its export conditions leak into the
-  test workers (below).
-- The `manifesto:drop-import-condition` plugin in `vitest.config.ts`. vitest 4 forwards Vite's SSR
-  `resolve.conditions` to its workers as `node --conditions`; Nuxt adds `import`, which makes
-  Node's native `require()` of dual packages pick the ESM build and crashes `@vue/compiler-sfc`
-  (`default is not defined` / `MagicString is not a constructor`). The plugin strips it.
-
-Always request through `fetch` / `$fetch` / `url()` from `@nuxt/test-utils/e2e` — the fixture
-listens on a random port. A hard-coded `http://localhost:3000` only "works" when a dev server
-happens to be running there and fails in CI.
+- `$test` in `nuxt.config.ts`: `node-server` preset (a `cloudflare_module` bundle cannot be started
+  by Node), SQLite content, dummy Supabase config.
+- The build runs in a child process (`build-fixture.mjs`) because Nuxt's `close` hook makes the
+  vitest main process exit before any test runs when the build happens in-process.
 
 The same suite gates every Workers Builds deploy (production, staging and PR previews), so a red
-test blocks the deploy. When reading a build log: each test file builds and boots the app (~50 s
-each), and the `@supabase/ssr: Your project's URL and API key are required` stack trace is noise
-— the test build has no Supabase env, the client plugin throws, Nuxt logs it and carries on. The
-real failure is in the `×` lines and the assertion block at the end.
+test blocks the deploy.
 
 ## Emails
 
