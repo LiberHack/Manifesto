@@ -29,10 +29,10 @@ npx wrangler d1 create manifesto-content
 # 2. Secrets (prompted for the value; never put these in wrangler.jsonc)
 npx wrangler secret put NUXT_SUPABASE_SECRET_KEY
 npx wrangler secret put NUXT_RESEND_API_KEY
-npx wrangler secret put NUXT_RESEND_FROM_EMAIL
 
 # 3. Public vars: fill in the real values in wrangler.jsonc `vars`
-#    NUXT_PUBLIC_SUPABASE_URL, NUXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, NUXT_PUBLIC_SUPABASE_KEY
+#    NUXT_PUBLIC_SUPABASE_URL, NUXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, NUXT_PUBLIC_SUPABASE_KEY,
+#    NUXT_RESEND_FROM_EMAIL
 
 # 4. First deploy — also provisions the liberhack.org custom domain + certificate
 npm run deploy

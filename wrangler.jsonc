@@ -56,12 +56,13 @@
       },
     },
   ],
-  // Non-secret runtime config. Secrets (NUXT_SUPABASE_SECRET_KEY, NUXT_RESEND_API_KEY,
-  // NUXT_RESEND_FROM_EMAIL) are set with `wrangler secret put <NAME>`, never here.
+  // Non-secret runtime config. Secrets (NUXT_SUPABASE_SECRET_KEY, NUXT_RESEND_API_KEY)
+  // are set with `wrangler secret put <NAME>`, never here.
   "vars": {
     "NUXT_PUBLIC_SUPABASE_URL": "https://apfhieizmthicvwvezrg.supabase.co",
     "NUXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_7UffLfznfdm8gMJEF7hfag_sx_UAEis",
     "NUXT_PUBLIC_SUPABASE_KEY": "sb_publishable_7UffLfznfdm8gMJEF7hfag_sx_UAEis",
+    "NUXT_RESEND_FROM_EMAIL": "LiberHack <noreply@liberhack.org>",
     "NUXT_SITE_URL": "https://liberhack.org",
     "NUXT_PUBLIC_EMAIL_VERIFIED_REDIRECT_URL": "https://liberhack.org/ops/confirm",
   },
