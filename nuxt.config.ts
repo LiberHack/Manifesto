@@ -74,9 +74,10 @@ export default defineNuxtConfig({
     resendFromEmail: process.env.NUXT_RESEND_FROM_EMAIL ?? "",
     siteUrl: "https://liberhack.org",
     public: {
+      // "production" | "staging" | "development" — anything but production is noindex.
+      appEnv: process.env.NUXT_PUBLIC_APP_ENV ?? "development",
       supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL ?? "",
       supabasePublishableKey: process.env.NUXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "",
-      emailVerifiedUrl: "https://liberhack.org/ops/confirm",
     },
   },
 });

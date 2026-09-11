@@ -4,7 +4,9 @@ definePageMeta({ middleware: [] });
 const supabase = useSupabaseClient();
 const router = useRouter();
 const route = useRoute();
-const config = useRuntimeConfig();
+// Confirm on whichever host served this page (production, staging or a PR preview);
+// every such origin must be allow-listed in supabase/config.toml additional_redirect_urls.
+const confirmUrl = `${useRequestURL().origin}/ops/confirm`;
 
 const rawInvite = route.query.invite as string | undefined;
 const inviteCode = rawInvite?.replace(/[^a-zA-Z0-9_-]/g, "") || undefined;
@@ -41,9 +43,7 @@ async function register() {
     password: form.password,
     options: {
       data: { name: form.name, skills, dietary, experience },
-      emailRedirectTo: inviteCode
-        ? `${config.public.emailVerifiedUrl}?invite=${inviteCode}`
-        : config.public.emailVerifiedUrl,
+      emailRedirectTo: inviteCode ? `${confirmUrl}?invite=${inviteCode}` : confirmUrl,
     },
   });
 

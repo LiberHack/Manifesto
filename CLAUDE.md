@@ -48,7 +48,7 @@ app/middleware/   # auth.ts — client-side route guard (checks session + email_
 server/           # Nitro API routes, middleware, email utils
 server/api/       # REST API endpoints
 server/emails/    # MJML email templates — edit .mjml, run generate-ts.mjs to rebuild
-server/middleware/ # 01.auth.ts (attaches user to context), 02.rateLimit.ts (60 req/min/IP)
+server/middleware/ # 00.noindex.ts (X-Robots-Tag off production), 01.auth.ts (attaches user to context), 02.rateLimit.ts (60 req/min/IP)
 public/           # Static assets (tailwind.css lives here)
 nuxt.config.ts    # Nuxt configuration
 wrangler.jsonc    # Cloudflare Workers config (assets, D1, rate limits, public vars)
@@ -66,8 +66,6 @@ NUXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=      # Supabase publishable key (sb_publis
 NUXT_RESEND_API_KEY=                # Resend API key (transactional email)
 NUXT_RESEND_FROM_EMAIL=             # Sender address on a domain verified in Resend
 NUXT_SITE_URL=                      # Full app URL, used in email links (e.g. http://localhost:3000)
-# Optional:
-NUXT_PUBLIC_EMAIL_VERIFIED_REDIRECT_URL=  # defaults to /ops/confirm — must match additional_redirect_urls in supabase/config.toml
 ```
 
 ## Auth & Routes
@@ -77,7 +75,7 @@ NUXT_PUBLIC_EMAIL_VERIFIED_REDIRECT_URL=  # defaults to /ops/confirm — must ma
 - Rate limiting: 60 req/min per IP on all `/api/*` routes (`02.rateLimit.ts`) via Workers Rate Limiting bindings (`RL_*` in `wrangler.jsonc`); falls back to an in-memory map in `nuxt dev`
 - `/api/live/stream` is SSE: each connection polls Supabase every 5s and only emits on change (Workers isolates share no memory, so there is no server-side broadcast)
 - Admin role: set `role = 'admin'` in the `participants` table to expose `/ops/admin`
-- `emailRedirectTo` in `signUp` requires the URL to match `additional_redirect_urls` in `supabase/config.toml` (e.g. `https://liberhack.org/**`)
+- `emailRedirectTo` in `signUp` is `<current origin>/ops/confirm`, so every host the app is served from (production, staging, PR previews) must be in `additional_redirect_urls` in `supabase/config.toml`
 
 ## Emails
 
@@ -117,8 +115,9 @@ npx supabase db reset                    # rebuild local DB from migrations
 
 ## Deployment
 
-Production runs on Cloudflare Workers with static assets served from `.output/public`. See
-`docs/cloudflare-workers.md` for the one-time setup (D1, secrets, custom domain, Workers Builds).
+Production (`main` → liberhack.org) and staging (`dev` → staging.liberhack.org, wrangler env
+`staging`) run on Cloudflare Workers; PRs get preview URLs on the staging Worker. See
+`docs/cloudflare-workers.md` for the one-time setup (D1, secrets, custom domains, Workers Builds).
 
 ```bash
 npx wrangler login                        # once per machine

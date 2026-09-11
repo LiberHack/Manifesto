@@ -18,44 +18,75 @@ auth provider; Resend sends transactional email over plain HTTPS.
 | Email | `resend` SDK | `fetch` to `https://api.resend.com/emails` (SDK needs `@react-email/render`, not bundleable) |
 | Secrets | `.env` on the server | `wrangler secret put` |
 
+## Environments
+
+| | Worker | Branch | URL | D1 |
+| --- | --- | --- | --- | --- |
+| Production | `manifesto` | `main` | https://liberhack.org | `manifesto-content` |
+| Staging | `manifesto-staging` (wrangler env `staging`) | `dev` | https://staging.liberhack.org | `manifesto-content-staging` |
+| PR preview | version of `manifesto-staging` | any other branch | `<version>-manifesto-staging.<subdomain>.workers.dev` | staging's |
+
+Everything below the top level of `wrangler.jsonc` is duplicated under
+`env.staging` because bindings, routes and vars are not inherited. Both
+environments talk to the same Supabase project today; point the staging `vars`
+(and its secrets) at a second project if that ever changes.
+
+Previews are versions of the *staging* Worker, never of production
+(`preview_urls: false` at the top level): a preview shares the Worker's D1 and
+Nuxt Content re-imports its own content on first request, which would overwrite
+production's. On staging that thrash is acceptable.
+
+Staging and previews send `X-Robots-Tag: noindex` (`server/middleware/00.noindex.ts`,
+keyed on `NUXT_PUBLIC_APP_ENV`). Sign-up confirmation links use the origin the
+page was served from, so every host is in `additional_redirect_urls` in
+`supabase/config.toml` (push with `npx supabase config push`).
+
 ## One-time setup
 
 ```bash
 npx wrangler login
 
-# 1. D1 for Nuxt Content — paste the printed id into wrangler.jsonc d1_databases[0].database_id
+# 1. D1 for Nuxt Content — ids are already in wrangler.jsonc; recreate with:
 npx wrangler d1 create manifesto-content
+npx wrangler d1 create manifesto-content-staging
 
-# 2. Secrets (prompted for the value; never put these in wrangler.jsonc)
+# 2. Secrets, once per environment (prompted for the value; never in wrangler.jsonc)
 npx wrangler secret put NUXT_SUPABASE_SECRET_KEY
 npx wrangler secret put NUXT_RESEND_API_KEY
+npx wrangler secret put NUXT_SUPABASE_SECRET_KEY --env staging
+npx wrangler secret put NUXT_RESEND_API_KEY --env staging
 
-# 3. Public vars: fill in the real values in wrangler.jsonc `vars`
-#    NUXT_PUBLIC_SUPABASE_URL, NUXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, NUXT_PUBLIC_SUPABASE_KEY,
-#    NUXT_RESEND_FROM_EMAIL
+# 3. Public vars live in wrangler.jsonc `vars` (top level and env.staging.vars)
 
-# 4. First deploy — also provisions the liberhack.org custom domain + certificate
-npm run deploy
+# 4. First deploys — also provision the custom domains + certificates
+npm run build
+npx wrangler deploy
+npx wrangler deploy --env staging
 ```
 
 The zone `liberhack.org` must already be on the Cloudflare account. Any existing
 `A`/`AAAA` record for the apex pointing at the old server has to be removed
-first; `custom_domain: true` creates the record itself.
+first; `custom_domain: true` creates the records itself (apex and `staging`).
 
 ## Continuous deploys (Workers Builds)
 
-No GitHub Actions needed. In the dashboard: Workers & Pages > manifesto >
-Settings > Build > connect the `LiberHack/Manifesto` repo.
+No GitHub Actions. Connect the `LiberHack/Manifesto` repo to **both** Workers
+(Workers & Pages > `<worker>` > Settings > Build); each gets its own settings:
 
-- Production branch: `main`
-- Build command: `npm ci --legacy-peer-deps && npm run build`
-- Deploy command: `npx wrangler deploy`
-- Build variables: the same `NUXT_PUBLIC_SUPABASE_URL` / `NUXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
-  the old workflow passed (the `@nuxtjs/supabase` module reads them at build time;
-  the runtime `vars` override them anyway, so missing values only produce warnings)
+| Setting | `manifesto` | `manifesto-staging` |
+| --- | --- | --- |
+| Production branch | `main` | `dev` |
+| Build command | `npm ci --legacy-peer-deps && npm run build` | same |
+| Deploy command | `npx wrangler deploy` | `npx wrangler deploy --env staging` |
+| Builds for non-production branches | **off** | **on** |
+| Non-production branch deploy command | — | `npx wrangler versions upload --env staging` |
+| Build variables | `NUXT_PUBLIC_SUPABASE_URL`, `NUXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | same |
 
-Preview deployments for PRs come for free (`<branch>-manifesto.<subdomain>.workers.dev`;
-enable `workers_dev` or preview URLs in the dashboard if you want them).
+Result: push to `main` → liberhack.org; push to `dev` → staging.liberhack.org;
+any other branch → a preview version of `manifesto-staging`, and the GitHub
+integration comments the preview URL on the PR. The build variables only feed
+`@nuxtjs/supabase` at build time; runtime `vars` override them anyway, so
+missing values only produce warnings.
 
 `.github/workflows/deploy.yml` still rsyncs to the old host and should be deleted
 once Workers Builds is confirmed working — that file is protected by `AGENTS.md`

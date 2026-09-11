@@ -15,6 +15,9 @@ major_version = 17
 site_url = "https://liberhack.org"
 additional_redirect_urls = [
   "https://liberhack.org/**",
+  "https://staging.liberhack.org/**",
+  # PR preview versions of the staging Worker (Workers Builds `versions upload --env staging`)
+  "https://*-manifesto-staging.*.workers.dev/**",
   "http://localhost:3000/**",
 ]
 jwt_expiry = 3600
