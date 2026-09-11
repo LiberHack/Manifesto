@@ -26,7 +26,7 @@ If you're an AI agent (Claude, Copilot, Cursor, etc.) working in this repo, see 
 
 ## Before opening a PR
 
-- [ ] `bun test` passes
-- [ ] No `bun.lock`/`bun.lockb` staged (npm's `package-lock.json` is the source of truth)
+- [ ] `bun run test` passes
+- [ ] `bun.lock` is staged if dependencies changed (no `package-lock.json` / other lockfiles)
 - [ ] No secrets, `.env` values, or Supabase service-role keys in the diff
 - [ ] New migrations are additive/reversible where possible

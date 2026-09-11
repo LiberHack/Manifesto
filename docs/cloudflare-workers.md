@@ -39,29 +39,29 @@ production's. On staging that thrash is acceptable.
 Staging and previews send `X-Robots-Tag: noindex` (`server/middleware/00.noindex.ts`,
 keyed on `NUXT_PUBLIC_APP_ENV`). Sign-up confirmation links use the origin the
 page was served from, so every host is in `additional_redirect_urls` in
-`supabase/config.toml` (push with `npx supabase config push`).
+`supabase/config.toml` (push with `bunx supabase config push`).
 
 ## One-time setup
 
 ```bash
-npx wrangler login
+bunx wrangler login
 
 # 1. D1 for Nuxt Content — ids are already in wrangler.jsonc; recreate with:
-npx wrangler d1 create manifesto-content
-npx wrangler d1 create manifesto-content-staging
+bunx wrangler d1 create manifesto-content
+bunx wrangler d1 create manifesto-content-staging
 
 # 2. Secrets, once per environment (prompted for the value; never in wrangler.jsonc)
-npx wrangler secret put NUXT_SUPABASE_SECRET_KEY
-npx wrangler secret put NUXT_RESEND_API_KEY
-npx wrangler secret put NUXT_SUPABASE_SECRET_KEY --env staging
-npx wrangler secret put NUXT_RESEND_API_KEY --env staging
+bunx wrangler secret put NUXT_SUPABASE_SECRET_KEY
+bunx wrangler secret put NUXT_RESEND_API_KEY
+bunx wrangler secret put NUXT_SUPABASE_SECRET_KEY --env staging
+bunx wrangler secret put NUXT_RESEND_API_KEY --env staging
 
 # 3. Public vars live in wrangler.jsonc `vars` (top level and env.staging.vars)
 
 # 4. First deploys — also provision the custom domains + certificates
-npm run build
-npx wrangler deploy
-npx wrangler deploy --env staging
+bun run build
+bunx wrangler deploy
+bunx wrangler deploy --env staging
 ```
 
 The zone `liberhack.org` must already be on the Cloudflare account. Any existing
@@ -76,15 +76,16 @@ No GitHub Actions. Connect the `LiberHack/Manifesto` repo to **both** Workers
 | Setting | `manifesto` | `manifesto-staging` |
 | --- | --- | --- |
 | Production branch | `main` | `dev` |
-| Build command | `npm ci --legacy-peer-deps && npm test && npm run build` | same |
-| Deploy command | `npx wrangler deploy` | `npx wrangler deploy --env staging` |
+| Build command | `bun install --frozen-lockfile && bun run test && bun run build` | same |
+| Deploy command | `bunx wrangler deploy` | `bunx wrangler deploy --env staging` |
 | Builds for non-production branches | **off** | **on** |
-| Non-production branch deploy command | — | `npx wrangler versions upload --env staging` |
+| Non-production branch deploy command | — | `bunx wrangler versions upload --env staging` |
 | Build variables | `NUXT_PUBLIC_SUPABASE_URL`, `NUXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | same |
 
-`npm test` runs the vitest suite (unit + e2e against a Node build of the app,
+`bun run test` runs the vitest suite (unit + e2e against a Node build of the app,
 see `$test` in `nuxt.config.ts`) and a failure aborts the deploy. Workers Builds
-runs Node 22 by default; pin it with a `.node-version` file if that ever matters.
+detects bun from `bun.lock`; pin the version with `BUN_VERSION` in the build variables
+if it ever matters.
 
 Result: push to `main` → liberhack.org; push to `dev` → staging.liberhack.org;
 any other branch → a preview version of `manifesto-staging`, and the GitHub
@@ -99,9 +100,9 @@ and needs a human commit.
 ## Local development
 
 ```bash
-bun dev             # unchanged: Nuxt dev server, local SQLite for content,
+bun run dev         # unchanged: Nuxt dev server, local SQLite for content,
                     # in-memory rate limiter, .env for config
-npm run build && npm run preview:cf
+bun run build && bun run preview:cf
                     # real worker in miniflare: local D1, rate-limit bindings,
                     # reads .dev.vars (git-ignored) for env
 ```
@@ -112,10 +113,10 @@ want to exercise Supabase through the worker locally.
 ## Operations
 
 ```bash
-npx wrangler tail                 # streaming logs (observability is enabled in wrangler.jsonc)
-npx wrangler deployments list     # history
-npx wrangler rollback             # previous version
-npx wrangler d1 execute manifesto-content --remote --command 'select count(*) from _content_info'
+bunx wrangler tail                 # streaming logs (observability is enabled in wrangler.jsonc)
+bunx wrangler deployments list     # history
+bunx wrangler rollback             # previous version
+bunx wrangler d1 execute manifesto-content --remote --command 'select count(*) from _content_info'
 ```
 
 - Content is re-imported into D1 on the first request after each deploy (the

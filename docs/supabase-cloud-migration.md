@@ -6,9 +6,9 @@ access to the old server where `supabase-docker/` is still running.
 ## 1. Create and link the cloud project
 
 ```bash
-npx supabase login
-npx supabase projects create liberhack --org-id <org-id> --region eu-central-1 --db-password '<strong password>'
-npx supabase link --project-ref <project-ref>
+bunx supabase login
+bunx supabase projects create liberhack --org-id <org-id> --region eu-central-1 --db-password '<strong password>'
+bunx supabase link --project-ref <project-ref>
 ```
 
 Pick the region closest to the participants; `eu-central-1` (Frankfurt) is the
@@ -18,8 +18,8 @@ nearest to Bulgaria.
 
 ```bash
 cp supabase/.env.example supabase/.env   # fill in real values
-npx supabase db push                     # runs every file in supabase/migrations/
-npx supabase config push                 # site URL, redirect allow-list, SMTP, email templates
+bunx supabase db push                     # runs every file in supabase/migrations/
+bunx supabase config push                 # site URL, redirect allow-list, SMTP, email templates
 ```
 
 `config push` prints a diff and asks for confirmation. Verify in the dashboard

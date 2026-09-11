@@ -15,14 +15,14 @@ your defaults for this repo.
   edition-archiving/GDPR-erasure path without flagging it for explicit human review. This code
   deletes or redacts real user data.
 - Never commit `.env`, `supabase/.env`, or any Supabase service-role key.
-- Never commit `bun.lock` / `bun.lockb`. `package-lock.json` is the dependency source of truth.
+- Never commit `package-lock.json`, `yarn.lock` or `pnpm-lock.yaml`. `bun.lock` is the dependency source of truth; commit it with every dependency change.
 - Never modify `.github/workflows/*` (CI/CD, deploy) without explicit human sign-off.
 - Never merge your own PR or dismiss/override a review.
 
 ## Expected behavior
 
 - Open small, focused PRs against `dev`. Follow [CONTRIBUTING.md](./CONTRIBUTING.md).
-- Run `bun test` before proposing a change is done.
+- Run `bun run test` before proposing a change is done.
 - If a task requires one of the "never" actions above, stop and ask the human instead of finding
   a workaround.
 - If you're unsure whether a change is in-scope (schema change, auth logic, redaction/erasure

@@ -23,7 +23,7 @@
     },
   ],
   // Nuxt Content stores the markdown collections here (content.database in nuxt.config.ts).
-  // Create with: npx wrangler d1 create manifesto-content
+  // Create with: bunx wrangler d1 create manifesto-content
   "d1_databases": [
     {
       "binding": "DB",
@@ -84,7 +84,7 @@
           "custom_domain": true,
         },
       ],
-      // Create with: npx wrangler d1 create manifesto-content-staging
+      // Create with: bunx wrangler d1 create manifesto-content-staging
       "d1_databases": [
         {
           "binding": "DB",

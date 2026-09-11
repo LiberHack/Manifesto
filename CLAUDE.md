@@ -19,23 +19,24 @@ Nuxt 4 app with Vue 3, Tailwind CSS v4, DaisyUI, and @nuxt/content.
 ## Commands
 
 ```bash
-bun dev        # start dev server
-bun build      # production build
-bun generate   # static generation
-bun preview    # preview production build (node)
-bun preview:cf # run the built worker locally with wrangler dev (D1 + rate limits via miniflare)
-bun deploy     # nuxt build && wrangler deploy
-bun test       # run vitest (unit + e2e; also gates every Workers Builds deploy)
+bun run dev        # start dev server
+bun run build      # production build
+bun run generate   # static generation
+bun run preview    # preview production build (node)
+bun run preview:cf # run the built worker locally with wrangler dev (D1 + rate limits via miniflare)
+bun run deploy     # nuxt build && wrangler deploy
+bun run test       # vitest (unit + e2e; also gates every Workers Builds deploy)
 ```
 
 ## Package Manager
 
-We use **bun** locally for speed, but infra/CI relies on **npm** for reproducibility.
+**bun** is the only package manager (`packageManager` in `package.json`; Workers Builds
+picks it up from `bun.lock`).
 
-- Never commit `bun.lock`, `bun.lockb`, or any bun-specific lockfiles
-- `package-lock.json` is the source of truth for dependencies
-- When adding packages: `bun add <pkg>` is fine locally, but verify `package-lock.json` is updated before committing
-- `.gitignore` must always exclude bun lockfiles
+- `bun.lock` is the dependency source of truth — commit it with every dependency change
+- Never add `package-lock.json`, `yarn.lock` or `pnpm-lock.yaml`
+- `bun install --frozen-lockfile` is what CI runs; if it fails, run `bun install` and commit the lock
+- Run package scripts with `bun run <script>` (`bun test` alone is bun's own test runner, not vitest)
 
 ## Project Structure
 
@@ -89,7 +90,7 @@ node server/emails/generate-ts.mjs   # regenerates server/utils/email-templates.
 
 Auth emails (signup, magic link, password reset) are Supabase Auth templates declared in `supabase/config.toml` (`[auth.email.template.*]`), pointing at the compiled HTML in `server/emails/dist/`. Supabase renders Go template variables (`{{ .ConfirmationURL }}`, `{{ .Email }}`) and sends via the Postmark SMTP configured in `[auth.email.smtp]`.
 
-- After editing MJML: recompile to `dist/`, then `npx supabase config push` to upload the new template to the cloud project.
+- After editing MJML: recompile to `dist/`, then `bunx supabase config push` to upload the new template to the cloud project.
 - Subjects are set in `supabase/config.toml`.
 
 Templates: `verify-email.html` (signup), `magic-link.html` (magic link), `reset-password.html` (recovery).
@@ -99,14 +100,14 @@ Templates: `verify-email.html` (signup), `magic-link.html` (magic link), `reset-
 Production and staging run on Supabase cloud; the repo holds migrations and auth config only.
 
 ```bash
-npx supabase login                       # once per machine
-npx supabase link --project-ref <ref>    # once per checkout
-npx supabase db push                     # apply supabase/migrations/ to the linked project
-npx supabase config push                 # apply supabase/config.toml (auth, SMTP, email templates)
+bunx supabase login                       # once per machine
+bunx supabase link --project-ref <ref>    # once per checkout
+bunx supabase db push                     # apply supabase/migrations/ to the linked project
+bunx supabase config push                 # apply supabase/config.toml (auth, SMTP, email templates)
 
 # Optional local stack for development (Postgres + Auth + Studio on http://127.0.0.1:54323)
-npx supabase start
-npx supabase db reset                    # rebuild local DB from migrations
+bunx supabase start
+bunx supabase db reset                    # rebuild local DB from migrations
 ```
 
 - `supabase/config.toml` `env(...)` values come from `supabase/.env` (git-ignored, see `supabase/.env.example`)
@@ -120,12 +121,12 @@ Production (`main` → liberhack.org) and staging (`dev` → staging.liberhack.o
 `docs/cloudflare-workers.md` for the one-time setup (D1, secrets, custom domains, Workers Builds).
 
 ```bash
-npx wrangler login                        # once per machine
-npm run build                             # Nitro cloudflare_module preset -> .output/
-npx wrangler dev                          # local worker + miniflare D1 / rate limits
-npx wrangler deploy                       # ship it
-npx wrangler secret put NUXT_SUPABASE_SECRET_KEY   # secrets live in Cloudflare, not in vars
-npx wrangler tail                         # live logs
+bunx wrangler login                        # once per machine
+bun run build                             # Nitro cloudflare_module preset -> .output/
+bunx wrangler dev                          # local worker + miniflare D1 / rate limits
+bunx wrangler deploy                       # ship it
+bunx wrangler secret put NUXT_SUPABASE_SECRET_KEY   # secrets live in Cloudflare, not in vars
+bunx wrangler tail                         # live logs
 ```
 
 - `wrangler.jsonc` holds bindings and **non-secret** vars only; secrets go through `wrangler secret put`
