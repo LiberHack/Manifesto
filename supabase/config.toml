@@ -17,7 +17,7 @@ additional_redirect_urls = [
   "https://liberhack.org/**",
   "https://staging.liberhack.org/**",
   # PR preview versions of the staging Worker (Workers Builds `versions upload --env staging`)
-  "https://*-manifesto-staging.<account-subdomain>.workers.dev/**",
+  "https://*-manifesto-staging.hexchap.workers.dev/**",
   "http://localhost:3000/**",
 ]
 jwt_expiry = 3600
