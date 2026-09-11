@@ -43,44 +43,40 @@ was removed. Delete the record once the cutover is verified.
 
 ## 5. Copy data from the old instance
 
-On the old server, dump auth users (with password hashes) and public data.
-Schema is NOT dumped — it already exists from step 2.
+Done on 2026-09-11 from `dumps/liberhack_backup_20260602_091409.dump`
+(pg_dump custom format, taken the morning of the event). The old host was no
+longer reachable, so the data was loaded through the Management API with
+`supabase db query --linked` rather than `psql` — that path runs as the
+`postgres` role, which cannot disable triggers on `auth.users`.
 
-```bash
-cd /opt/liberhack/supabase-docker
-docker compose exec -T db pg_dump -U postgres --data-only --inserts --column-inserts \
-  -t auth.users -t auth.identities > /tmp/auth.sql
-docker compose exec -T db pg_dump -U postgres --data-only --inserts --column-inserts \
-  -n public > /tmp/public.sql
-```
+Order matters:
 
-Copy both files to the dev machine, then restore into the cloud project. The
-direct (non-pooled) connection string is in Dashboard > Connect > Direct.
+1. `auth.users` — the `on_auth_user_created` trigger inserts placeholder
+   `participants` rows from metadata; `delete from public.participants`
+   right after.
+2. `public.skills` (`ON CONFLICT (lower(name)) DO NOTHING` — the catalogue
+   is pre-seeded by a migration). Must come after users: `created_by`
+   references `auth.users`.
+3. `auth.identities`, `public.teams`, `public.participants`,
+   `public.join_requests` — all as single-row `INSERT`s in one transaction.
+4. Re-run the `dietary`/`experience` backfill from migration
+   `20260602000000` — it ran against an empty database during `db push`.
 
-```bash
-DB_URL='postgresql://postgres:<db-password>@db.<project-ref>.supabase.co:5432/postgres'
+Result: 68 users, 68 identities, 16 teams, 66 participants, 28 join requests,
+123 skills — matching the CSV exports in `dumps/` from the same day. Sessions
+and refresh tokens were not migrated, so everyone logs in again; password
+hashes carried over unchanged.
 
-# 1. auth first — the on_auth_user_created trigger inserts placeholder
-#    participants rows, which are replaced in the next step
-psql "$DB_URL" -v ON_ERROR_STOP=1 -f auth.sql
-
-# 2. wipe trigger-generated rows and load real public data
-psql "$DB_URL" -v ON_ERROR_STOP=1 -c \
-  'truncate public.join_requests, public.participants, public.teams, public.skills,
-   public.announcements, public.schedule_items, public.event_config cascade'
-psql "$DB_URL" -v ON_ERROR_STOP=1 -f public.sql
-```
-
-Sanity check: row counts of `auth.users` and `public.participants` match the
-old instance, and an existing account can log in with its old password.
+`announcements`, `schedule_items` and `event_config` post-date the backup and
+start empty.
 
 ## 6. Cut over and decommission
 
-1. Put the old instance into read-only mode for the cutover window
-   (`docker compose stop auth rest` in `supabase-docker/`), redo step 5 for any
-   rows written since the first dump.
-2. Deploy the app with the new `.env` (`docker compose up -d --build` in
-   `/opt/liberhack`).
-3. Smoke-test signup, email verification, password reset, team invite.
-4. `cd /opt/liberhack/supabase-docker && docker compose down -v` and delete the
+1. Update `/opt/liberhack/.env` with the three `NUXT_*SUPABASE*` values and
+   run `docker compose up -d --build` in `/opt/liberhack`.
+2. Smoke-test login with a migrated account, signup, email verification,
+   password reset, team invite.
+3. Remove the `api.liberhack.org` DNS record.
+4. If the old host is ever reachable again:
+   `cd /opt/liberhack/supabase-docker && docker compose down -v` and delete the
    directory (`volumes/db/data` is root-owned; use `sudo rm -rf`).
