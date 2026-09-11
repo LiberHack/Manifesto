@@ -84,15 +84,16 @@ unset locally.
 
 ## Testing
 
-`bun run test` runs vitest. Tests live in `tests/server/` and are e2e: a vitest `globalSetup`
-(`tests/global-setup.ts` → `tests/build-fixture.mjs`) builds the app **once** into
-`.nuxt/test-fixture`, and each file calls `useFixture()` from `tests/fixture.ts` to boot a server
-from that output (~2 s) instead of `setup({ server: true })` (a ~45 s build per file). Requests go
-through `fetch` / `$fetch` / `url()` from `@nuxt/test-utils/e2e` — the server listens on a random
-port, so a hard-coded `http://localhost:3000` only "works" when a dev server happens to be running
-there and fails in CI. No credentials are needed: `$test` in `nuxt.config.ts` gives the fixture a
-dummy Supabase URL/key and unauthenticated paths never hit the network; anything that needs a
-session should mock `serverSupabaseUser`, not talk to the real project.
+`bun run test` runs vitest. Tests live in `tests/server/` and are e2e against one shared server:
+`tests/global-setup.ts` builds the app once into `.nuxt/test-fixture` (via
+`tests/build-fixture.mjs`), starts the built server once, and publishes its URL to the workers
+through `NUXT_TEST_CONTEXT`. Test files therefore need no `setup()` call — just import `fetch`,
+`$fetch` or `url` from `@nuxt/test-utils/e2e` and request relative paths. Never hard-code
+`http://localhost:3000`: the server listens on a random port, so that only "works" when a dev
+server happens to be running there and fails in CI. No credentials are needed: `$test` in
+`nuxt.config.ts` gives the fixture a dummy Supabase URL/key and unauthenticated paths never hit the
+network; anything that needs a session should mock `serverSupabaseUser`, not talk to the real
+project. Tests share the server, so keep them stateless (no writes that another file could see).
 
 Two pieces of config exist only for the test run — do not remove them:
 

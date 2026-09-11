@@ -1,10 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { fetch } from "@nuxt/test-utils/e2e";
-import { useFixture } from "../fixture";
 
-describe("Admin API", async () => {
-  await useFixture();
-
+describe("Admin API", () => {
   it("GET /api/admin/participants returns 401 unauthenticated", async () => {
     const res = await fetch("/api/admin/participants");
     expect(res.status).toBe(401);

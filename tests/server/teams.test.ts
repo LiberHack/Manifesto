@@ -1,10 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { fetch } from "@nuxt/test-utils/e2e";
-import { useFixture } from "../fixture";
 
-describe("Teams API", async () => {
-  await useFixture();
-
+describe("Teams API", () => {
   it("GET /api/teams returns 401 when not authenticated", async () => {
     const res = await fetch("/api/teams");
     expect(res.status).toBe(401);
