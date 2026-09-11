@@ -14,7 +14,7 @@ your defaults for this repo.
 - Never touch `archive/`, `scripts/redact-*.ts`, `scripts/apply-redactions.ts`, or anything in the
   edition-archiving/GDPR-erasure path without flagging it for explicit human review. This code
   deletes or redacts real user data.
-- Never commit `.env`, `supabase-docker/.env`, or any Supabase service-role key.
+- Never commit `.env`, `supabase/.env`, or any Supabase service-role key.
 - Never commit `bun.lock` / `bun.lockb`. `package-lock.json` is the dependency source of truth.
 - Never modify `.github/workflows/*` (CI/CD, deploy) without explicit human sign-off.
 - Never merge your own PR or dismiss/override a review.

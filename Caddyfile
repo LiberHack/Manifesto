@@ -2,10 +2,6 @@
       debug
   }
 
-  api.{$DOMAIN} {
-      reverse_proxy supabase-kong:8000
-  }
-
   {$DOMAIN} {
       reverse_proxy app:3000
   }

@@ -1,5 +1,4 @@
 -- Drop existing objects in dependency order
-drop trigger if exists on_request_approved on public.join_requests;
 drop trigger if exists on_auth_user_created on auth.users;
 drop function if exists public.handle_request_approved();
 drop function if exists public.handle_new_user();

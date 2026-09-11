@@ -48,8 +48,7 @@ server/emails/    # MJML email templates — edit .mjml, run generate-ts.mjs to 
 server/middleware/ # 01.auth.ts (attaches user to context), 02.rateLimit.ts (60 req/min/IP)
 public/           # Static assets (tailwind.css lives here)
 nuxt.config.ts    # Nuxt configuration
-supabase/         # Supabase CLI config & migrations
-supabase-docker/  # Self-hosted Supabase via Docker Compose
+supabase/         # Supabase CLI config (config.toml) & migrations
 ```
 
 ## Environment Variables
@@ -58,13 +57,13 @@ Required in `.env`:
 
 ```bash
 NUXT_SUPABASE_SERVICE_KEY=          # Supabase service role key (bypasses RLS)
-NUXT_PUBLIC_SUPABASE_URL=           # e.g. http://localhost:8000
+NUXT_PUBLIC_SUPABASE_URL=           # https://<project-ref>.supabase.co (or http://127.0.0.1:54321 with `supabase start`)
 NUXT_PUBLIC_SUPABASE_ANON_KEY=      # Supabase anon key
 NUXT_POSTMARK_TOKEN=                # Postmark server token (transactional email)
 NUXT_POSTMARK_FROM_EMAIL=           # Sender address verified in Postmark
 NUXT_SITE_URL=                      # Full app URL, used in email links (e.g. http://localhost:3000)
 # Optional:
-NUXT_PUBLIC_EMAIL_VERIFIED_REDIRECT_URL=  # defaults to /ops/confirm — must be allowed in ADDITIONAL_REDIRECT_URLS in supabase-docker/.env
+NUXT_PUBLIC_EMAIL_VERIFIED_REDIRECT_URL=  # defaults to /ops/confirm — must match additional_redirect_urls in supabase/config.toml
 ```
 
 ## Auth & Routes
@@ -73,7 +72,7 @@ NUXT_PUBLIC_EMAIL_VERIFIED_REDIRECT_URL=  # defaults to /ops/confirm — must be
 - Server-side: `01.auth.ts` attaches the Supabase user to `event.context.user`
 - Rate limiting: 60 req/min per IP on all `/api/*` routes (`02.rateLimit.ts`)
 - Admin role: set `role = 'admin'` in the `participants` table to expose `/ops/admin`
-- `emailRedirectTo` in `signUp` requires the URL to be in `ADDITIONAL_REDIRECT_URLS` in `supabase-docker/.env` (e.g. `http://localhost:3000/**`)
+- `emailRedirectTo` in `signUp` requires the URL to match `additional_redirect_urls` in `supabase/config.toml` (e.g. `https://liberhack.org/**`)
 
 ## Emails
 
@@ -85,36 +84,31 @@ bunx mjml server/emails/<name>.mjml -o server/emails/dist/<name>.html
 node server/emails/generate-ts.mjs   # regenerates server/utils/email-templates.ts
 ```
 
-Auth emails (signup, magic link, password reset) are served as static files by a Caddy container (`templates-server`) inside the Docker network. GoTrue fetches the template HTML via HTTP, renders Go template variables (`{{ .ConfirmationURL }}`, `{{ .Email }}`), and sends via SMTP.
+Auth emails (signup, magic link, password reset) are Supabase Auth templates declared in `supabase/config.toml` (`[auth.email.template.*]`), pointing at the compiled HTML in `server/emails/dist/`. Supabase renders Go template variables (`{{ .ConfirmationURL }}`, `{{ .Email }}`) and sends via the Postmark SMTP configured in `[auth.email.smtp]`.
 
-- Template files are served directly from `server/emails/dist/` — no duplication needed.
-- After editing MJML: recompile to `dist/`, then restart `templates-server` (or it auto-serves the new file).
-- `MAILER_SUBJECTS_*` vars in `supabase-docker/.env` control email subjects.
+- After editing MJML: recompile to `dist/`, then `npx supabase config push` to upload the new template to the cloud project.
+- Subjects are set in `supabase/config.toml`.
 
 Templates: `verify-email.html` (signup), `magic-link.html` (magic link), `reset-password.html` (recovery).
 
-## Supabase (Self-Hosted)
+## Supabase (Cloud)
 
-The project runs Supabase locally via Docker, not via Supabase CLI's `supabase start`.
+Production and staging run on Supabase cloud; the repo holds migrations and auth config only.
 
 ```bash
-# Start Supabase
-cd supabase-docker && docker compose up -d
+npx supabase login                       # once per machine
+npx supabase link --project-ref <ref>    # once per checkout
+npx supabase db push                     # apply supabase/migrations/ to the linked project
+npx supabase config push                 # apply supabase/config.toml (auth, SMTP, email templates)
 
-# Stop Supabase
-cd supabase-docker && docker compose down
-
-# View logs
-cd supabase-docker && docker compose logs -f
-
-# Dashboard: http://localhost:8000
-# Username: supabase  Password: see supabase-docker/.env DASHBOARD_PASSWORD
+# Optional local stack for development (Postgres + Auth + Studio on http://127.0.0.1:54323)
+npx supabase start
+npx supabase db reset                    # rebuild local DB from migrations
 ```
 
-- Kong (API gateway) on port 8000, Postgres on port 5432
-- The app `.env` points to `SUPABASE_URL=http://localhost:8000`
-- Secrets live in `supabase-docker/.env` (git-ignored)
-- Migrations managed via Supabase CLI: `supabase db push --local`
+- `supabase/config.toml` `env(...)` values come from `supabase/.env` (git-ignored, see `supabase/.env.example`)
+- API keys and the project URL are in Dashboard > Project Settings > API
+- Auth users, hashed passwords and app data were migrated from the old self-hosted instance via `pg_dump`/`psql` (see `docs/supabase-cloud-migration.md`)
 
 ## Deployment
 
