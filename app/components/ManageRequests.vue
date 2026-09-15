@@ -1,7 +1,7 @@
 <script setup lang="ts">
 definePageMeta({ middleware: ['auth'] })
 
-const { data: me } = await useFetch<any>('/api/me')
+const { data: me } = await useMe()
 const teamId = computed(() => me.value?.team?.id)
 
 const { data: requests, refresh } = await useFetch<any[]>(

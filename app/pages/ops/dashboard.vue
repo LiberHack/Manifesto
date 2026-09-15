@@ -3,14 +3,22 @@ definePageMeta({ middleware: ["auth"] });
 
 const supabase = useSupabaseClient();
 const router = useRouter();
-const { data: me, refresh: refreshMe } = await useFetch<any>("/api/me");
+const { data: me, refresh: refreshMe } = await useMe();
 
-const isLeader = computed(() => me.value?.team?.leader_id === me.value?.id);
+// leader_id points at a registration, not an account.
+const isLeader = computed(
+  () => !!me.value?.team && me.value.team.leader_id === me.value.registration?.id,
+);
 
 // ── Profile edit ──────────────────────────────────────────────────────────────
 const profileForm = reactive({
-  dietary: (me.value?.dietary ?? "") as string,
-  experience: (me.value?.experience ?? "") as "" | "beginner" | "intermediate" | "experienced",
+  dietary: me.value?.registration?.dietary ?? "",
+  experience: (me.value?.registration?.experience ?? "") as
+    | ""
+    | "beginner"
+    | "intermediate"
+    | "experienced",
+  public: me.value?.registration?.public ?? true,
 });
 const profileSaving = ref(false);
 const profileMessage = ref("");
@@ -24,6 +32,7 @@ async function saveProfile() {
       body: {
         dietary: profileForm.dietary,
         experience: profileForm.experience || null,
+        public: profileForm.public,
       },
     });
     await refreshMe();
@@ -187,7 +196,7 @@ async function logout() {
         <p class="mb-1"><strong>Name:</strong> {{ me.name }}</p>
         <p class="mb-2"><strong>Email:</strong> {{ me.email }}</p>
         <div class="flex flex-wrap gap-1 mb-4">
-          <span v-for="skill in me.skills" :key="skill" class="badge badge-outline">
+          <span v-for="skill in me.registration?.skills ?? []" :key="skill" class="badge badge-outline">
             {{ skill }}
           </span>
         </div>
@@ -212,6 +221,16 @@ async function logout() {
               placeholder="e.g. vegetarian, gluten-free, none"
               class="input input-bordered w-full"
             />
+          </label>
+
+          <label class="flex items-start gap-3 cursor-pointer">
+            <input
+              :checked="!profileForm.public"
+              type="checkbox"
+              class="checkbox checkbox-primary mt-1 shrink-0"
+              @change="profileForm.public = !($event.target as HTMLInputElement).checked"
+            />
+            <span class="text-sm leading-snug">Hide my profile from the public archive.</span>
           </label>
 
           <div

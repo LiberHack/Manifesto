@@ -20,6 +20,17 @@ if (inviteCode) {
   }
 }
 
+// Pre-flight: the cap now lives on registrations, so signup itself no longer
+// fails when an edition is full — the form has to check and say so.
+const { data: editionState } = await useFetch<{
+  edition: { name: string } | null;
+  seats_left: number;
+}>("/api/editions/current");
+
+const registrationFull = computed(
+  () => !editionState.value?.edition || editionState.value.seats_left <= 0,
+);
+
 const form = reactive({
   name: "",
   email: "",
@@ -51,7 +62,7 @@ async function register() {
 
   if (authError) {
     if (authError.message.includes("registration_closed"))
-      error.value = "Registration is closed — the 120-participant limit has been reached.";
+      error.value = "Registration is closed — the participant limit has been reached.";
     else if (authError.message.includes("too_many_skills"))
       error.value = "You can add at most 5 skills.";
     else error.value = authError.message;
@@ -75,6 +86,10 @@ async function register() {
           After verifying your email, you'll be invited to join
           <strong class="text-primary">{{ inviteTeam.name }}</strong>.
         </span>
+      </div>
+
+      <div v-if="registrationFull" role="alert" class="alert alert-error text-sm">
+        Registration is closed — the participant limit has been reached.
       </div>
 
       <div v-if="error" role="alert" class="alert alert-error text-sm">
@@ -136,7 +151,11 @@ async function register() {
         </span>
       </label>
 
-      <button type="submit" :disabled="loading || !form.coc" class="btn btn-primary w-full font-black uppercase">
+      <button
+        type="submit"
+        :disabled="loading || !form.coc || registrationFull"
+        class="btn btn-primary w-full font-black uppercase"
+      >
         {{ loading ? "Registering…" : "Register" }}
       </button>
 
