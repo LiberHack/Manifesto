@@ -1,55 +1,45 @@
-import { serverSupabaseUser } from "#supabase/server";
-import { useSupabaseAdmin } from "#server/utils/supabase";
+import { requireRegistration } from "#server/utils/requireRegistration";
 
 const MAX_SKILLS = 10;
 const MAX_SKILL_LENGTH = 30;
 
-const validateSkills = (skillsWanted: any): string[] => {
-  let skills: string[] = [];
+const validateSkills = (skillsWanted: unknown): string[] => {
+  if (!skillsWanted) return [];
 
-  if (skillsWanted) {
-    if (!Array.isArray(skillsWanted)) {
-      throw createError({
-        statusCode: 400,
-        message: "skills_wanted must be an array",
-      });
-    }
+  if (!Array.isArray(skillsWanted)) {
+    throw createError({
+      statusCode: 400,
+      message: "skills_wanted must be an array",
+    });
+  }
 
-    skills = skillsWanted.map((s) => s.trim()).filter((s) => s.length > 0);
+  const skills = skillsWanted
+    .map((s) => (typeof s === "string" ? s.trim() : ""))
+    .filter((s) => s.length > 0);
 
-    if (skills.length > MAX_SKILLS) {
-      throw createError({
-        statusCode: 400,
-        message: `Maximum ${MAX_SKILLS} skills allowed`,
-      });
-    }
+  if (skills.length > MAX_SKILLS) {
+    throw createError({
+      statusCode: 400,
+      message: `Maximum ${MAX_SKILLS} skills allowed`,
+    });
+  }
 
-    const invalidSkill = skills.find((s) => s.length > MAX_SKILL_LENGTH);
+  const invalidSkill = skills.find((s) => s.length > MAX_SKILL_LENGTH);
 
-    if (invalidSkill) {
-      throw createError({
-        statusCode: 400,
-        message: `Skill "${invalidSkill}" exceeds ${MAX_SKILL_LENGTH} characters`,
-      });
-    }
+  if (invalidSkill) {
+    throw createError({
+      statusCode: 400,
+      message: `Skill "${invalidSkill}" exceeds ${MAX_SKILL_LENGTH} characters`,
+    });
   }
 
   return skills;
 };
 
 export default defineEventHandler(async (event) => {
-  const user = await serverSupabaseUser(event);
-  if (!user) throw createError({ statusCode: 401, message: "Unauthorized" });
+  const { registration, edition, supabase } = await requireRegistration(event);
 
-  const supabase = useSupabaseAdmin();
-
-  const { data: participant } = await supabase
-    .from("participants")
-    .select("team_id")
-    .eq("id", user.sub)
-    .single();
-
-  if (participant?.team_id) {
+  if (registration.team_id) {
     throw createError({ statusCode: 409, message: "Already in a team" });
   }
 
@@ -69,7 +59,8 @@ export default defineEventHandler(async (event) => {
     .from("teams")
     .insert({
       name: body.name.trim(),
-      leader_id: user.sub,
+      edition_slug: edition.slug,
+      leader_id: registration.id,
       skills_wanted: skills,
       description: body.description ?? null,
     })
@@ -77,14 +68,20 @@ export default defineEventHandler(async (event) => {
     .single();
 
   if (error) {
+    if (error.code === "23505") {
+      throw createError({
+        statusCode: 409,
+        message: "A team with that name already exists in this edition",
+      });
+    }
     console.error("[teams.post] insert failed:", error.message);
     throw createError({ statusCode: 500, message: "Failed to create team" });
   }
 
   await supabase
-    .from("participants")
-    .update({ team_id: team.id })
-    .eq("id", user.sub);
+    .from("registrations")
+    .update({ team_id: team.id, role: "leader" })
+    .eq("id", registration.id);
 
   return team;
 });

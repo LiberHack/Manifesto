@@ -1,27 +1,20 @@
-import { serverSupabaseUser } from "#supabase/server";
-import { useSupabaseAdmin } from "#server/utils/supabase";
+import { requireRegistration } from "#server/utils/requireRegistration";
+import { requireTeamLeadership } from "#server/utils/registrationContext";
 
 const MAX_SKILLS = 10;
 const MAX_SKILL_LENGTH = 30;
 const MAX_DESCRIPTION_LENGTH = 200;
 
 export default defineEventHandler(async (event) => {
-  const user = await serverSupabaseUser(event);
-  if (!user) throw createError({ statusCode: 401, message: "Unauthorized" });
+  const ctx = await requireRegistration(event);
+  const { supabase } = ctx;
 
   const teamId = getRouterParam(event, "id");
-  const supabase = useSupabaseAdmin();
-
-  const { data: team } = await supabase
-    .from("teams")
-    .select("leader_id")
-    .eq("id", teamId!)
-    .single();
-
-  if (!team) throw createError({ statusCode: 404, message: "Team not found" });
-  if (team.leader_id !== user.sub) {
-    throw createError({ statusCode: 403, message: "Only the team leader can update this team" });
-  }
+  await requireTeamLeadership(
+    ctx,
+    teamId!,
+    "Only the team leader can update this team",
+  );
 
   const body = await readBody<{ skills_wanted?: unknown; description?: unknown }>(event);
 
