@@ -1,78 +1,81 @@
 <script setup lang="ts">
+import {
+  shouldShowAnnouncement,
+  sortAnnouncements,
+  type Announcement,
+} from "~/composables/useAnnouncementAudience";
+
+const DISMISSED_KEY = "dismissed_announcements";
+
 const route = useRoute();
-const user = useSupabaseUser();
 
 const onOpsRoute = computed(() => route.path.startsWith("/ops"));
 
-const { data: me } = await useFetch<any>(
-  () => (user.value && onOpsRoute.value ? "/api/me" : null),
-  { key: `banners-me-${user.value?.id}` },
+const { data: announcements } = await useFetch<Announcement[]>(
+  "/api/announcements",
+  { key: "announcements", default: () => [] },
 );
 
-const isLeader = computed(() => me.value?.team?.leader_id === me.value?.id);
+// Shared with the rest of the app; resolves to null without a request when
+// nobody is signed in, so public pages pay nothing for it. Only `ops` rows
+// consult it — see shouldShowAnnouncement.
+const { data: me } = await useMe();
 
-const profileBannerDismissed = ref(true);
-const teamEditBannerDismissed = ref(true);
+// SSR renders nothing dismissible-dependent, so the list is read on mount.
+const dismissed = ref<string[]>([]);
 
 onMounted(() => {
-  profileBannerDismissed.value = !!localStorage.getItem(
-    "profile_banner_dismissed",
-  );
-  teamEditBannerDismissed.value = !!localStorage.getItem(
-    "team_edit_banner_dismissed",
-  );
+  try {
+    const raw = localStorage.getItem(DISMISSED_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    if (Array.isArray(parsed)) {
+      dismissed.value = parsed.filter((id): id is string => typeof id === "string");
+    }
+  } catch {
+    // Unreadable or malformed storage just means nothing is dismissed yet.
+    dismissed.value = [];
+  }
 });
 
-const showProfileBanner = computed(
-  () =>
-    !profileBannerDismissed.value &&
-    !!me.value &&
-    (me.value.dietary == null || me.value.experience == null),
+const visible = computed(() =>
+  sortAnnouncements(
+    (announcements.value ?? []).filter(
+      (row) =>
+        shouldShowAnnouncement(row, me.value, onOpsRoute.value) &&
+        !(row.dismissible && dismissed.value.includes(row.id)),
+    ),
+  ),
 );
 
-const showTeamEditBanner = computed(
-  () => !teamEditBannerDismissed.value && isLeader.value,
-);
-
-function dismissProfileBanner() {
-  profileBannerDismissed.value = true;
-  localStorage.setItem("profile_banner_dismissed", "1");
-}
-
-function dismissTeamEditBanner() {
-  teamEditBannerDismissed.value = true;
-  localStorage.setItem("team_edit_banner_dismissed", "1");
+function dismiss(id: string) {
+  if (dismissed.value.includes(id)) return;
+  dismissed.value = [...dismissed.value, id];
+  try {
+    localStorage.setItem(DISMISSED_KEY, JSON.stringify(dismissed.value));
+  } catch {
+    // Dismissal just does not persist when storage is unavailable.
+  }
 }
 </script>
 
 <template>
   <div
-    v-if="showProfileBanner"
-    class="flex justify-between items-start gap-3 border-b-2 border-warning bg-base-100 text-sm font-bold py-2 px-4"
+    v-for="announcement in visible"
+    :key="announcement.id"
+    class="flex justify-between items-start gap-3 border-b-2 bg-base-100 text-sm font-bold py-2 px-4"
+    :class="announcement.variant === 'warning' ? 'border-warning' : 'border-primary'"
   >
     <span>
-      Missing profile info — Help us plan catering and workshops by filling in
-      your
-      <NuxtLink to="/ops/dashboard" class="underline"
-        >dietary requirements and experience level</NuxtLink
-      >.
-    </span>
-    <button class="btn btn-ghost btn-xs shrink-0" @click="dismissProfileBanner">
-      ✕
-    </button>
-  </div>
-
-  <div
-    v-if="showTeamEditBanner"
-    class="flex justify-between items-start gap-3 border-b-2 border-primary bg-base-100 text-sm font-bold py-2 px-4"
-  >
-    <span>
-      New: You can now edit your team's description and wanted skills from the
-      <NuxtLink to="/ops/dashboard" class="underline">dashboard</NuxtLink>.
+      {{ announcement.body }}
+      <NuxtLink v-if="announcement.href" :to="announcement.href" class="underline">
+        →
+      </NuxtLink>
     </span>
     <button
+      v-if="announcement.dismissible"
       class="btn btn-ghost btn-xs shrink-0"
-      @click="dismissTeamEditBanner"
+      :aria-label="`Dismiss: ${announcement.body}`"
+      @click="dismiss(announcement.id)"
     >
       ✕
     </button>

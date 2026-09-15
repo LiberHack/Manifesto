@@ -8,6 +8,7 @@ export default defineEventHandler(async (event) => {
     .from('announcements')
     .select('*')
     .eq('edition_slug', edition.slug)
+    .order('channel')
     .order('sort_order')
 
   if (error) throw createError({ statusCode: 500, message: error.message })

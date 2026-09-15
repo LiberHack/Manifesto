@@ -270,23 +270,93 @@ async function addScheduleItem() {
 }
 
 // ── Announcements ─────────────────────────────────────────────────────────────
+// One table, three channels: `live` is the /live ticker, `ops` banners show to
+// logged-in participants, `site` banners show to everyone.
+type AnnouncementChannel  = 'live' | 'ops' | 'site'
+type AnnouncementAudience = 'all' | 'leaders' | 'no_team' | 'missing_profile'
+type AnnouncementVariant  = 'info' | 'warning'
+
 interface Announcement {
-  id:         string
-  body:       string
-  sort_order: number
+  id:          string
+  body:        string
+  channel:     AnnouncementChannel
+  audience:    AnnouncementAudience
+  variant:     AnnouncementVariant
+  href:        string | null
+  dismissible: boolean
+  active:      boolean
+  starts_at:   string | null
+  ends_at:     string | null
+  sort_order:  number
 }
 
+const ANNOUNCEMENT_CHANNELS: { value: AnnouncementChannel; label: string }[] = [
+  { value: 'live', label: 'Live ticker' },
+  { value: 'ops',  label: 'Ops banner (logged-in participants)' },
+  { value: 'site', label: 'Site banner (everyone)' },
+]
+
+const ANNOUNCEMENT_AUDIENCES: { value: AnnouncementAudience; label: string }[] = [
+  { value: 'all',             label: 'Everyone registered' },
+  { value: 'leaders',         label: 'Team leaders' },
+  { value: 'no_team',         label: 'Participants without a team' },
+  { value: 'missing_profile', label: 'Missing dietary or experience' },
+]
+
 const { data: announcementsData, refresh: refreshAnnouncements } = await useFetch<Announcement[]>("/api/admin/live/announcements", { query: editionQuery })
+
+const announcementChannel = ref<AnnouncementChannel>('live')
+
+// Drag-and-drop reorders within the selected channel only, so the list the
+// draggable owns is the filtered one.
 const announcementItems = computed({
-  get: () => announcementsData.value ?? [],
-  set: (v) => { if (announcementsData.value) announcementsData.value = v },
+  get: () => (announcementsData.value ?? []).filter((a) => a.channel === announcementChannel.value),
+  set: (v) => {
+    if (!announcementsData.value) return
+    const others = announcementsData.value.filter((a) => a.channel !== announcementChannel.value)
+    announcementsData.value = [...others, ...v]
+  },
 })
+
 const announcementsReordering = ref(false)
 const announcementEditId      = ref<string | null>(null)
-const announcementEditBody    = ref('')
+const announcementError       = ref('')
 
-const announcementNewBody = ref('')
-const announcementAdding  = ref(false)
+function blankAnnouncement() {
+  return {
+    body:        '',
+    channel:     announcementChannel.value,
+    audience:    'all' as AnnouncementAudience,
+    variant:     'info' as AnnouncementVariant,
+    href:        '',
+    dismissible: true,
+    active:      true,
+    starts_at:   '',
+    ends_at:     '',
+  }
+}
+
+const announcementEditForm = ref(blankAnnouncement())
+const announcementNewForm  = ref(blankAnnouncement())
+const announcementAdding   = ref(false)
+
+watch(announcementChannel, () => {
+  announcementNewForm.value.channel = announcementChannel.value
+})
+
+function announcementPayload(form: ReturnType<typeof blankAnnouncement>) {
+  return {
+    body:        form.body.trim(),
+    channel:     form.channel,
+    audience:    form.audience,
+    variant:     form.variant,
+    href:        form.href.trim() || null,
+    dismissible: form.dismissible,
+    active:      form.active,
+    starts_at:   form.starts_at ? fromSofiaLocal(form.starts_at) : null,
+    ends_at:     form.ends_at   ? fromSofiaLocal(form.ends_at)   : null,
+  }
+}
 
 async function onAnnouncementsDragEnd() {
   announcementsReordering.value = true
@@ -294,7 +364,10 @@ async function onAnnouncementsDragEnd() {
     await $fetch('/api/admin/live/announcements/reorder', {
       method: 'POST',
       query: editionQuery.value,
-      body: { items: announcementItems.value.map((a, i) => ({ id: a.id, sort_order: i + 1 })) },
+      body: {
+        channel: announcementChannel.value,
+        items: announcementItems.value.map((a, i) => ({ id: a.id, sort_order: i + 1 })),
+      },
     })
     await refreshAnnouncements()
   } finally {
@@ -303,18 +376,47 @@ async function onAnnouncementsDragEnd() {
 }
 
 function startEditAnnouncement(item: Announcement) {
-  announcementEditId.value   = item.id
-  announcementEditBody.value = item.body
+  announcementEditId.value = item.id
+  announcementEditForm.value = {
+    body:        item.body,
+    channel:     item.channel,
+    audience:    item.audience,
+    variant:     item.variant,
+    href:        item.href ?? '',
+    dismissible: item.dismissible,
+    active:      item.active,
+    starts_at:   toSofiaLocal(item.starts_at),
+    ends_at:     toSofiaLocal(item.ends_at),
+  }
 }
 
 async function saveEditAnnouncement(id: string) {
-  await $fetch(`/api/admin/live/announcements/${id}`, {
-    method: 'PATCH',
-    query: editionQuery.value,
-    body: { body: announcementEditBody.value },
-  })
-  announcementEditId.value = null
-  await refreshAnnouncements()
+  announcementError.value = ''
+  try {
+    await $fetch(`/api/admin/live/announcements/${id}`, {
+      method: 'PATCH',
+      query: editionQuery.value,
+      body: announcementPayload(announcementEditForm.value),
+    })
+    announcementEditId.value = null
+    await refreshAnnouncements()
+  } catch (e: unknown) {
+    announcementError.value = (e as { data?: { message?: string } }).data?.message ?? 'Failed to save'
+  }
+}
+
+async function toggleAnnouncementActive(item: Announcement) {
+  announcementError.value = ''
+  try {
+    await $fetch(`/api/admin/live/announcements/${item.id}`, {
+      method: 'PATCH',
+      query: editionQuery.value,
+      body: { active: !item.active },
+    })
+    await refreshAnnouncements()
+  } catch (e: unknown) {
+    announcementError.value = (e as { data?: { message?: string } }).data?.message ?? 'Failed to save'
+  }
 }
 
 async function deleteAnnouncement(id: string) {
@@ -324,16 +426,19 @@ async function deleteAnnouncement(id: string) {
 }
 
 async function addAnnouncement() {
-  if (!announcementNewBody.value.trim()) return
+  if (!announcementNewForm.value.body.trim()) return
   announcementAdding.value = true
+  announcementError.value = ''
   try {
     await $fetch('/api/admin/live/announcements', {
       method: 'POST',
       query: editionQuery.value,
-      body: { body: announcementNewBody.value.trim() },
+      body: announcementPayload(announcementNewForm.value),
     })
-    announcementNewBody.value = ''
+    announcementNewForm.value = blankAnnouncement()
     await refreshAnnouncements()
+  } catch (e: unknown) {
+    announcementError.value = (e as { data?: { message?: string } }).data?.message ?? 'Failed to add'
   } finally {
     announcementAdding.value = false
   }
@@ -638,14 +743,23 @@ async function addAnnouncement() {
       <!-- Announcements -->
       <div class="card bg-base-200 border border-base-content/20">
         <div class="card-body space-y-4">
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between gap-3 flex-wrap">
             <h3 class="font-black text-lg uppercase">Announcements ({{ announcementItems.length }})</h3>
-            <button class="btn btn-ghost btn-xs" @click="showAnnouncements = !showAnnouncements">
-              {{ showAnnouncements ? 'Hide' : 'Show' }}
-            </button>
+            <div class="flex items-center gap-2">
+              <select v-model="announcementChannel" class="select select-bordered select-xs">
+                <option v-for="c in ANNOUNCEMENT_CHANNELS" :key="c.value" :value="c.value">
+                  {{ c.label }}
+                </option>
+              </select>
+              <button class="btn btn-ghost btn-xs" @click="showAnnouncements = !showAnnouncements">
+                {{ showAnnouncements ? 'Hide' : 'Show' }}
+              </button>
+            </div>
           </div>
 
           <div v-show="showAnnouncements" class="space-y-4">
+            <div v-if="announcementError" class="alert alert-error text-sm">{{ announcementError }}</div>
+
             <div
               class="overflow-x-auto transition-opacity"
               :class="{ 'pointer-events-none opacity-50': announcementsReordering }"
@@ -653,9 +767,11 @@ async function addAnnouncement() {
               <table class="table table-xs w-full">
                 <thead>
                   <tr>
-                    <th class="w-8"></th>
+                    <th class="w-8" />
                     <th>Body</th>
-                    <th></th>
+                    <th>Shown to</th>
+                    <th>State</th>
+                    <th />
                   </tr>
                 </thead>
                 <VueDraggable
@@ -664,28 +780,93 @@ async function addAnnouncement() {
                   handle=".ann-drag-handle"
                   @end="onAnnouncementsDragEnd"
                 >
-                  <tr v-for="item in announcementItems" :key="item.id">
+                  <tr v-for="item in announcementItems" :key="item.id" :class="{ 'opacity-40': !item.active }">
                     <td>
                       <span class="ann-drag-handle cursor-grab select-none text-base opacity-40 hover:opacity-80">⠿</span>
                     </td>
                     <template v-if="announcementEditId === item.id">
-                      <td>
-                        <input
-                          v-model="announcementEditBody"
-                          type="text"
-                          class="input input-bordered input-xs w-full min-w-48"
-                        />
-                      </td>
-                      <td class="flex gap-1">
-                        <button class="btn btn-success btn-xs" @click="saveEditAnnouncement(item.id)">Save</button>
-                        <button class="btn btn-ghost btn-xs" @click="announcementEditId = null">Cancel</button>
+                      <td colspan="4">
+                        <div class="flex flex-col gap-2 py-2">
+                          <textarea
+                            v-model="announcementEditForm.body"
+                            rows="2"
+                            maxlength="300"
+                            class="textarea textarea-bordered textarea-xs w-full min-w-64"
+                          />
+                          <div class="flex flex-wrap gap-2">
+                            <select v-model="announcementEditForm.channel" class="select select-bordered select-xs">
+                              <option v-for="c in ANNOUNCEMENT_CHANNELS" :key="c.value" :value="c.value">{{ c.label }}</option>
+                            </select>
+                            <select
+                              v-if="announcementEditForm.channel === 'ops'"
+                              v-model="announcementEditForm.audience"
+                              class="select select-bordered select-xs"
+                            >
+                              <option v-for="a in ANNOUNCEMENT_AUDIENCES" :key="a.value" :value="a.value">{{ a.label }}</option>
+                            </select>
+                            <select v-model="announcementEditForm.variant" class="select select-bordered select-xs">
+                              <option value="info">Info</option>
+                              <option value="warning">Warning</option>
+                            </select>
+                            <input
+                              v-model="announcementEditForm.href"
+                              type="text"
+                              placeholder="/ops/dashboard or https://…"
+                              class="input input-bordered input-xs flex-1 min-w-48"
+                            />
+                          </div>
+                          <div class="flex flex-wrap gap-3 items-center">
+                            <label class="flex items-center gap-1 text-xs">
+                              <input v-model="announcementEditForm.dismissible" type="checkbox" class="checkbox checkbox-xs" />
+                              Dismissible
+                            </label>
+                            <label class="flex items-center gap-1 text-xs">
+                              <input v-model="announcementEditForm.active" type="checkbox" class="checkbox checkbox-xs" />
+                              Active
+                            </label>
+                            <label class="flex items-center gap-1 text-xs">
+                              From
+                              <input v-model="announcementEditForm.starts_at" type="datetime-local" class="input input-bordered input-xs" />
+                            </label>
+                            <label class="flex items-center gap-1 text-xs">
+                              Until
+                              <input v-model="announcementEditForm.ends_at" type="datetime-local" class="input input-bordered input-xs" />
+                            </label>
+                          </div>
+                          <div class="flex gap-1">
+                            <button class="btn btn-success btn-xs" @click="saveEditAnnouncement(item.id)">Save</button>
+                            <button class="btn btn-ghost btn-xs" @click="announcementEditId = null">Cancel</button>
+                          </div>
+                        </div>
                       </td>
                     </template>
                     <template v-else>
-                      <td>{{ item.body }}</td>
+                      <td>
+                        {{ item.body }}
+                        <span v-if="item.href" class="opacity-50 font-mono text-[10px] block">{{ item.href }}</span>
+                      </td>
+                      <td>
+                        <span v-if="item.channel === 'ops'" class="badge badge-ghost badge-xs">{{ item.audience }}</span>
+                        <span v-else class="opacity-40">—</span>
+                      </td>
+                      <td class="whitespace-nowrap">
+                        <span class="badge badge-xs" :class="item.variant === 'warning' ? 'badge-warning' : 'badge-ghost'">
+                          {{ item.variant }}
+                        </span>
+                        <span v-if="!item.dismissible" class="badge badge-xs badge-neutral ml-1">pinned</span>
+                        <span v-if="item.starts_at || item.ends_at" class="badge badge-xs badge-outline ml-1">scheduled</span>
+                      </td>
                       <td class="flex gap-1">
-                        <button class="btn btn-outline btn-xs" @click="startEditAnnouncement(item)">Edit</button>
-                        <button class="btn btn-error btn-xs" @click="deleteAnnouncement(item.id)">Delete</button>
+                        <button
+                          class="btn btn-xs"
+                          :class="item.active ? 'btn-outline' : 'btn-warning'"
+                          :disabled="editionReadOnly"
+                          @click="toggleAnnouncementActive(item)"
+                        >
+                          {{ item.active ? 'Disable' : 'Enable' }}
+                        </button>
+                        <button class="btn btn-outline btn-xs" :disabled="editionReadOnly" @click="startEditAnnouncement(item)">Edit</button>
+                        <button class="btn btn-error btn-xs" :disabled="editionReadOnly" @click="deleteAnnouncement(item.id)">Delete</button>
                       </td>
                     </template>
                   </tr>
@@ -694,23 +875,62 @@ async function addAnnouncement() {
             </div>
 
             <!-- Add row -->
-            <div class="flex gap-2 items-end border-t border-base-content/10 pt-3">
-              <div class="flex flex-col gap-1 flex-1">
-                <label class="text-xs opacity-60">Announcement text</label>
+            <div class="flex flex-col gap-2 border-t border-base-content/10 pt-3">
+              <label class="text-xs opacity-60">New announcement</label>
+              <textarea
+                v-model="announcementNewForm.body"
+                rows="2"
+                maxlength="300"
+                class="textarea textarea-bordered textarea-sm w-full"
+                placeholder="Lunch is served on floor 2!"
+              />
+              <div class="flex flex-wrap gap-2">
+                <select v-model="announcementNewForm.channel" class="select select-bordered select-xs">
+                  <option v-for="c in ANNOUNCEMENT_CHANNELS" :key="c.value" :value="c.value">{{ c.label }}</option>
+                </select>
+                <select
+                  v-if="announcementNewForm.channel === 'ops'"
+                  v-model="announcementNewForm.audience"
+                  class="select select-bordered select-xs"
+                >
+                  <option v-for="a in ANNOUNCEMENT_AUDIENCES" :key="a.value" :value="a.value">{{ a.label }}</option>
+                </select>
+                <select v-model="announcementNewForm.variant" class="select select-bordered select-xs">
+                  <option value="info">Info</option>
+                  <option value="warning">Warning</option>
+                </select>
                 <input
-                  v-model="announcementNewBody"
+                  v-model="announcementNewForm.href"
                   type="text"
-                  class="input input-bordered input-sm w-full"
-                  placeholder="Lunch is served on floor 2!"
+                  placeholder="/ops/dashboard or https://…"
+                  class="input input-bordered input-xs flex-1 min-w-48"
                 />
               </div>
-              <button
-                class="btn btn-primary btn-sm shrink-0"
-                :disabled="editionReadOnly || announcementAdding || !announcementNewBody.trim()"
-                @click="addAnnouncement"
-              >
-                {{ announcementAdding ? 'Adding…' : '+ Add' }}
-              </button>
+              <div class="flex flex-wrap gap-3 items-center">
+                <label class="flex items-center gap-1 text-xs">
+                  <input v-model="announcementNewForm.dismissible" type="checkbox" class="checkbox checkbox-xs" />
+                  Dismissible
+                </label>
+                <label class="flex items-center gap-1 text-xs">
+                  <input v-model="announcementNewForm.active" type="checkbox" class="checkbox checkbox-xs" />
+                  Active
+                </label>
+                <label class="flex items-center gap-1 text-xs">
+                  From
+                  <input v-model="announcementNewForm.starts_at" type="datetime-local" class="input input-bordered input-xs" />
+                </label>
+                <label class="flex items-center gap-1 text-xs">
+                  Until
+                  <input v-model="announcementNewForm.ends_at" type="datetime-local" class="input input-bordered input-xs" />
+                </label>
+                <button
+                  class="btn btn-primary btn-sm shrink-0"
+                  :disabled="editionReadOnly || announcementAdding || !announcementNewForm.body.trim()"
+                  @click="addAnnouncement"
+                >
+                  {{ announcementAdding ? 'Adding…' : '+ Add' }}
+                </button>
+              </div>
             </div>
           </div>
         </div>

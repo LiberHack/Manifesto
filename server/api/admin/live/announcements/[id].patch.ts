@@ -3,6 +3,7 @@ import {
   resolveAdminEdition,
   assertEditionWritable,
 } from '#server/utils/adminAuth'
+import { readAnnouncementBody } from '#server/utils/announcementInput'
 
 export default defineEventHandler(async (event) => {
   const { supabase } = await requireAdmin(event)
@@ -10,11 +11,15 @@ export default defineEventHandler(async (event) => {
   assertEditionWritable(edition)
 
   const id = getRouterParam(event, 'id')
-  const { edition_slug: _ignored, ...body } = await readBody<Record<string, unknown>>(event)
+  const update = readAnnouncementBody(await readBody(event), { requireBody: false })
+
+  if (Object.keys(update).length === 0) {
+    throw createError({ statusCode: 400, message: 'No fields to update' })
+  }
 
   const { data, error } = await supabase
     .from('announcements')
-    .update(body)
+    .update(update)
     .eq('id', id)
     .eq('edition_slug', edition.slug)
     .select()
