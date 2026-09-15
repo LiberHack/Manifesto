@@ -1,40 +1,37 @@
-import { serverSupabaseUser } from "#supabase/server";
-import { useSupabaseAdmin } from "#server/utils/supabase";
+import { requireRegistration } from "#server/utils/requireRegistration";
 import { sendJoinRequestNotification } from "#server/utils/email";
 
 export default defineEventHandler(async (event) => {
-  const user = await serverSupabaseUser(event);
-  if (!user) throw createError({ statusCode: 401, message: "Unauthorized" });
+  const { registration, edition, supabase } = await requireRegistration(event);
 
   const teamId = getRouterParam(event, "id");
-  const supabase = useSupabaseAdmin();
 
-  // Block if already in a team
-  const { data: participant } = await supabase
-    .from("participants")
-    .select("team_id")
-    .eq("id", user.sub)
-    .single();
-
-  if (participant?.team_id) {
+  if (registration.team_id) {
     throw createError({ statusCode: 409, message: "Already in a team" });
   }
 
-  // Block if team is full
-  const { data: members } = await supabase
-    .from("participants")
-    .select("id")
+  const { data: team } = await supabase
+    .from("teams")
+    .select("id, name, leader_id")
+    .eq("id", teamId!)
+    .eq("edition_slug", edition.slug)
+    .maybeSingle();
+
+  if (!team) throw createError({ statusCode: 404, message: "Team not found" });
+
+  const { count: memberCount } = await supabase
+    .from("registrations")
+    .select("id", { count: "exact", head: true })
     .eq("team_id", teamId!);
 
-  if ((members?.length ?? 0) >= 6) {
+  if ((memberCount ?? 0) >= 6) {
     throw createError({ statusCode: 409, message: "Team is full" });
   }
 
-  // Block if request already pending
   const { data: existing } = await supabase
     .from("join_requests")
     .select("id")
-    .eq("participant_id", user.sub)
+    .eq("participant_id", registration.participant_id)
     .eq("team_id", teamId!)
     .eq("status", "pending")
     .maybeSingle();
@@ -45,7 +42,11 @@ export default defineEventHandler(async (event) => {
 
   const { data: request, error } = await supabase
     .from("join_requests")
-    .insert({ participant_id: user.sub, team_id: teamId! })
+    .insert({
+      participant_id: registration.participant_id,
+      team_id: teamId!,
+      edition_slug: edition.slug,
+    })
     .select()
     .single();
 
@@ -54,27 +55,29 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 500, message: "Failed to submit request" });
   }
 
-  // Notify team leader — fire and forget, don't block response
+  // Notify team leader — fire and forget, don't block response.
+  // leader_id is a registration id, so the email address is two hops away.
   void (async () => {
-    const { data: team } = await supabase
-      .from("teams")
-      .select("name, leader_id")
-      .eq("id", teamId!)
-      .single();
-    if (!team) return;
-
     const [requester, leader] = await Promise.all([
-      supabase.from("participants").select("name").eq("id", user.sub).single(),
       supabase
         .from("participants")
-        .select("email")
+        .select("name")
+        .eq("id", registration.participant_id)
+        .single(),
+      supabase
+        .from("registrations")
+        .select("participant:participants(email)")
         .eq("id", team.leader_id)
         .single(),
     ]);
 
-    if (leader.data?.email && requester.data?.name) {
+    const leaderEmail = (
+      leader.data?.participant as unknown as { email: string } | null
+    )?.email;
+
+    if (leaderEmail && requester.data?.name) {
       await sendJoinRequestNotification(
-        leader.data.email,
+        leaderEmail,
         requester.data.name,
         team.name,
       ).catch(() => {});

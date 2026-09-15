@@ -1,10 +1,8 @@
-import { serverSupabaseUser } from "#supabase/server";
-import { useSupabaseAdmin } from "#server/utils/supabase";
+import { requireRegistration } from "#server/utils/requireRegistration";
 import { sendRequestDecisionNotification } from "#server/utils/email";
 
 export default defineEventHandler(async (event) => {
-  const user = await serverSupabaseUser(event);
-  if (!user) throw createError({ statusCode: 401, message: "Unauthorized" });
+  const { registration, edition, supabase } = await requireRegistration(event);
 
   const requestId = getRouterParam(event, "id");
   const body = await readBody<{ status: "approved" | "rejected" }>(event);
@@ -16,13 +14,12 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  const supabase = useSupabaseAdmin();
-
   const { data: joinRequest } = await supabase
     .from("join_requests")
     .select("id, status, team_id, team:teams(leader_id)")
     .eq("id", requestId!)
-    .single();
+    .eq("edition_slug", edition.slug)
+    .maybeSingle();
 
   if (!joinRequest)
     throw createError({ statusCode: 404, message: "Request not found" });
@@ -32,14 +29,15 @@ export default defineEventHandler(async (event) => {
 
   const leaderId = (joinRequest.team as unknown as { leader_id: string } | null)
     ?.leader_id;
-  if (leaderId !== user.sub) {
+  if (leaderId !== registration.id) {
     throw createError({
       statusCode: 403,
       message: "Only the team leader can respond to requests",
     });
   }
 
-  // DB trigger handles setting team_id and rejecting other requests on approval
+  // DB trigger handles setting registrations.team_id and rejecting the
+  // requester's other pending requests on approval
   const { data: updated, error } = await supabase
     .from("join_requests")
     .update({ status: body.status })

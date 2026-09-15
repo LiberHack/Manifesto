@@ -1,5 +1,4 @@
-import { serverSupabaseUser } from "#supabase/server";
-import { useSupabaseAdmin } from "#server/utils/supabase";
+import { requireRegistration } from "#server/utils/requireRegistration";
 
 const EXPERIENCE_VALUES = ["beginner", "intermediate", "experienced"] as const;
 type ExperienceLevel = (typeof EXPERIENCE_VALUES)[number];
@@ -7,12 +6,15 @@ type ExperienceLevel = (typeof EXPERIENCE_VALUES)[number];
 const MAX_DIETARY_LENGTH = 200;
 
 export default defineEventHandler(async (event) => {
-  const user = await serverSupabaseUser(event);
-  if (!user) throw createError({ statusCode: 401, message: "Unauthorized" });
+  const { registration, supabase } = await requireRegistration(event);
 
-  const body = await readBody<{ dietary?: unknown; experience?: unknown }>(event);
+  const body = await readBody<{
+    dietary?: unknown;
+    experience?: unknown;
+    public?: unknown;
+  }>(event);
 
-  const update: Record<string, string | null> = {};
+  const update: Record<string, string | boolean | null> = {};
 
   if (body.dietary !== undefined) {
     if (body.dietary !== null && typeof body.dietary !== "string") {
@@ -43,15 +45,22 @@ export default defineEventHandler(async (event) => {
       body.experience === null || body.experience === "" ? null : (body.experience as string);
   }
 
+  if (body.public !== undefined) {
+    if (typeof body.public !== "boolean") {
+      throw createError({ statusCode: 400, message: "public must be a boolean" });
+    }
+    update.public = body.public;
+  }
+
   if (Object.keys(update).length === 0) {
     throw createError({ statusCode: 400, message: "No fields to update" });
   }
 
-  const supabase = useSupabaseAdmin();
+  // Per-edition profile fields live on the registration, not the identity mirror.
   const { error } = await supabase
-    .from("participants")
+    .from("registrations")
     .update(update)
-    .eq("id", user.sub);
+    .eq("id", registration.id);
 
   if (error) throw createError({ statusCode: 500, message: "Internal server error" });
 
