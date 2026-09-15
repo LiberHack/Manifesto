@@ -116,6 +116,27 @@ Later phases (static/dormant mode, archive export, showcase pages, redaction
 tooling, `presentation_order`) are specified in
 `docs/superpowers/specs/2026-06-08-edition-archiving-design.md` and not built yet.
 
+## Announcements & banners
+
+`announcements` is the single source for every notice the site shows. Nothing is
+hardcoded — adding or retiring a banner is an admin-panel action, not a deploy.
+
+- `channel` picks where a row renders: `live` is the `/live` ticker, `ops` is a
+  banner for logged-in participants inside `/ops`, `site` is a banner for every
+  visitor on every page.
+- `audience` (`ops` only) is evaluated client-side against `/api/me`:
+  `all` | `leaders` | `no_team` | `missing_profile`. Adding one is a new enum value
+  in a migration plus one predicate in `app/composables/useAnnouncementAudience.ts`
+  — that file is the only code-owned part of the system.
+- `variant`, `href`, `dismissible`, `active` and the `starts_at`/`ends_at` window
+  are per row. `sort_order` is meaningful **within a channel**; the create and
+  reorder endpoints scope to the channel they were called for.
+- `GET /api/announcements` is public and cacheable. It returns `ops` rows to
+  anonymous callers too (they carry no personal data) — rendering is gated, not
+  fetching, so `AppBanners` never needs a second authenticated request.
+- Dismissal is per-id in `localStorage['dismissed_announcements']`. There is no
+  server-side dismissal table, so editing a row's body does not un-dismiss it.
+
 ## Testing
 
 `bun run test` runs vitest. Tests live in `tests/server/` and are e2e against one shared server:

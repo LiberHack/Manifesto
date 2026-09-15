@@ -56,11 +56,16 @@ select assert(
    where team_id = 'aaaaaaaa-0000-0000-0000-000000000001') = 2,
   'registrations.team_id carried the team membership over');
 
+-- Counts rather than "all rows", because the announcements migration seeds an
+-- extra banner row into the then-current edition.
 select assert(
   (select count(*) from public.teams where edition_slug = '2026') = 2
   and (select count(*) from public.join_requests where edition_slug = '2026') = 1
   and (select count(*) from public.schedule_items where edition_slug = '2026') = 1
-  and (select count(*) from public.announcements where edition_slug = '2026') = 1,
+  and not exists (select 1 from public.teams where edition_slug <> '2026')
+  and not exists (select 1 from public.join_requests where edition_slug <> '2026')
+  and not exists (select 1 from public.schedule_items where edition_slug <> '2026')
+  and not exists (select 1 from public.announcements where edition_slug <> '2026'),
   'teams, join_requests and CMS rows scoped to 2026');
 
 select assert(
