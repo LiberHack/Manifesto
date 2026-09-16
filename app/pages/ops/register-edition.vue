@@ -7,10 +7,9 @@ interface RegistrationState {
     name: string;
     starts_at: string | null;
     ends_at: string | null;
-    participant_cap: number;
   } | null;
   registered: boolean;
-  seats_left: number;
+  full: boolean;
   prefill: {
     skills: string[];
     dietary: string | null;
@@ -49,7 +48,7 @@ const form = reactive({
 const error = ref("");
 const loading = ref(false);
 
-const isFull = computed(() => (state.value?.seats_left ?? 0) <= 0);
+const isFull = computed(() => state.value?.full ?? true);
 const editionName = computed(() => state.value?.edition?.name ?? "this edition");
 
 async function submit() {
@@ -102,9 +101,8 @@ async function submit() {
       <template v-else-if="isFull">
         <h1 class="text-3xl font-black uppercase tracking-tight">Registration full</h1>
         <p class="text-sm opacity-70">
-          {{ state.edition.name }} has reached its
-          {{ state.edition.participant_cap }}-participant limit. Your account is
-          safe — you'll be able to register for the next edition.
+          {{ state.edition.name }} has reached its participant limit. Your
+          account is safe — you'll be able to register for the next edition.
         </p>
       </template>
 
@@ -113,18 +111,20 @@ async function submit() {
           Register for {{ state.edition.name }}
         </h1>
         <p class="text-sm opacity-70">
-          Your account carries over. Confirm your details for this edition —
-          {{ state.seats_left }} {{ state.seats_left === 1 ? "place" : "places" }} left.
+          Your account carries over. Confirm your details for this edition.
         </p>
 
         <div v-if="error" role="alert" class="alert alert-error text-sm">
           {{ error }}
         </div>
 
-        <label class="form-control">
+        <div class="form-control">
           <span class="label-text font-bold">Your Skills</span>
+          <span class="label-text text-xs opacity-60 mb-1">
+            Carried over from your last edition — edit as you like.
+          </span>
           <SkillPicker v-model="form.skills" allow-create />
-        </label>
+        </div>
 
         <label class="form-control">
           <span class="label-text font-bold">Experience Level</span>

@@ -36,6 +36,23 @@ $$;
 
 create index if not exists teams_edition_idx on public.teams (edition_slug);
 
+-- Composite key targets for the edition-aware foreign keys below. Without them
+-- a single-column FK only guarantees "references *a* team / *a* registration",
+-- not "one in the same edition".
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'teams_edition_id_key') then
+    alter table public.teams
+      add constraint teams_edition_id_key unique (edition_slug, id);
+  end if;
+
+  if not exists (select 1 from pg_constraint where conname = 'registrations_edition_id_key') then
+    alter table public.registrations
+      add constraint registrations_edition_id_key unique (edition_slug, id);
+  end if;
+end
+$$;
+
 alter table public.join_requests
   add column if not exists edition_slug text;
 update public.join_requests set edition_slug = '2026' where edition_slug is null;
@@ -93,9 +110,15 @@ begin
     where r.participant_id = t.leader_id
       and r.edition_slug = t.edition_slug;
 
+    -- Composite on purpose: the leader must hold a registration in THIS team's
+    -- edition, not merely somewhere. ON UPDATE stays NO ACTION so an
+    -- editions.slug rename -- which cascades into both teams.edition_slug and
+    -- registrations.edition_slug -- is re-checked once at end of statement
+    -- rather than driving two cascades into the same teams row.
     alter table public.teams
       add constraint teams_leader_id_fkey
-      foreign key (leader_id) references public.registrations(id) on delete cascade;
+      foreign key (edition_slug, leader_id)
+      references public.registrations(edition_slug, id) on delete cascade;
   end if;
 end
 $$;
@@ -139,6 +162,69 @@ create trigger on_leader_departure
   before delete on public.registrations
   for each row
   execute function public.handle_leader_departure();
+
+-- ------------------------------------------------------------
+-- 4b. Team membership is edition-aware too
+--     registrations.team_id and join_requests.team_id were single-column FKs,
+--     so a row in one edition could point at a team in another. Both keep their
+--     constraint names -- PostgREST embeds are pinned to
+--     registrations_team_id_fkey.
+-- ------------------------------------------------------------
+
+do $$
+declare
+  crossed int;
+begin
+  select count(*) into crossed
+  from public.registrations r
+  join public.teams t on t.id = r.team_id
+  where t.edition_slug <> r.edition_slug;
+
+  if crossed > 0 then
+    raise exception
+      'team_id repoint aborted: % registration(s) belong to a team in another edition', crossed;
+  end if;
+
+  select count(*) into crossed
+  from public.join_requests j
+  join public.teams t on t.id = j.team_id
+  where t.edition_slug <> j.edition_slug;
+
+  if crossed > 0 then
+    raise exception
+      'team_id repoint aborted: % join request(s) target a team in another edition', crossed;
+  end if;
+end
+$$;
+
+do $$
+begin
+  -- Only repoint while the constraint is still single-column.
+  if exists (
+    select 1 from pg_constraint
+    where conname = 'registrations_team_id_fkey' and array_length(conkey, 1) = 1
+  ) then
+    alter table public.registrations drop constraint registrations_team_id_fkey;
+    -- SET NULL names team_id explicitly (PG 15+): edition_slug is NOT NULL and
+    -- must survive the team's deletion.
+    alter table public.registrations
+      add constraint registrations_team_id_fkey
+      foreign key (edition_slug, team_id)
+      references public.teams(edition_slug, id) on delete set null (team_id);
+  end if;
+
+  if exists (
+    select 1 from pg_constraint
+    where conname = 'join_requests_team_id_fkey' and array_length(conkey, 1) = 1
+  ) then
+    alter table public.join_requests drop constraint join_requests_team_id_fkey;
+    alter table public.join_requests
+      add constraint join_requests_team_id_fkey
+      foreign key (edition_slug, team_id)
+      references public.teams(edition_slug, id) on delete cascade;
+  end if;
+end
+$$;
 
 -- ------------------------------------------------------------
 -- 5. Live CMS per edition

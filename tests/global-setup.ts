@@ -7,6 +7,7 @@ import {
   startServer,
   stopServer,
 } from "@nuxt/test-utils/e2e";
+import { startSupabaseStub } from "./supabase-stub";
 
 /**
  * One build, one server, for the whole vitest run.
@@ -21,6 +22,12 @@ const FIXTURE_DIR = resolve(import.meta.dirname, "../.nuxt/test-fixture");
 const OUTPUT_DIR = resolve(FIXTURE_DIR, "output");
 
 export default async function globalSetup(): Promise<() => Promise<void>> {
+  // Every DB-backed route goes to a local PostgREST stub that answers "no rows",
+  // so the suite depends on no .env and on no reachable project — CI has neither.
+  // Set before the build so the baked runtimeConfig default matches the override.
+  const stub = await startSupabaseStub();
+  process.env.NUXT_PUBLIC_SUPABASE_URL = stub.url;
+
   const build = spawnSync(
     process.execPath,
     [resolve(import.meta.dirname, "build-fixture.mjs"), FIXTURE_DIR],
@@ -39,6 +46,7 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
 
   return async () => {
     await stopServer();
+    await stub.close();
     await rm(FIXTURE_DIR, { recursive: true, force: true });
   };
 }

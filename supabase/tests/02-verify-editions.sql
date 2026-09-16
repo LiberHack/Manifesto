@@ -244,6 +244,55 @@ begin
 end
 $$;
 
+-- ── Edition-aware foreign keys ──────────────────────────────────────────────
+select assert(
+  (select bool_and(array_length(conkey, 1) = 2) from pg_constraint
+   where conname in ('teams_leader_id_fkey',
+                     'registrations_team_id_fkey',
+                     'join_requests_team_id_fkey')),
+  'team and leader references are keyed on (edition_slug, id)');
+
+do $$
+declare
+  old_reg  uuid;
+  old_team uuid;
+  new_reg  uuid;
+begin
+  select id into old_reg from public.registrations where edition_slug = '2026' limit 1;
+  select id into old_team from public.teams where edition_slug = '2026' limit 1;
+  select id into new_reg from public.registrations
+   where participant_id = '22222222-2222-2222-2222-222222222222' and edition_slug = '2027';
+
+  begin
+    insert into public.teams (name, edition_slug, leader_id, skills_wanted)
+      values ('crossedition', '2027', old_reg, '{}');
+    raise exception 'FAIL  a 2027 team took a 2026 registration as its leader';
+  exception when foreign_key_violation then
+    raise notice 'PASS  teams_leader_id_fkey rejects a leader from another edition';
+  end;
+
+  begin
+    update public.registrations set team_id = old_team where id = new_reg;
+    raise exception 'FAIL  a 2027 registration joined a 2026 team';
+  exception when foreign_key_violation then
+    raise notice 'PASS  registrations_team_id_fkey rejects a team from another edition';
+  end;
+
+  begin
+    insert into public.join_requests (participant_id, team_id, edition_slug)
+      values ('22222222-2222-2222-2222-222222222222', old_team, '2027');
+    raise exception 'FAIL  a 2027 join request targeted a 2026 team';
+  exception when foreign_key_violation then
+    raise notice 'PASS  join_requests_team_id_fkey rejects a team from another edition';
+  end;
+end
+$$;
+
+select assert(
+  (select confdeltype from pg_constraint where conname = 'registrations_team_id_fkey') = 'n'
+  and (select confdeltype from pg_constraint where conname = 'join_requests_team_id_fkey') = 'c',
+  'deleting a team clears its members and drops its join requests');
+
 -- ── Edition deletion policy ─────────────────────────────────────────────────
 -- A RESTRICT violation is raised after the enclosing statement completes, so it
 -- cannot be trapped inside a DO block; assert the declared policy instead.

@@ -306,10 +306,10 @@ async function logout() {
             />
           </label>
 
-          <label class="form-control mb-3">
+          <div class="form-control mb-3">
             <span class="label-text font-bold">Skills Wanted</span>
             <SkillPicker v-model="skillsWanted" :allow-create="true" />
-          </label>
+          </div>
 
           <div
             v-if="teamMessage"
