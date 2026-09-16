@@ -146,14 +146,20 @@ through `NUXT_TEST_CONTEXT`. Test files therefore need no `setup()` call — jus
 `$fetch` or `url` from `@nuxt/test-utils/e2e` and request relative paths. Never hard-code
 `http://localhost:3000`: the server listens on a random port, so that only "works" when a dev
 server happens to be running there and fails in CI. No credentials are needed: `$test` in
-`nuxt.config.ts` gives the fixture a dummy Supabase URL/key and unauthenticated paths never hit the
-network; anything that needs a session should mock `serverSupabaseUser`, not talk to the real
-project. Tests share the server, so keep them stateless (no writes that another file could see).
+`nuxt.config.ts` gives the fixture a dummy Supabase URL/key and every query goes to a local
+PostgREST stub that answers "no rows"; anything that needs a session should mock
+`serverSupabaseUser`, not talk to the real project. Tests share the server, so keep them stateless
+(no writes that another file could see).
 
-Two pieces of config exist only for the test run — do not remove them:
+Three pieces of config exist only for the test run — do not remove them:
 
 - `$test` in `nuxt.config.ts`: `node-server` preset (a `cloudflare_module` bundle cannot be started
-  by Node), SQLite content, dummy Supabase config.
+  by Node), SQLite content, dummy Supabase config for the module **and** for `runtimeConfig`, which
+  is what `useSupabaseAdmin()` reads — `createClient()` throws on an empty key, which turns every
+  401 into a 500 in CI, where there is no `.env`.
+- `tests/supabase-stub.ts`, started by `global-setup` and injected as `NUXT_PUBLIC_SUPABASE_URL`.
+  Pointing the fixture at a closed port instead costs ~7s per query — supabase-js retries network
+  failures — which blows vitest's 5s timeout on any route that reads the database.
 - The build runs in a child process (`build-fixture.mjs`) because Nuxt's `close` hook makes the
   vitest main process exit before any test runs when the build happens in-process.
 
