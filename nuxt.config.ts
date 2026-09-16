@@ -30,6 +30,15 @@ export default defineNuxtConfig({
     // Tests must not depend on a reachable project; unauthenticated paths never hit the
     // network because there is no session cookie to validate.
     supabase: { url: "http://127.0.0.1:1", key: "sb_publishable_test" },
+    // `supabase` above only configures the module (session handling). `useSupabaseAdmin()`
+    // reads runtimeConfig, and createClient() throws on an empty key — which turned every
+    // unauthenticated 401 into a 500 in CI, where there is no .env. Pinning them here also
+    // keeps a local run from querying the real project; tests/global-setup.ts overrides the
+    // URL with its PostgREST stub via NUXT_PUBLIC_SUPABASE_URL.
+    runtimeConfig: {
+      supabaseSecretKey: "sb_secret_test",
+      public: { supabaseUrl: "http://127.0.0.1:1" },
+    },
   },
 
   // Workers cannot run sharp/ipx, so <NuxtImg> renders plain <img> tags.
