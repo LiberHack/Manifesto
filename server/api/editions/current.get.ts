@@ -2,8 +2,12 @@ import { useSupabaseAdmin } from "#server/utils/supabase";
 import { getCurrentEdition } from "#server/utils/registrationContext";
 
 /**
- * Public view of the edition currently open for registration, plus how many
- * places remain. Backs the signup form's "registration is full" state.
+ * Public view of the edition currently open for registration. Backs the signup
+ * form's "registration is full" state.
+ *
+ * Only the boolean is exposed: an exact remaining-places count either pressures
+ * people or slows them down, and returning it would put the number one devtools
+ * tab away however the page chooses to render it.
  */
 export default defineEventHandler(async (event) => {
   setHeader(event, "Cache-Control", "public, max-age=30");
@@ -11,7 +15,7 @@ export default defineEventHandler(async (event) => {
   const supabase = useSupabaseAdmin();
   const edition = await getCurrentEdition(supabase);
 
-  if (!edition) return { edition: null, seats_left: 0 };
+  if (!edition) return { edition: null, full: true };
 
   const { count } = await supabase
     .from("registrations")
@@ -25,6 +29,6 @@ export default defineEventHandler(async (event) => {
       starts_at: edition.starts_at,
       ends_at: edition.ends_at,
     },
-    seats_left: Math.max(0, edition.participant_cap - (count ?? 0)),
+    full: (count ?? 0) >= edition.participant_cap,
   };
 });

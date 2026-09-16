@@ -24,7 +24,7 @@ export default defineEventHandler(async (event) => {
   const edition = await getCurrentEdition(supabase);
 
   if (!edition) {
-    return { edition: null, registered: false, seats_left: 0, prefill: null };
+    return { edition: null, registered: false, full: true, prefill: null };
   }
 
   const [{ data: current }, { data: prior }, { count }] = await Promise.all([
@@ -69,9 +69,16 @@ export default defineEventHandler(async (event) => {
       };
 
   return {
-    edition,
+    // Public edition fields only: the cap is an implementation detail of `full`.
+    edition: {
+      slug: edition.slug,
+      name: edition.name,
+      starts_at: edition.starts_at,
+      ends_at: edition.ends_at,
+    },
     registered: Boolean(current),
-    seats_left: Math.max(0, edition.participant_cap - (count ?? 0)),
+    // Boolean only — see /api/editions/current for why no count is exposed.
+    full: (count ?? 0) >= edition.participant_cap,
     // `experience` is deliberately surfaced as a pre-selected value that the
     // form re-requires, so the user consciously re-answers it each edition.
     prefill,

@@ -24,11 +24,11 @@ if (inviteCode) {
 // fails when an edition is full — the form has to check and say so.
 const { data: editionState } = await useFetch<{
   edition: { name: string } | null;
-  seats_left: number;
+  full: boolean;
 }>("/api/editions/current");
 
 const registrationFull = computed(
-  () => !editionState.value?.edition || editionState.value.seats_left <= 0,
+  () => !editionState.value?.edition || editionState.value.full,
 );
 
 const form = reactive({
