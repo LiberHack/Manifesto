@@ -129,10 +129,10 @@ async function register() {
         <input v-model="form.password" type="password" required minlength="8" class="input input-bordered w-full" />
       </label>
 
-      <label class="form-control">
+      <div class="form-control">
         <span class="label-text font-bold">Your Skills</span>
         <SkillPicker v-model="form.skills" allow-create />
-      </label>
+      </div>
 
       <label class="form-control">
         <span class="label-text font-bold">Experience Level</span>

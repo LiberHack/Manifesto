@@ -111,18 +111,20 @@ async function submit() {
           Register for {{ state.edition.name }}
         </h1>
         <p class="text-sm opacity-70">
-          Your account carries over. Confirm your details for this edition —
-          {{ state.seats_left }} {{ state.seats_left === 1 ? "place" : "places" }} left.
+          Your account carries over. Confirm your details for this edition.
         </p>
 
         <div v-if="error" role="alert" class="alert alert-error text-sm">
           {{ error }}
         </div>
 
-        <label class="form-control">
+        <div class="form-control">
           <span class="label-text font-bold">Your Skills</span>
+          <span class="label-text text-xs opacity-60 mb-1">
+            Carried over from your last edition — edit as you like.
+          </span>
           <SkillPicker v-model="form.skills" allow-create />
-        </label>
+        </div>
 
         <label class="form-control">
           <span class="label-text font-bold">Experience Level</span>
