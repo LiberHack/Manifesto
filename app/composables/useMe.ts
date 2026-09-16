@@ -44,11 +44,19 @@ export interface Me {
 }
 
 /**
- * Shared /api/me state. Keyed so the auth middleware and every page that needs
- * the current user resolve it once per request rather than refetching.
+ * Shared /api/me state. Keyed so the auth middleware and every page or component
+ * that needs the current user resolve it once per request rather than refetching.
+ *
+ * Resolves to null without a request when nobody is signed in, so components in
+ * the default layout (AppBanners) can call it on public pages unconditionally.
  */
 export function useMe() {
-  return useAsyncData<Me | null>("me", () => useRequestFetch()("/api/me") as Promise<Me>, {
-    default: () => null,
-  });
+  const user = useSupabaseUser();
+  const request = useRequestFetch();
+
+  return useAsyncData<Me | null>(
+    "me",
+    () => (user.value ? (request("/api/me") as Promise<Me>) : Promise.resolve(null)),
+    { default: () => null, watch: [user] },
+  );
 }

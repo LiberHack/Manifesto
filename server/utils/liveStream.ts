@@ -20,10 +20,22 @@ export async function fetchLiveData() {
     }
   }
 
+  const now = new Date().toISOString()
+
   const [configRes, scheduleRes, announcementsRes] = await Promise.all([
     supabase.from('event_config').select('*').eq('edition_slug', edition.slug).maybeSingle(),
     supabase.from('schedule_items').select('*').eq('edition_slug', edition.slug).order('sort_order'),
-    supabase.from('announcements').select('*').eq('edition_slug', edition.slug).order('sort_order'),
+    // Ticker items only; active and inside their window, so a scheduled ticker
+    // item behaves the same as a scheduled banner.
+    supabase
+      .from('announcements')
+      .select('*')
+      .eq('edition_slug', edition.slug)
+      .eq('channel', 'live')
+      .eq('active', true)
+      .or(`starts_at.is.null,starts_at.lte.${now}`)
+      .or(`ends_at.is.null,ends_at.gte.${now}`)
+      .order('sort_order'),
   ])
 
   return {
