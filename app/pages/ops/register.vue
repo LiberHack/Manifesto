@@ -20,6 +20,17 @@ if (inviteCode) {
   }
 }
 
+// Pre-flight: the cap now lives on registrations, so signup itself no longer
+// fails when an edition is full — the form has to check and say so.
+const { data: editionState } = await useFetch<{
+  edition: { name: string } | null;
+  full: boolean;
+}>("/api/editions/current");
+
+const registrationFull = computed(
+  () => !editionState.value?.edition || editionState.value.full,
+);
+
 const form = reactive({
   name: "",
   email: "",
@@ -30,10 +41,12 @@ const form = reactive({
   coc: false,
 });
 const error = ref("");
+const emailTaken = ref(false);
 const loading = ref(false);
 
 async function register() {
   error.value = "";
+  emailTaken.value = false;
   loading.value = true;
 
   const { skills, dietary, experience } = form;
@@ -51,9 +64,16 @@ async function register() {
 
   if (authError) {
     if (authError.message.includes("registration_closed"))
-      error.value = "Registration is closed — the 120-participant limit has been reached.";
+      error.value = "Registration is closed — the participant limit has been reached.";
     else if (authError.message.includes("too_many_skills"))
       error.value = "You can add at most 5 skills.";
+    // GoTrue rejects a signup for an address that already has a confirmed
+    // account; say so in our own words and point at the login page.
+    else if (
+      authError.code === "user_already_exists" ||
+      authError.message.includes("already registered")
+    )
+      emailTaken.value = true;
     else error.value = authError.message;
     return;
   }
@@ -77,8 +97,21 @@ async function register() {
         </span>
       </div>
 
+      <div v-if="registrationFull" role="alert" class="alert alert-error text-sm">
+        Registration is closed — the participant limit has been reached.
+      </div>
+
       <div v-if="error" role="alert" class="alert alert-error text-sm">
         {{ error }}
+      </div>
+
+      <div v-if="emailTaken" role="alert" class="alert alert-error text-sm">
+        <span>
+          An account already exists for {{ form.email }}.
+          <NuxtLink to="/ops/login" class="link font-bold">Log in</NuxtLink>
+          instead, or
+          <NuxtLink to="/ops/forgot-password" class="link font-bold">reset your password</NuxtLink>.
+        </span>
       </div>
 
       <label class="form-control">
@@ -96,10 +129,10 @@ async function register() {
         <input v-model="form.password" type="password" required minlength="8" class="input input-bordered w-full" />
       </label>
 
-      <label class="form-control">
+      <div class="form-control">
         <span class="label-text font-bold">Your Skills</span>
         <SkillPicker v-model="form.skills" allow-create />
-      </label>
+      </div>
 
       <label class="form-control">
         <span class="label-text font-bold">Experience Level</span>
@@ -136,7 +169,11 @@ async function register() {
         </span>
       </label>
 
-      <button type="submit" :disabled="loading || !form.coc" class="btn btn-primary w-full font-black uppercase">
+      <button
+        type="submit"
+        :disabled="loading || !form.coc || registrationFull"
+        class="btn btn-primary w-full font-black uppercase"
+      >
         {{ loading ? "Registering…" : "Register" }}
       </button>
 

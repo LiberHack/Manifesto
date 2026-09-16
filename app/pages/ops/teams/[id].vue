@@ -3,7 +3,7 @@ definePageMeta({ middleware: ["auth"] });
 
 const route = useRoute();
 const { data: team } = await useFetch<any>(`/api/teams/${route.params.id}`);
-const { data: me } = await useFetch<any>("/api/me");
+const { data: me } = await useMe();
 
 const safeRepoUrl = computed(() => {
   const url = team.value?.github_url;
@@ -19,10 +19,13 @@ const safeRepoUrl = computed(() => {
 const sending = ref(false);
 const message = ref("");
 
+// Members are keyed by registration id, which is also what leader_id points at.
 const isMember = computed(() =>
-  team.value?.members?.some((m: { id: string }) => m.id === me.value?.id),
+  team.value?.members?.some(
+    (m: { id: string }) => m.id === me.value?.registration?.id,
+  ),
 );
-const alreadyInTeam = computed(() => !!me.value?.team_id);
+const alreadyInTeam = computed(() => !!me.value?.registration?.team_id);
 
 async function sendRequest() {
   sending.value = true;

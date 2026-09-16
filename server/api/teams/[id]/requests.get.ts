@@ -1,33 +1,24 @@
-import { serverSupabaseUser } from "#supabase/server";
-import { useSupabaseAdmin } from "#server/utils/supabase";
+import { requireRegistration } from "#server/utils/requireRegistration";
+import { requireTeamLeadership } from "#server/utils/registrationContext";
 
 export default defineEventHandler(async (event) => {
-  const user = await serverSupabaseUser(event);
-  if (!user) throw createError({ statusCode: 401, message: "Unauthorized" });
+  const ctx = await requireRegistration(event);
+  const { supabase, edition } = ctx;
 
   const teamId = getRouterParam(event, "id");
-  const supabase = useSupabaseAdmin();
-
-  const { data: team } = await supabase
-    .from("teams")
-    .select("leader_id")
-    .eq("id", teamId!)
-    .single();
-
-  if (!team) throw createError({ statusCode: 404, message: "Team not found" });
-  if (team.leader_id !== user.sub) {
-    throw createError({
-      statusCode: 403,
-      message: "Only the team leader can view requests",
-    });
-  }
+  await requireTeamLeadership(
+    ctx,
+    teamId!,
+    "Only the team leader can view requests",
+  );
 
   const { data, error } = await supabase
     .from("join_requests")
     .select(
-      "id, status, created_at, participant:participants(id, name, skills)",
+      "id, status, created_at, participant:participants(id, name)",
     )
     .eq("team_id", teamId!)
+    .eq("edition_slug", edition.slug)
     .eq("status", "pending")
     .order("created_at", { ascending: true });
 
@@ -35,5 +26,38 @@ export default defineEventHandler(async (event) => {
     console.error("[teams/requests.get] fetch failed:", error.message);
     throw createError({ statusCode: 500, message: "Internal server error" });
   }
-  return data;
+
+  // Skills live on the requester's registration for this edition, not on the
+  // identity mirror, so they are resolved in a second pass.
+  const ids = (data ?? [])
+    .map((r) => (r.participant as unknown as { id: string } | null)?.id)
+    .filter((id): id is string => Boolean(id));
+
+  if (ids.length === 0) return data ?? [];
+
+  const { data: regs } = await supabase
+    .from("registrations")
+    .select("participant_id, skills")
+    .eq("edition_slug", edition.slug)
+    .in("participant_id", ids);
+
+  const skillsByParticipant = new Map(
+    (regs ?? []).map((r) => [r.participant_id as string, r.skills as string[]]),
+  );
+
+  return (data ?? []).map((r) => {
+    const participant = r.participant as unknown as {
+      id: string;
+      name: string;
+    } | null;
+    return {
+      ...r,
+      participant: participant
+        ? {
+            ...participant,
+            skills: skillsByParticipant.get(participant.id) ?? [],
+          }
+        : null,
+    };
+  });
 });

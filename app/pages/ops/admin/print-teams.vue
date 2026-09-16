@@ -1,7 +1,12 @@
 <script setup lang="ts">
 definePageMeta({ middleware: ["admin"], layout: false });
 
-const { data: teams } = await useFetch<{ id: string; name: string }[]>("/api/admin/teams");
+// Defaults to the current edition; ?edition=<slug> prints an archived one.
+const route = useRoute();
+const { data: teams } = await useFetch<{ id: string; name: string }[]>(
+  "/api/admin/teams",
+  { query: { edition: route.query.edition } },
+);
 </script>
 
 <template>

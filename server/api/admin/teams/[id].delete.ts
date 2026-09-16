@@ -4,10 +4,11 @@ export default defineEventHandler(async (event) => {
   const { supabase } = await requireAdmin(event);
   const id = getRouterParam(event, "id");
 
-  // Null out team_id for all members
+  // Detach members and demote them; registrations.team_id is ON DELETE SET NULL
+  // but the role has to be reset explicitly.
   await supabase
-    .from("participants")
-    .update({ team_id: null })
+    .from("registrations")
+    .update({ team_id: null, role: "participant" })
     .eq("team_id", id!);
 
   // Cancel pending requests for this team

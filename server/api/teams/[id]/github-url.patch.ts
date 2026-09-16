@@ -1,23 +1,17 @@
-import { serverSupabaseUser } from "#supabase/server";
-import { useSupabaseAdmin } from "#server/utils/supabase";
+import { requireRegistration } from "#server/utils/requireRegistration";
 
 const MAX_URL_LENGTH = 500;
 
 export default defineEventHandler(async (event) => {
-  const user = await serverSupabaseUser(event);
-  if (!user) throw createError({ statusCode: 401, message: "Unauthorized" });
+  const { registration, edition, supabase } = await requireRegistration(event);
 
   const teamId = getRouterParam(event, "id");
-  const supabase = useSupabaseAdmin();
 
-  const { data: participant } = await supabase
-    .from("participants")
-    .select("team_id")
-    .eq("id", user.sub)
-    .single();
-
-  if (!participant || participant.team_id !== teamId) {
-    throw createError({ statusCode: 403, message: "You are not a member of this team" });
+  if (registration.team_id !== teamId) {
+    throw createError({
+      statusCode: 403,
+      message: "You are not a member of this team",
+    });
   }
 
   const body = await readBody<{ github_url?: unknown }>(event);
@@ -45,6 +39,7 @@ export default defineEventHandler(async (event) => {
     .from("teams")
     .update({ github_url })
     .eq("id", teamId!)
+    .eq("edition_slug", edition.slug)
     .select()
     .single();
 

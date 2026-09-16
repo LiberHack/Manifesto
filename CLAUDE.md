@@ -26,6 +26,7 @@ bun run preview    # preview production build (node)
 bun run preview:cf # run the built worker locally with wrangler dev (D1 + rate limits via miniflare)
 bun run deploy     # nuxt build && wrangler deploy
 bun run test       # vitest (unit + e2e; also gates every Workers Builds deploy)
+bun run test:db    # apply supabase/migrations to a throwaway Postgres and assert schema behaviour
 ```
 
 ## Package Manager
@@ -75,12 +76,45 @@ unset locally.
 
 ## Auth & Routes
 
-- `/ops/*` pages are protected by the `auth` client middleware — redirects to `/ops/login` if no session, `/ops/verify-email` if email not confirmed
+- `/ops/*` pages are protected by the `auth` client middleware — redirects to `/ops/login` if no session, `/ops/verify-email` if email not confirmed, `/ops/register-edition` if the account has no `registration` in the current edition (see Editions below)
 - Server-side: `01.auth.ts` attaches the Supabase user to `event.context.user`
 - Rate limiting: 60 req/min per IP on all `/api/*` routes (`02.rateLimit.ts`) via Workers Rate Limiting bindings (`RL_*` in `wrangler.jsonc`); falls back to an in-memory map in `nuxt dev`
 - `/api/live/stream` is SSE: each connection polls Supabase every 5s and only emits on change (Workers isolates share no memory, so there is no server-side broadcast)
-- Admin role: set `role = 'admin'` in the `participants` table to expose `/ops/admin`
+- Admin role: set `role = 'admin'` in the `participants` table to expose `/ops/admin`. This is identity-level and carries across editions; it is unrelated to `registrations.role` (`participant` | `leader`), which is team leadership within one edition.
 - `emailRedirectTo` in `signUp` is `<current origin>/ops/confirm`, so every host the app is served from (production, staging, PR previews) must be in `additional_redirect_urls` in `supabase/config.toml`
+
+## Editions
+
+The site runs one **edition** at a time (`editions.is_current`). Everything a
+participant does is scoped to it:
+
+- `participants` is a durable identity mirror of `auth.users` (name, email, admin
+  role). It is never edition-scoped.
+- `registrations` is one row per person per edition, holding `skills`, `dietary`,
+  `experience`, `team_id`, team `role`, archive `public` flag and
+  `accepted_terms_at`. Accounts carry over between editions; registrations do not.
+- `teams`, `join_requests`, `event_config`, `schedule_items` and `announcements`
+  all carry `edition_slug`. `teams.leader_id` points at a **registration**, not an
+  account — so a leader is provably registered for their team's edition.
+
+Rules that follow:
+
+- Every edition-scoped API route calls `requireRegistration(event)` from
+  `server/utils/requireRegistration.ts`, which returns `{ user, registration,
+  edition, supabase }` and throws `403 not_registered` when the caller has not
+  opted into the current edition. The client redirect is UX only — this is the gate.
+- The participant cap is per edition (`editions.participant_cap`), enforced by the
+  `enforce_edition_cap` trigger on `registrations` insert. `handle_new_user()` no
+  longer counts participants; creating an account always succeeds.
+- Consent is re-accepted per edition (`registrations.accepted_terms_at`).
+- Admin views take `?edition=<slug>`, defaulting to the current edition. Archived
+  editions are readable but not writable (`assertEditionWritable`).
+- "Go live" runs through the `promote_edition(slug)` DB function so archiving the
+  outgoing edition and promoting the incoming one happen in one transaction.
+
+Later phases (static/dormant mode, archive export, showcase pages, redaction
+tooling, `presentation_order`) are specified in
+`docs/superpowers/specs/2026-06-08-edition-archiving-design.md` and not built yet.
 
 ## Testing
 
@@ -104,6 +138,16 @@ Two pieces of config exist only for the test run — do not remove them:
 
 The same suite gates every Workers Builds deploy (production, staging and PR previews), so a red
 test blocks the deploy.
+
+**Migrations** are covered separately by `bun run test:db` (`scripts/test-migrations.sh`). It spins
+up a throwaway PostgreSQL cluster with `initdb`/`pg_ctl` — no Docker and no `supabase start` —
+stubs the parts of the Supabase `auth` schema the migrations touch
+(`supabase/tests/00-bootstrap.sql`), applies the already-deployed migrations, seeds realistic
+pre-migration 2026 data (`01-seed-2026.sql`), then applies the new migrations and asserts the
+outcome (`02-verify-editions.sql`): the backfills, the `leader_id` repoint, the per-edition cap,
+leader auto-promotion through the account-deletion cascade, `promote_edition`, and the FK
+delete/update policies. Add an assertion here for any migration that changes behaviour rather than
+just shape. It is not part of `bun run test` because it needs a local PostgreSQL install.
 
 ## Emails
 
