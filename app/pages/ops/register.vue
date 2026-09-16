@@ -41,10 +41,12 @@ const form = reactive({
   coc: false,
 });
 const error = ref("");
+const emailTaken = ref(false);
 const loading = ref(false);
 
 async function register() {
   error.value = "";
+  emailTaken.value = false;
   loading.value = true;
 
   const { skills, dietary, experience } = form;
@@ -65,6 +67,13 @@ async function register() {
       error.value = "Registration is closed — the participant limit has been reached.";
     else if (authError.message.includes("too_many_skills"))
       error.value = "You can add at most 5 skills.";
+    // GoTrue rejects a signup for an address that already has a confirmed
+    // account; say so in our own words and point at the login page.
+    else if (
+      authError.code === "user_already_exists" ||
+      authError.message.includes("already registered")
+    )
+      emailTaken.value = true;
     else error.value = authError.message;
     return;
   }
@@ -94,6 +103,15 @@ async function register() {
 
       <div v-if="error" role="alert" class="alert alert-error text-sm">
         {{ error }}
+      </div>
+
+      <div v-if="emailTaken" role="alert" class="alert alert-error text-sm">
+        <span>
+          An account already exists for {{ form.email }}.
+          <NuxtLink to="/ops/login" class="link font-bold">Log in</NuxtLink>
+          instead, or
+          <NuxtLink to="/ops/forgot-password" class="link font-bold">reset your password</NuxtLink>.
+        </span>
       </div>
 
       <label class="form-control">
