@@ -8,9 +8,16 @@ const { data: requests, refresh } = await useFetch<any[]>(
   () => (teamId.value ? `/api/teams/${teamId.value}/requests` : null) as string
 )
 
+const pendingIds = ref<string[]>([])
+
 async function respond(requestId: string, status: 'approved' | 'rejected') {
-  await $fetch(`/api/requests/${requestId}`, { method: 'PATCH', body: { status } })
-  await refresh()
+  pendingIds.value = [...pendingIds.value, requestId]
+  try {
+    await $fetch(`/api/requests/${requestId}`, { method: 'PATCH', body: { status } })
+    await refresh()
+  } finally {
+    pendingIds.value = pendingIds.value.filter((id) => id !== requestId)
+  }
 }
 </script>
 
@@ -29,8 +36,16 @@ async function respond(requestId: string, status: 'approved' | 'rejected') {
           </div>
         </div>
         <div class="flex gap-2 shrink-0">
-          <button class="btn btn-success btn-sm font-black" @click="respond(req.id, 'approved')">Accept</button>
-          <button class="btn btn-error btn-sm font-black" @click="respond(req.id, 'rejected')">Reject</button>
+          <button
+            class="btn btn-success btn-sm font-black"
+            :disabled="pendingIds.includes(req.id)"
+            @click="respond(req.id, 'approved')"
+          >Accept</button>
+          <button
+            class="btn btn-error btn-sm font-black"
+            :disabled="pendingIds.includes(req.id)"
+            @click="respond(req.id, 'rejected')"
+          >Reject</button>
         </div>
       </li>
     </ul>

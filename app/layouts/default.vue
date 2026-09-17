@@ -30,6 +30,7 @@ const instagram = appConfig.socials.instagram;
               to="/"
               class="btn btn-ghost text-xs md:text-lg lg:text-xl font-cy"
               :class="{ 'btn-active btn-primary': route.path === '/' }"
+              :aria-current="route.path === '/' ? 'page' : undefined"
             >
               L1BERH4CK
             </NuxtLink>
@@ -43,6 +44,7 @@ const instagram = appConfig.socials.instagram;
                 'btn-active btn-primary':
                   route.path.startsWith('/ops') === true,
               }"
+              :aria-current="route.path.startsWith('/ops') ? 'page' : undefined"
             >
               OPS
             </NuxtLink>
@@ -56,6 +58,7 @@ const instagram = appConfig.socials.instagram;
                 'btn-active btn-primary':
                   route.path.startsWith('/reglament') === true,
               }"
+              :aria-current="route.path.startsWith('/reglament') ? 'page' : undefined"
             >
               Reglament
             </NuxtLink>
@@ -69,6 +72,7 @@ const instagram = appConfig.socials.instagram;
                 'btn-active btn-primary':
                   route.path.startsWith('/live') === true,
               }"
+              :aria-current="route.path.startsWith('/live') ? 'page' : undefined"
             >
               Live
             </NuxtLink>
@@ -82,6 +86,7 @@ const instagram = appConfig.socials.instagram;
             class="flex flex-row gap-2 items-center"
             :href="instagram"
             target="_blank"
+            aria-label="Instagram"
           >
             <p class="hidden md:block">Instagram</p>
             <Icon
@@ -94,6 +99,7 @@ const instagram = appConfig.socials.instagram;
             :href="discord"
             class="flex flex-row gap-2 items-center"
             target="_blank"
+            aria-label="Discord"
           >
             <p class="hidden md:block">Discord</p>
             <Icon size="32" name="teenyicons:discord-solid" />

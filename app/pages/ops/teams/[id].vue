@@ -26,6 +26,7 @@ const isMember = computed(() =>
   ),
 );
 const alreadyInTeam = computed(() => !!me.value?.registration?.team_id);
+const isFull = computed(() => (team.value?.members?.length ?? 0) >= 6);
 
 async function sendRequest() {
   sending.value = true;
@@ -94,6 +95,8 @@ async function sendRequest() {
         <div
           v-if="message"
           class="alert mb-4"
+          :role="message === 'Request sent!' ? 'status' : 'alert'"
+          aria-live="polite"
           :class="message === 'Request sent!' ? 'alert-success' : 'alert-error'"
         >
           {{ message }}
@@ -101,11 +104,11 @@ async function sendRequest() {
 
         <button
           v-if="!isMember && !alreadyInTeam"
-          :disabled="sending"
+          :disabled="sending || isFull"
           class="btn btn-primary font-black uppercase"
           @click="sendRequest"
         >
-          {{ sending ? "Sending…" : "Request to Join" }}
+          {{ isFull ? "Team is full" : sending ? "Sending…" : "Request to Join" }}
         </button>
 
         <p v-else-if="isMember" class="font-bold text-success">

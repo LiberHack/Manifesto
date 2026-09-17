@@ -24,7 +24,9 @@ async function login() {
     });
 
     if (authError) {
-      error.value = authError.message;
+      error.value = authError.message.includes("Invalid login credentials")
+        ? "Incorrect email or password."
+        : authError.message;
       return;
     }
 
