@@ -7,6 +7,7 @@ interface Body {
   starts_at?: unknown;
   ends_at?: unknown;
   participant_cap?: unknown;
+  ops_enabled?: unknown;
 }
 
 function readDate(value: unknown, field: string): string | null {
@@ -51,6 +52,16 @@ export default defineEventHandler(async (event) => {
       });
     }
     update.participant_cap = cap;
+  }
+
+  if (body.ops_enabled !== undefined) {
+    if (typeof body.ops_enabled !== "boolean") {
+      throw createError({
+        statusCode: 400,
+        message: "ops_enabled must be a boolean",
+      });
+    }
+    update.ops_enabled = body.ops_enabled;
   }
 
   if (Object.keys(update).length === 0) {

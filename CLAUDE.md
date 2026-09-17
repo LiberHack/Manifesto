@@ -76,7 +76,7 @@ unset locally.
 
 ## Auth & Routes
 
-- `/ops/*` pages are protected by the `auth` client middleware — redirects to `/ops/login` if no session, `/ops/verify-email` if email not confirmed, `/ops/register-edition` if the account has no `registration` in the current edition (see Editions below)
+- `/ops/*` pages are protected by the `auth` client middleware — redirects to `/` if the current edition's participant area is closed (`ops_enabled`), `/ops/login` if no session, `/ops/verify-email` if email not confirmed, `/ops/register-edition` if the account has no `registration` in the current edition (see Editions below)
 - Server-side: `01.auth.ts` attaches the Supabase user to `event.context.user`
 - Rate limiting: 60 req/min per IP on all `/api/*` routes (`02.rateLimit.ts`) via Workers Rate Limiting bindings (`RL_*` in `wrangler.jsonc`); falls back to an in-memory map in `nuxt dev`
 - `/api/live/stream` is SSE: each connection polls Supabase every 5s and only emits on change (Workers isolates share no memory, so there is no server-side broadcast)
@@ -106,6 +106,17 @@ Rules that follow:
 - The participant cap is per edition (`editions.participant_cap`), enforced by the
   `enforce_edition_cap` trigger on `registrations` insert. `handle_new_user()` no
   longer counts participants; creating an account always succeeds.
+- `editions.ops_enabled` gates the whole participant area and **defaults to
+  false**, so going live and opening registration are separate events. While it
+  is false, `requireRegistration` throws `403 ops_closed`, the `auth` middleware
+  sends `/ops/*` back to `/`, `/ops/register` says registration has not opened
+  and the OPS nav item points there. `/ops/admin` is exempt — an admin has to be
+  able to reach the panel to open it. Toggle it per edition in the admin panel's
+  Editions section.
+- Because "no readable current edition" also resolves to closed, a deploy that
+  runs ahead of its migrations presents as "not open yet" rather than broken.
+  That is the intended way to ship a breaking schema change: release the code,
+  push the migrations, then open the edition.
 - Consent is re-accepted per edition (`registrations.accepted_terms_at`).
 - Admin views take `?edition=<slug>`, defaulting to the current edition. Archived
   editions are readable but not writable (`assertEditionWritable`).

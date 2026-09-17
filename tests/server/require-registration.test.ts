@@ -8,7 +8,10 @@ const LIVE_EDITION = {
   ends_at: null,
   status: "live" as const,
   participant_cap: 120,
+  ops_enabled: true,
 };
+
+const CLOSED_EDITION = { ...LIVE_EDITION, ops_enabled: false };
 
 const REGISTRATION = {
   id: "reg-1",
@@ -57,6 +60,18 @@ describe("resolveRegistrationContext", () => {
         stubSupabase({ editions: { data: null } }) as never,
       ),
     ).rejects.toMatchObject({ statusCode: 503, message: "no_live_edition" });
+  });
+
+  it("throws 403 ops_closed when the participant area is closed", async () => {
+    await expect(
+      resolveRegistrationContext(
+        USER,
+        stubSupabase({
+          editions: { data: CLOSED_EDITION },
+          registrations: { data: REGISTRATION },
+        }) as never,
+      ),
+    ).rejects.toMatchObject({ statusCode: 403, message: "ops_closed" });
   });
 
   it("throws 403 not_registered for a spectator", async () => {

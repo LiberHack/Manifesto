@@ -12,6 +12,7 @@ interface Edition {
   status: 'draft' | 'live' | 'archived'
   is_current: boolean
   participant_cap: number
+  ops_enabled: boolean
 }
 
 const { data: editions, refresh: refreshEditions } = await useFetch<Edition[]>("/api/admin/editions")
@@ -52,6 +53,36 @@ async function createEdition() {
     await refreshEditions()
   } catch (e: unknown) {
     editionError.value = (e as { data?: { message?: string } }).data?.message ?? 'Failed to create edition'
+  } finally {
+    editionBusy.value = false
+  }
+}
+
+/**
+ * Open or close the participant area for an edition. Closing it leaves every
+ * account and registration intact — /ops just answers "not open yet" — so it is
+ * also the switch to throw while a schema change is rolling out.
+ */
+async function setOpsEnabled(edition: Edition, opsEnabled: boolean) {
+  if (
+    !opsEnabled &&
+    !confirm(
+      `Close the participant area for "${edition.slug}"? Registration and every team page stop working for participants until you reopen it.`,
+    )
+  )
+    return
+
+  editionBusy.value = true
+  editionError.value = ''
+  try {
+    await $fetch(`/api/admin/editions/${edition.slug}`, {
+      method: 'PATCH',
+      body: { ops_enabled: opsEnabled },
+    })
+    await refreshEditions()
+  } catch (e: unknown) {
+    editionError.value =
+      (e as { data?: { message?: string } }).data?.message ?? 'Failed to update edition'
   } finally {
     editionBusy.value = false
   }
@@ -484,7 +515,7 @@ async function addAnnouncement() {
               <table class="table table-sm">
                 <thead>
                   <tr>
-                    <th>Slug</th><th>Name</th><th>Status</th><th>Cap</th><th />
+                    <th>Slug</th><th>Name</th><th>Status</th><th>Cap</th><th>Participant area</th><th />
                   </tr>
                 </thead>
                 <tbody>
@@ -504,6 +535,20 @@ async function addAnnouncement() {
                       </span>
                     </td>
                     <td>{{ e.participant_cap }}</td>
+                    <td>
+                      <label class="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          class="toggle toggle-sm toggle-success"
+                          :checked="e.ops_enabled"
+                          :disabled="editionBusy || e.status === 'archived'"
+                          @change="setOpsEnabled(e, ($event.target as HTMLInputElement).checked)"
+                        />
+                        <span class="text-xs uppercase font-bold opacity-70">
+                          {{ e.ops_enabled ? 'open' : 'closed' }}
+                        </span>
+                      </label>
+                    </td>
                     <td>
                       <button
                         v-if="e.status === 'draft'"

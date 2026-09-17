@@ -1,6 +1,17 @@
-import { isRegistrationExempt } from "~/utils/registrationGate";
+import {
+  isOpsClosedExempt,
+  isRegistrationExempt,
+} from "~/utils/registrationGate";
 
 export default defineNuxtRouteMiddleware(async (to) => {
+  // Closed for everyone but the admin panel and the auth flows: an admin has to
+  // sign in to open it. The redirect is UX only — the server answers
+  // 403 ops_closed on every edition-scoped route regardless.
+  if (!isOpsClosedExempt(to.path)) {
+    const { data: edition } = await useCurrentEdition();
+    if (!edition.value?.ops_open) return navigateTo("/");
+  }
+
   const user = useSupabaseUser();
   if (!user.value) return navigateTo("/ops/login");
   if (!user.value.user_metadata?.email_verified)
