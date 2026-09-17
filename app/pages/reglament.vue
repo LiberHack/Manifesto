@@ -10,6 +10,9 @@
       >
         Регламент
       </h1>
+      <p class="text-lg md:text-xl font-bold opacity-90">
+        Edition 2 · 27-29 ноември 2026 · Международен конгресен център Бургас
+      </p>
       <p class="text-xl md:text-2xl italic opacity-80">
         „Не просто поправяй – разобличавай, иронизирай и преобразявай."
       </p>
@@ -41,14 +44,14 @@
     >
       <h2 class="text-2xl md:text-3xl font-bold">02. Участници</h2>
       <p class="text-base md:text-lg leading-relaxed">
-        LiberHack е за младежи от <strong>14 до 25 години</strong>, подредени в
+        LiberHack е за младежи от <strong>14 до 21 години</strong>, подредени в
         отбори от <strong>2 до 6 души</strong>.
       </p>
       <p class="text-base md:text-lg leading-relaxed">
         Не търсим само програмисти. Идеалният отбор е смесица - някой, който
         пише код, някой, който мисли за потребителите, някой, който знае как да
         разкаже история с данни, и някой, който просто е достатъчно ядосан да
-        види проблема докрай.
+        види проблема докрай. Смесеният отбор е най-силният.
       </p>
       <p class="text-sm opacity-70">
         Учители и родители са добре дошли като наблюдатели - присъстват,
@@ -63,7 +66,12 @@
     >
       <h2 class="text-2xl md:text-3xl font-bold">03. Основна тема</h2>
       <p class="text-xl font-bold">
-        Социално въздействие и граждански технологии - но направете го пънк.
+        Технологии в полза на хората - но го направете пънк.
+      </p>
+      <p class="text-base md:text-lg leading-relaxed">
+        „Технологии в полза на хората" е постоянната тема на LiberHack - за това
+        и за всяко следващо издание. Вярваме, че всеки може да промени нещо и че
+        има твърде много неща, които могат да станат по-добри.
       </p>
       <p class="text-base md:text-lg leading-relaxed">
         Технологиите за „социално добро" обикновено изглеждат като скучни PDF
@@ -82,109 +90,37 @@
       </p>
     </section>
 
-    <!-- 4. Challenges -->
+    <!-- 4. Projects & partner tracks -->
     <section
-      id="predizvikatelstva"
+      id="napravleniya"
       class="flex flex-col gap-4 bg-base-100/70 border-primary border-l-4 pl-6 py-4"
     >
-      <h2 class="text-2xl md:text-3xl font-bold">04. Предизвикателства</h2>
+      <h2 class="text-2xl md:text-3xl font-bold">04. Проекти и направления</h2>
       <p class="text-base md:text-lg leading-relaxed">
-        Изберете едно от предизвикателствата или работете по собствена идея,
-        стига да е в духа на LiberHack: реален продукт, реален проблем, реална
-        България. Никакви безсъдържателни слайдове, никакви хиляди пъти дъвкани
-        концепции.
+        Няма фиксирани задачи. Всеки отбор работи по
+        <strong>собствена идея</strong> в духа на LiberHack: реален продукт,
+        реален проблем, реална България. Никакви безсъдържателни слайдове,
+        никакви хиляди пъти дъвкани концепции. Ако идеята ви е достатъчно
+        гневна, честна и работеща, сте на правилното място.
       </p>
-      <p class="text-base md:text-lg leading-relaxed">
-        Всяко предизвикателство носи своя специална награда в допълнение към
-        основното класиране.
-      </p>
+      <div class="flex flex-col gap-3 border-l-2 border-primary pl-4 mt-2">
+        <h3 class="text-xl font-bold">Партньорски направления</h3>
+        <p class="text-base md:text-lg leading-relaxed opacity-80">
+          Партньорите на LiberHack могат да обявят собствено брандирано
+          направление - конкретно предизвикателство към участниците, за което
+          партньорът осигурява ментор и получава място в журито за тази
+          категория. Направленията се обявяват преди събитието.
+        </p>
+        <p class="text-base md:text-lg leading-relaxed">
+          Участието в тях е <strong>по избор</strong>: отборът може да се насочи
+          към партньорско направление или да работи по свободна идея в рамките
+          на темата.
+        </p>
+      </div>
       <p class="text-sm opacity-70">
-        Ако вашата идея не попада в нито едно от тях, но е достатъчно гневна,
-        честна и работеща, също сте на правилното място.
+        Единственото условие и в двата случая: продуктът трябва да работи и да е
+        насочен към нещо реално.
       </p>
-
-      <!-- Challenge 4.1 -->
-      <div
-        id="darzhaven-remont"
-        class="flex flex-col gap-3 border-l-2 border-primary pl-4 mt-2"
-      >
-        <h3 class="text-xl font-bold">
-          4.1. Държавен ремонт
-          <span class="opacity-60 font-normal">(The System Roast)</span>
-        </h3>
-        <p class="text-base md:text-lg leading-relaxed opacity-80">
-          Българската държавна администрация онлайн изглежда като 15 различни
-          страни, залепени с тиксо. Всеки сайт - различен шрифт, различна
-          логика, различна степен на нефункционалност. Тези сайтове не са само
-          грозни - те активно пречат на хората да свършат работата си.
-        </p>
-        <p class="text-base md:text-lg leading-relaxed">
-          <strong>Задачата:</strong> Вземете 2-3 от най-ужасните съществуващи
-          държавни сайта и ги преправете изцяло. Не козметични промени - пълен
-          ремонт на UX и визията. По-добра навигация, четима типография,
-          достъпност, работещи на мобилно. Покажете публично контраста.
-        </p>
-        <p class="text-base md:text-lg leading-relaxed opacity-80">
-          <strong>Краен продукт:</strong> Работещи фронтенд прототипи на
-          реновираните сайтове. Презентацията е Roast - безпощадно сравнение
-          преди и след, с конкретни примери защо оригиналът е провал.
-        </p>
-      </div>
-
-      <!-- Challenge 4.2 -->
-      <div
-        id="orazhiya-za-prozrachnost"
-        class="flex flex-col gap-3 border-l-2 border-primary pl-4 mt-2"
-      >
-        <h3 class="text-xl font-bold">
-          4.2. Оръжия за прозрачност
-          <span class="opacity-60 font-normal">(Weaponized Transparency)</span>
-        </h3>
-        <p class="text-base md:text-lg leading-relaxed opacity-80">
-          Данните съществуват. Проблемът е, че са скрити в сканирани PDF-и,
-          бюрократични регистри и таблици, за които трябва специализиран софтуер
-          от 2003 г. Институциите не лъжат директно - просто публикуват
-          информацията така, че никой нормален човек да не може да я прочете.
-        </p>
-        <p class="text-base md:text-lg leading-relaxed">
-          <strong>Задачата:</strong> Изградете инструмент, който извлича,
-          анализира и визуализира тези данни така, че да стане невъзможно да
-          бъдат игнорирани - разходи на общината, качество на въздуха, резултати
-          от обществени поръчки.
-        </p>
-        <p class="text-base md:text-lg leading-relaxed opacity-80">
-          <strong>Краен продукт:</strong> Платформа за данни, интерактивна
-          карта, dashboard или публично API - изградено върху реални данни (Open
-          Data / Scraping).
-        </p>
-      </div>
-
-      <!-- Challenge 4.3 -->
-      <div
-        id="svidetelat"
-        class="flex flex-col gap-3 border-l-2 border-primary pl-4 mt-2"
-      >
-        <h3 class="text-xl font-bold">
-          4.3. Свидетелят
-          <span class="opacity-60 font-normal">(The Anonymous Signal)</span>
-        </h3>
-        <p class="text-base md:text-lg leading-relaxed opacity-80">
-          Има неща, които хората знаят, но не могат да кажат с името си.
-          Корупция, нередности, счупени процеси. Проблемът не е липса на
-          информация - проблемът е, че истината без анонимност е твърде скъпа.
-        </p>
-        <p class="text-base md:text-lg leading-relaxed">
-          <strong>Задачата:</strong> Изградете сигурна платформа за събиране,
-          верификация и усилване на анонимни сигнали. Централното
-          предизвикателство е парадоксът на доверието: как да отличите истинския
-          сигнал от спама, без да жертвате сигурността на подателя?
-        </p>
-        <p class="text-base md:text-lg leading-relaxed opacity-80">
-          <strong>Краен продукт:</strong> Работещ прототип - автоматично
-          премахване на метаданни, криптиране или иновативен механизъм за
-          краудсорс верификация на достоверността.
-        </p>
-      </div>
     </section>
 
     <!-- 5. Rules -->
@@ -241,6 +177,9 @@
       class="flex flex-col gap-6 bg-base-100/70 border-primary border-l-4 pl-6 py-4"
     >
       <h2 class="text-2xl md:text-3xl font-bold">06. Критерии за оценяване</h2>
+      <p class="text-base md:text-lg leading-relaxed">
+        Оценява се това, което реално работи - не слайдове.
+      </p>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div class="border-primary border-2 p-4 flex flex-col gap-2">
           <div class="flex flex-row justify-between items-center">
@@ -251,7 +190,8 @@
           </div>
           <p class="text-sm opacity-80">
             Работи ли изобщо? Реални данни, не примерни. Има ли работещо демо?
-            Издържа ли кодът нещо повече от презентацията?
+            Помислено ли е за сигурността и издържа ли кодът нещо повече от
+            презентацията?
           </p>
         </div>
         <div class="border-primary border-2 p-4 flex flex-col gap-2">
@@ -287,14 +227,20 @@
       </div>
     </section>
 
-    <!-- 7. Schedule -->
+    <!-- 7. Venue & schedule -->
     <section
       id="programa"
       class="flex flex-col gap-4 bg-base-100/70 border-primary border-l-4 pl-6 py-4"
     >
-      <h2 class="text-2xl md:text-3xl font-bold">07. Програма</h2>
-      <p class="text-base opacity-80">
-        5, 6 и 7 юни - от петък следобед до неделя на обяд (~48 часа)
+      <h2 class="text-2xl md:text-3xl font-bold">
+        07. Място, програма и времева рамка
+      </h2>
+      <p class="text-base md:text-lg leading-relaxed">
+        LiberHack · Edition 2 се провежда на живо на
+        <strong>27, 28 и 29 ноември 2026 г.</strong> (петък - неделя, ~48 часа)
+        в <strong>Международния конгресен център Бургас</strong>, с подкрепата
+        на <strong>Община Бургас</strong>. Всички отбори, щандове и сцена са в
+        едно общо пространство.
       </p>
       <div class="overflow-x-auto">
         <table
@@ -303,43 +249,32 @@
           <thead>
             <tr class="border-primary border-b-2">
               <th>Ден</th>
-              <th>Час</th>
-              <th>Събитие</th>
+              <th>Рамка на програмата</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td class="font-semibold whitespace-nowrap">Петък, 5 юни</td>
-              <td class="whitespace-nowrap">16:00</td>
+              <td class="font-semibold whitespace-nowrap">Петък, 27 ноември</td>
               <td>
-                Официално откриване, представяне на направленията, формиране на
-                отбори
+                Регистрация, официално откриване, представяне на партньорските
+                направления, кратки практически сесии от партньорите (по
+                желание), старт на разработката
               </td>
             </tr>
             <tr>
-              <td class="font-semibold whitespace-nowrap">Петък, 5 юни</td>
-              <td class="whitespace-nowrap">17:30 – 19:00</td>
-              <td>Семинар по желание - насоки за ефикасна работа</td>
-            </tr>
-            <tr>
-              <td class="font-semibold whitespace-nowrap">Петък, 5 юни</td>
-              <td class="whitespace-nowrap">18:00 – 21:00</td>
-              <td>Старт на разработката</td>
-            </tr>
-            <tr>
-              <td class="font-semibold whitespace-nowrap">Събота, 6 юни</td>
-              <td class="whitespace-nowrap">9:00 – 21:00</td>
+              <td class="font-semibold whitespace-nowrap">
+                Събота, 28 ноември
+              </td>
               <td>Активна разработка, менторски сесии</td>
             </tr>
             <tr>
-              <td class="font-semibold whitespace-nowrap">Неделя, 7 юни</td>
-              <td class="whitespace-nowrap">9:00 – 14:30</td>
-              <td>Финализиране на проектите, подготовка на презентации</td>
-            </tr>
-            <tr>
-              <td class="font-semibold whitespace-nowrap">Неделя, 7 юни</td>
-              <td class="whitespace-nowrap">15:00 – ~19:00</td>
-              <td>Публични презентации и обявяване на победители</td>
+              <td class="font-semibold whitespace-nowrap">
+                Неделя, 29 ноември
+              </td>
+              <td>
+                Финализиране на проектите, публични презентации пред журито,
+                обявяване на победителите
+              </td>
             </tr>
           </tbody>
         </table>
@@ -366,6 +301,7 @@
         </li>
         <li>→ Менторите <strong>не могат</strong> да са част от журито.</li>
         <li>→ Всеки отбор може да поиска менторска сесия по всяко време.</li>
+        <li>→ Част от менторите са осигурени от партньорите на събитието.</li>
       </ul>
     </section>
 
@@ -381,14 +317,23 @@
           сайта.
         </li>
         <li>
-          → Отборите могат да се регистрират заедно или поотделно - съставът
-          може да се финализира на самото събитие.
+          → При регистрацията се посочват имена, възраст, училище/университет,
+          умения и ниво на опит.
+        </li>
+        <li>
+          → Отборите могат да се регистрират заедно или поотделно.
+          <strong>Индивидуално регистрираните се разпределят в отбори</strong>
+          предварително, преди събитието, за да пристигнат на място с готов
+          екип.
         </li>
         <li>
           → Регистрацията е <strong>задължителна</strong> за всички участници,
           включително наблюдатели.
         </li>
-        <li>→ Избраното направление може да се промени на място.</li>
+        <li>
+          → Регистрацията за Edition 2 е отворена от
+          <strong>19 септември до 20 ноември 2026 г.</strong>
+        </li>
       </ul>
     </section>
 
@@ -401,39 +346,38 @@
       <div class="flex flex-col gap-4">
         <div>
           <h3 class="font-bold text-lg mb-2">Общо класиране</h3>
+          <p class="text-base opacity-80 mb-2">
+            Журито избира трите най-силни проекта измежду всички участници,
+            независимо от направлението.
+          </p>
           <div class="flex flex-col gap-2">
             <div
               class="flex flex-row gap-3 items-center border-primary border-2 p-3"
             >
               <span class="text-2xl font-bold">🥇</span>
-              <span>1-во място - 500€ + предметна награда</span>
+              <span>1-во място - TBA</span>
             </div>
             <div
               class="flex flex-row gap-3 items-center border-primary border-2 p-3"
             >
               <span class="text-2xl font-bold">🥈</span>
-              <span>2-ро място - 300€ + предметна награда</span>
+              <span>2-ро място - TBA</span>
             </div>
             <div
               class="flex flex-row gap-3 items-center border-primary border-2 p-3"
             >
               <span class="text-2xl font-bold">🥉</span>
-              <span>3-то място - 100€ + предметна награда</span>
-            </div>
-            <div
-              class="flex flex-row gap-3 items-center border-primary border-2 p-3"
-            >
-              <span
-                >Най-добрият проект във всяка категория получава 100 €.</span
-              >
+              <span>3-то място - TBA</span>
             </div>
           </div>
         </div>
         <div>
-          <h3 class="font-bold text-lg mb-2">Награди по направления</h3>
+          <h3 class="font-bold text-lg mb-2">
+            Награди по партньорски направления
+          </h3>
           <p class="text-base opacity-80">
-            Победителят във всяко направление получава специална грамота за
-            постижение, дори ако не е в общото класиране.
+            Победителят във всяко обявено партньорско направление получава
+            отделна награда, дори ако не е в общото класиране.
           </p>
         </div>
         <div class="bg-primary/10 border-primary border-2 p-3">
@@ -456,12 +400,15 @@
       <p class="text-base md:text-lg leading-relaxed">
         Проектите се оценяват от <strong>независимо жури</strong> от специалисти
         в областите технологии, дизайн, журналистика и гражданско общество.
+        Партньор, обявил собствено направление, получава място в журито за тази
+        категория.
       </p>
       <ul class="flex flex-col gap-2 text-base md:text-lg">
         <li>
           → Всеки отбор има <strong>до 10 минути</strong> за презентация +
           <strong>5 минути</strong> за въпроси.
         </li>
+        <li>→ Журито оценява по критериите в Раздел 06.</li>
         <li>→ Решенията на журито са <strong>окончателни</strong>.</li>
         <li>
           → Членовете на журито ще бъдат публично обявени преди събитието.
@@ -506,6 +453,11 @@
           време на събитието.
         </li>
         <li>
+          → Проектите се събират в публичен архив; по време на събитието се
+          правят снимки и видео, които могат да бъдат публикувани от
+          организаторите и партньорите.
+        </li>
+        <li>
           → За въпроси:
           <a href="mailto:contact@liberhack.org" class="underline font-bold"
             >contact@liberhack.org</a
@@ -515,7 +467,7 @@
     </section>
 
     <p class="text-xs opacity-40 text-right">
-      Последна актуализация: 13.05.2026 г.
+      Последна актуализация: 10.09.2026 г.
     </p>
     <Footer />
   </div>
