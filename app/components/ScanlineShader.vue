@@ -11,6 +11,7 @@ let renderer, scene, camera, quad, renderTarget, animationId;
 
 onMounted(() => {
   if (!container.value) return;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
   const width = window.innerWidth;
   const height = window.innerHeight;

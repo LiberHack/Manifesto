@@ -8,14 +8,15 @@
       <NuxtImg
         preload
         src="/favicon.webp"
+        alt="LiberHack"
         class="bg-base-100/90 border-primary border-4 w-xs lg:w-md"
       />
       <div class="lg:w-lg flex flex-col gap-5 bg-base-100/70">
-        <p
+        <h1
           class="text-2xl lg:text-5xl font-bold text-center text-shadow-lg/80 text-shadow-4"
         >
           Your Future Is In YOUR Hands
-        </p>
+        </h1>
         <p
           class="text-lg font-bold text-center text-shadow-lg/80 text-shadow-4"
         >
@@ -40,6 +41,7 @@
       <NuxtImg
         preload
         src="/eyes.webp"
+        alt="Glitched eyes staring back"
         class="bg-base-100/90 border-primary border-4 w-xs hidden md:block lg:w-md"
       />
     </div>
@@ -50,15 +52,16 @@
       <NuxtImg
         preload
         src="/holy.webp"
+        alt="Stained-glass saint, glitched"
         class="bg-base-100/90 border-primary border-4 w-xs lg:w-md"
       />
       <div class="flex flex-col gap-4 w-sm md:w-lg bg-base-100/70 p-4">
-        <div class="text-lg lg:text-4xl text-center flex flex-col gap-2">
+        <h2 class="text-lg lg:text-4xl text-center flex flex-col gap-2">
           <span class="text-2xl lg:text-4xl">Build, pitch, and ship.</span>
           <span class="block text-xl"
             >48 hours to take your idea from zero to demo</span
           >
-        </div>
+        </h2>
       </div>
     </div>
 
@@ -66,13 +69,13 @@
       class="w-full flex flex-col gap-8 items-center justify-center text-shadow-lg/80 text-shadow-4"
     >
       <div class="w-fit">
-        <p class="text-4xl text-center">
+        <h2 class="text-4xl text-center">
           Win it
           <span
             class="inline-block font-sans font-bold animate-wiggle overflow-visible"
             >B̶̪̐̇͑̇͜Ĩ̴̭̺Ḡ̸̛̥̯͍̋</span
           >
-        </p>
+        </h2>
       </div>
 
       <div
@@ -129,11 +132,11 @@
     </div>
 
     <div class="w-full flex flex-col gap-12 items-center">
-      <p
+      <h2
         class="text-3xl lg:text-6xl font-bold items-stretch text-shadow-lg/80 text-shadow-4"
       >
         Ass0c1at3s
-      </p>
+      </h2>
 
       <!-- Platinum -->
       <div class="w-full flex flex-col gap-6 items-center">
@@ -223,16 +226,17 @@
     <div
       class="w-full flex flex-col justify-center align-middle items-center gap-8 p-8"
     >
-      <p
+      <h2
         class="text-3xl lg:text-5xl font-bold text-center text-shadow-lg/80 text-shadow-4"
       >
         Fr3qu3nt!y A5k3d Qu3st10n5
-      </p>
+      </h2>
       <div class="flex flex-col lg:flex-row w-full p-8 gap-8 md:gap-24">
         <div class="flex items-center justify-center">
           <NuxtImg
             preload
             src="/pc.webp"
+            alt="Retro CRT monitor"
             class="bg-base-100/90 border-primary border-4 rendering-pixelated w-lg"
           />
         </div>
@@ -245,9 +249,11 @@
 </template>
 
 <style scoped>
-.animate-wiggle {
-  /* Changed to linear for sharper, more sudden movements */
-  animation: glitch-jerk 3s linear infinite;
+@media (prefers-reduced-motion: no-preference) {
+  .animate-wiggle {
+    /* Changed to linear for sharper, more sudden movements */
+    animation: glitch-jerk 3s linear infinite;
+  }
 }
 
 @keyframes glitch-jerk {
