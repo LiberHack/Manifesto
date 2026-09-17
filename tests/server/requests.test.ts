@@ -1,12 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { setup } from "@nuxt/test-utils/e2e";
+import { fetch } from "@nuxt/test-utils/e2e";
 
-describe("Join Requests API", async () => {
-  await setup({ server: true });
-
+describe("Join Requests API", () => {
   it("POST /api/teams/:id/requests returns 401 unauthenticated", async () => {
     const res = await fetch(
-      "http://localhost:3000/api/teams/00000000-0000-0000-0000-000000000000/requests",
+      "/api/teams/00000000-0000-0000-0000-000000000000/requests",
       { method: "POST" }
     );
     expect(res.status).toBe(401);
@@ -14,7 +12,7 @@ describe("Join Requests API", async () => {
 
   it("PATCH /api/requests/:id returns 401 unauthenticated", async () => {
     const res = await fetch(
-      "http://localhost:3000/api/requests/00000000-0000-0000-0000-000000000000",
+      "/api/requests/00000000-0000-0000-0000-000000000000",
       {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },

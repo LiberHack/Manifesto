@@ -3,6 +3,8 @@ import { defineVitestConfig } from "@nuxt/test-utils/config";
 export default defineVitestConfig({
   test: {
     environment: "nuxt",
+    // Build the e2e fixture once for the whole run (see tests/fixture.ts).
+    globalSetup: ["tests/global-setup.ts"],
   },
   plugins: [
     {

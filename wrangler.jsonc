@@ -1,0 +1,132 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "manifesto",
+  "main": ".output/server/index.mjs",
+  "compatibility_date": "2026-09-11",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  // Production never gets preview versions: a preview would share the production D1 and
+  // re-import its own content into it. Previews are uploaded to the staging env instead.
+  "preview_urls": false,
+  "assets": {
+    "directory": ".output/public",
+    "binding": "ASSETS",
+  },
+  "observability": {
+    "enabled": true,
+  },
+  // Custom domain — DNS record + certificate are managed by Cloudflare on first deploy.
+  "routes": [
+    {
+      "pattern": "liberhack.org",
+      "custom_domain": true,
+    },
+  ],
+  // Nuxt Content stores the markdown collections here (content.database in nuxt.config.ts).
+  // Create with: bunx wrangler d1 create manifesto-content
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "manifesto-content",
+      "database_id": "30db1462-be8c-4114-983c-63133fabe7bc",
+    },
+  ],
+  // Per-IP limits for /api/* — consumed by server/middleware/02.rateLimit.ts.
+  // Counters live per Cloudflare location; namespace_id must be unique per binding.
+  "ratelimits": [
+    {
+      "name": "RL_API",
+      "namespace_id": "1001",
+      "simple": {
+        "limit": 60,
+        "period": 60,
+      },
+    },
+    {
+      "name": "RL_INVITE",
+      "namespace_id": "1002",
+      "simple": {
+        "limit": 10,
+        "period": 60,
+      },
+    },
+    {
+      "name": "RL_SKILLS",
+      "namespace_id": "1003",
+      "simple": {
+        "limit": 20,
+        "period": 60,
+      },
+    },
+  ],
+  // Non-secret runtime config. Secrets (NUXT_SUPABASE_SECRET_KEY, NUXT_RESEND_API_KEY)
+  // are set with `wrangler secret put <NAME>`, never here.
+  "vars": {
+    "NUXT_PUBLIC_APP_ENV": "production",
+    "NUXT_PUBLIC_SUPABASE_URL": "https://apfhieizmthicvwvezrg.supabase.co",
+    "NUXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_7UffLfznfdm8gMJEF7hfag_sx_UAEis",
+    "NUXT_PUBLIC_SUPABASE_KEY": "sb_publishable_7UffLfznfdm8gMJEF7hfag_sx_UAEis",
+    "NUXT_RESEND_FROM_EMAIL": "LiberHack <noreply@liberhack.org>",
+    "NUXT_SITE_URL": "https://liberhack.org",
+  },
+
+  // Staging = the `dev` branch, deployed as the Worker `manifesto-staging`.
+  // PR previews are `wrangler versions upload --env staging`, so they get staging's
+  // bindings and secrets and a `<version>-manifesto-staging.<subdomain>.workers.dev` URL.
+  // Bindings and vars are not inherited from the top level and must be repeated here.
+  "env": {
+    "staging": {
+      "workers_dev": false,
+      "preview_urls": true,
+      "routes": [
+        {
+          "pattern": "staging.liberhack.org",
+          "custom_domain": true,
+        },
+      ],
+      // Create with: bunx wrangler d1 create manifesto-content-staging
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "manifesto-content-staging",
+          "database_id": "ef7112fd-4373-4e22-b8fc-664fcaa8fc66",
+        },
+      ],
+      "ratelimits": [
+        {
+          "name": "RL_API",
+          "namespace_id": "1001",
+          "simple": {
+            "limit": 60,
+            "period": 60,
+          },
+        },
+        {
+          "name": "RL_INVITE",
+          "namespace_id": "1002",
+          "simple": {
+            "limit": 10,
+            "period": 60,
+          },
+        },
+        {
+          "name": "RL_SKILLS",
+          "namespace_id": "1003",
+          "simple": {
+            "limit": 20,
+            "period": 60,
+          },
+        },
+      ],
+      // Secrets for this env: `wrangler secret put <NAME> --env staging`.
+      "vars": {
+        "NUXT_PUBLIC_APP_ENV": "staging",
+        "NUXT_PUBLIC_SUPABASE_URL": "https://apfhieizmthicvwvezrg.supabase.co",
+        "NUXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_7UffLfznfdm8gMJEF7hfag_sx_UAEis",
+        "NUXT_PUBLIC_SUPABASE_KEY": "sb_publishable_7UffLfznfdm8gMJEF7hfag_sx_UAEis",
+        "NUXT_RESEND_FROM_EMAIL": "LiberHack (staging) <noreply@liberhack.org>",
+        "NUXT_SITE_URL": "https://staging.liberhack.org",
+      },
+    },
+  },
+}

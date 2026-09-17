@@ -1,8 +1,16 @@
-import { requireAdmin } from '#server/utils/adminAuth'
+import { requireAdmin, resolveAdminEdition } from '#server/utils/adminAuth'
 
 export default defineEventHandler(async (event) => {
   const { supabase } = await requireAdmin(event)
-  const { data, error } = await supabase.from('announcements').select('*').order('sort_order')
+  const edition = await resolveAdminEdition(event, supabase)
+
+  const { data, error } = await supabase
+    .from('announcements')
+    .select('*')
+    .eq('edition_slug', edition.slug)
+    .order('channel')
+    .order('sort_order')
+
   if (error) throw createError({ statusCode: 500, message: error.message })
   return data
 })

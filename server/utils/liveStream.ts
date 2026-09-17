@@ -1,17 +1,45 @@
-// Module-level set of active SSE controllers
-const controllers = new Set<ReadableStreamDefaultController>()
+import { getCurrentEdition } from "#server/utils/registrationContext";
 
-// Fetch current live data snapshot from Supabase
+// Interval between Supabase polls per open SSE connection. Workers isolates do not
+// share memory, so admin writes cannot push to connected clients; each stream polls
+// instead and only forwards a payload when the content actually changed.
+export const LIVE_POLL_MS = 5_000
+
+// Fetch current live data snapshot from Supabase, scoped to the live edition.
 export async function fetchLiveData() {
   const supabase = useSupabaseAdmin()
+  const edition = await getCurrentEdition(supabase)
+
+  if (!edition) {
+    return {
+      edition: null,
+      config: null,
+      schedule: [],
+      announcements: [],
+      serverTime: new Date().toISOString(),
+    }
+  }
+
+  const now = new Date().toISOString()
 
   const [configRes, scheduleRes, announcementsRes] = await Promise.all([
-    supabase.from('event_config').select('*').eq('id', 1).single(),
-    supabase.from('schedule_items').select('*').order('sort_order'),
-    supabase.from('announcements').select('*').order('sort_order'),
+    supabase.from('event_config').select('*').eq('edition_slug', edition.slug).maybeSingle(),
+    supabase.from('schedule_items').select('*').eq('edition_slug', edition.slug).order('sort_order'),
+    // Ticker items only; active and inside their window, so a scheduled ticker
+    // item behaves the same as a scheduled banner.
+    supabase
+      .from('announcements')
+      .select('*')
+      .eq('edition_slug', edition.slug)
+      .eq('channel', 'live')
+      .eq('active', true)
+      .or(`starts_at.is.null,starts_at.lte.${now}`)
+      .or(`ends_at.is.null,ends_at.gte.${now}`)
+      .order('sort_order'),
   ])
 
   return {
+    edition,
     config: configRes.data,
     schedule: scheduleRes.data ?? [],
     announcements: announcementsRes.data ?? [],
@@ -19,31 +47,7 @@ export async function fetchLiveData() {
   }
 }
 
-// Broadcast fresh data to all connected SSE clients
-export async function broadcastLive() {
-  if (controllers.size === 0) return
-
-  const data = await fetchLiveData()
-  const message = `data: ${JSON.stringify(data)}\n\n`
-  const encoded = new TextEncoder().encode(message)
-
-  for (const controller of controllers) {
-    try {
-      controller.enqueue(encoded)
-    } catch {
-      // Controller is closed — remove it
-      controllers.delete(controller)
-    }
-  }
-}
-
-// Add a controller to the active set
-export function addLiveController(controller: ReadableStreamDefaultController) {
-  controllers.add(controller)
-}
-
-// Remove a controller from the active set
-export function removeLiveController(controller: ReadableStreamDefaultController) {
-  controllers.delete(controller)
-  try { controller.close() } catch { /* already closed */ }
+// Stable fingerprint of the parts that matter for change detection (serverTime excluded)
+export function liveFingerprint(data: Awaited<ReturnType<typeof fetchLiveData>>): string {
+  return JSON.stringify([data.edition?.slug, data.config, data.schedule, data.announcements])
 }

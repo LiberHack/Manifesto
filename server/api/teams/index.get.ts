@@ -1,18 +1,16 @@
-import { serverSupabaseUser } from "#supabase/server";
-import { useSupabaseAdmin } from "#server/utils/supabase";
+import { requireRegistration } from "#server/utils/requireRegistration";
 
 export default defineEventHandler(async (event) => {
-  const user = await serverSupabaseUser(event);
-  if (!user) throw createError({ statusCode: 401, message: "Unauthorized" });
+  const { edition, supabase } = await requireRegistration(event);
 
   const { skills } = getQuery(event) as { skills?: string };
-  const supabase = useSupabaseAdmin();
 
   let query = supabase
     .from("teams")
     .select(
-      "id, name, leader_id, skills_wanted, description, created_at, members:participants(id)",
+      "id, name, leader_id, skills_wanted, description, created_at, members:registrations!registrations_team_id_fkey(id)",
     )
+    .eq("edition_slug", edition.slug)
     .order("created_at", { ascending: false });
 
   if (skills) {

@@ -2,6 +2,12 @@
 const route = useRoute();
 const appConfig = useAppConfig();
 const noShader = computed(() => route.path === "/reglament");
+// While the participant area is closed, point OPS at the signup page, which
+// says registration has not opened — the team list would just bounce to "/".
+const { data: currentEdition } = await useCurrentEdition();
+const opsTarget = computed(() =>
+  currentEdition.value.ops_open ? "/ops/teams" : "/ops/register",
+);
 const discord = appConfig.socials.discord;
 const instagram = appConfig.socials.instagram;
 </script>
@@ -31,7 +37,7 @@ const instagram = appConfig.socials.instagram;
 
           <div class="">
             <NuxtLink
-              to="/ops/teams"
+              :to="opsTarget"
               class="btn btn-ghost font-cy text-xs md:text-lg lg:text-xl"
               :class="{
                 'btn-active btn-primary':

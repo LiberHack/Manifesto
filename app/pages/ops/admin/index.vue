@@ -3,9 +3,115 @@ import { VueDraggable } from 'vue-draggable-plus'
 
 definePageMeta({ middleware: ["admin"] });
 
+// ── Editions ─────────────────────────────────────────────────────────────────
+interface Edition {
+  slug: string
+  name: string
+  starts_at: string | null
+  ends_at: string | null
+  status: 'draft' | 'live' | 'archived'
+  is_current: boolean
+  participant_cap: number
+  ops_enabled: boolean
+}
+
+const { data: editions, refresh: refreshEditions } = await useFetch<Edition[]>("/api/admin/editions")
+
+const currentEdition = computed(() => editions.value?.find((e) => e.is_current) ?? null)
+const selectedSlug = ref<string>(currentEdition.value?.slug ?? '')
+const selectedEdition = computed(
+  () => editions.value?.find((e) => e.slug === selectedSlug.value) ?? null,
+)
+
+// Archived editions are viewable but never writable in this phase.
+const editionReadOnly = computed(() => selectedEdition.value?.status === 'archived')
+
+// Every admin read is scoped by this; changing it refetches each section.
+const editionQuery = computed(() => ({ edition: selectedSlug.value || undefined }))
+
+const showEditions = ref(true)
+const editionError = ref('')
+const editionBusy = ref(false)
+
+const newEdition = ref({ slug: '', name: '', starts_at: '', ends_at: '', participant_cap: 120 })
+
+async function createEdition() {
+  editionBusy.value = true
+  editionError.value = ''
+  try {
+    await $fetch('/api/admin/editions', {
+      method: 'POST',
+      body: {
+        slug: newEdition.value.slug.trim(),
+        name: newEdition.value.name.trim(),
+        starts_at: newEdition.value.starts_at ? fromSofiaLocal(newEdition.value.starts_at) : null,
+        ends_at: newEdition.value.ends_at ? fromSofiaLocal(newEdition.value.ends_at) : null,
+        participant_cap: Number(newEdition.value.participant_cap),
+      },
+    })
+    newEdition.value = { slug: '', name: '', starts_at: '', ends_at: '', participant_cap: 120 }
+    await refreshEditions()
+  } catch (e: unknown) {
+    editionError.value = (e as { data?: { message?: string } }).data?.message ?? 'Failed to create edition'
+  } finally {
+    editionBusy.value = false
+  }
+}
+
+/**
+ * Open or close the participant area for an edition. Closing it leaves every
+ * account and registration intact — /ops just answers "not open yet" — so it is
+ * also the switch to throw while a schema change is rolling out.
+ */
+async function setOpsEnabled(edition: Edition, opsEnabled: boolean) {
+  if (
+    !opsEnabled &&
+    !confirm(
+      `Close the participant area for "${edition.slug}"? Registration and every team page stop working for participants until you reopen it.`,
+    )
+  )
+    return
+
+  editionBusy.value = true
+  editionError.value = ''
+  try {
+    await $fetch(`/api/admin/editions/${edition.slug}`, {
+      method: 'PATCH',
+      body: { ops_enabled: opsEnabled },
+    })
+    await refreshEditions()
+  } catch (e: unknown) {
+    editionError.value =
+      (e as { data?: { message?: string } }).data?.message ?? 'Failed to update edition'
+  } finally {
+    editionBusy.value = false
+  }
+}
+
+async function goLive(slug: string) {
+  if (
+    !confirm(
+      `Make "${slug}" the live edition? The current edition will be archived and participants will be asked to re-register.`,
+    )
+  )
+    return
+
+  editionBusy.value = true
+  editionError.value = ''
+  try {
+    await $fetch(`/api/admin/editions/${slug}/go-live`, { method: 'POST' })
+    await refreshEditions()
+    selectedSlug.value = slug
+  } catch (e: unknown) {
+    editionError.value = (e as { data?: { message?: string } }).data?.message ?? 'Failed to promote edition'
+  } finally {
+    editionBusy.value = false
+  }
+}
+
 // ── Existing data ────────────────────────────────────────────────────────────
-const { data: participants, refresh: refreshParticipants } = await useFetch<any[]>("/api/admin/participants");
-const { data: teams, refresh: refreshTeams } = await useFetch<any[]>("/api/admin/teams");
+const { data: participants, refresh: refreshParticipants } = await useFetch<any[]>("/api/admin/participants", { query: editionQuery });
+const { data: teams, refresh: refreshTeams } = await useFetch<any[]>("/api/admin/teams", { query: editionQuery });
 
 const selected = ref<any | null>(null);
 
@@ -68,7 +174,7 @@ interface EventConfig {
   github_urls_public: boolean
 }
 
-const { data: rawConfig, refresh: refreshConfig } = await useFetch<EventConfig>("/api/admin/live/config")
+const { data: rawConfig, refresh: refreshConfig } = await useFetch<EventConfig>("/api/admin/live/config", { query: editionQuery })
 
 const configForm = ref({
   event_name:         rawConfig.value?.event_name         ?? '',
@@ -79,11 +185,24 @@ const configForm = ref({
 
 const configSaving = ref(false)
 
+// rawConfig refetches when the edition selector changes; mirror it into the form.
+watch(rawConfig, (config) => {
+  configForm.value = {
+    event_name:         config?.event_name         ?? '',
+    event_start:        toSofiaLocal(config?.event_start ?? null),
+    event_end:          toSofiaLocal(config?.event_end   ?? null),
+    github_urls_public: config?.github_urls_public ?? false,
+  }
+})
+
+watch(selectedSlug, () => { selected.value = null })
+
 async function saveConfig() {
   configSaving.value = true
   try {
     await $fetch('/api/admin/live/config', {
       method: 'PATCH',
+      query: editionQuery.value,
       body: {
         event_name:         configForm.value.event_name,
         event_start:        configForm.value.event_start ? fromSofiaLocal(configForm.value.event_start) : null,
@@ -106,7 +225,7 @@ interface ScheduleItem {
   sort_order: number
 }
 
-const { data: scheduleData, refresh: refreshSchedule } = await useFetch<ScheduleItem[]>("/api/admin/live/schedule")
+const { data: scheduleData, refresh: refreshSchedule } = await useFetch<ScheduleItem[]>("/api/admin/live/schedule", { query: editionQuery })
 const scheduleItems   = computed({
   get: () => scheduleData.value ?? [],
   set: (v) => { if (scheduleData.value) scheduleData.value = v },
@@ -123,6 +242,7 @@ async function onScheduleDragEnd() {
   try {
     await $fetch('/api/admin/live/schedule/reorder', {
       method: 'POST',
+      query: editionQuery.value,
       body: { items: scheduleItems.value.map((s, i) => ({ id: s.id, sort_order: i + 1 })) },
     })
     await refreshSchedule()
@@ -143,6 +263,7 @@ function startEditSchedule(item: ScheduleItem) {
 async function saveEditSchedule(id: string) {
   await $fetch(`/api/admin/live/schedule/${id}`, {
     method: 'PATCH',
+    query: editionQuery.value,
     body: {
       label:     scheduleEditForm.value.label,
       starts_at: scheduleEditForm.value.starts_at ? fromSofiaLocal(scheduleEditForm.value.starts_at) : null,
@@ -155,7 +276,7 @@ async function saveEditSchedule(id: string) {
 
 async function deleteScheduleItem(id: string) {
   if (!confirm('Delete this schedule item?')) return
-  await $fetch(`/api/admin/live/schedule/${id}`, { method: 'DELETE' })
+  await $fetch(`/api/admin/live/schedule/${id}`, { method: 'DELETE', query: editionQuery.value })
   await refreshSchedule()
 }
 
@@ -165,6 +286,7 @@ async function addScheduleItem() {
   try {
     await $fetch('/api/admin/live/schedule', {
       method: 'POST',
+      query: editionQuery.value,
       body: {
         label:     scheduleNewForm.value.label.trim(),
         starts_at: scheduleNewForm.value.starts_at ? fromSofiaLocal(scheduleNewForm.value.starts_at) : null,
@@ -179,30 +301,104 @@ async function addScheduleItem() {
 }
 
 // ── Announcements ─────────────────────────────────────────────────────────────
+// One table, three channels: `live` is the /live ticker, `ops` banners show to
+// logged-in participants, `site` banners show to everyone.
+type AnnouncementChannel  = 'live' | 'ops' | 'site'
+type AnnouncementAudience = 'all' | 'leaders' | 'no_team' | 'missing_profile'
+type AnnouncementVariant  = 'info' | 'warning'
+
 interface Announcement {
-  id:         string
-  body:       string
-  sort_order: number
+  id:          string
+  body:        string
+  channel:     AnnouncementChannel
+  audience:    AnnouncementAudience
+  variant:     AnnouncementVariant
+  href:        string | null
+  dismissible: boolean
+  active:      boolean
+  starts_at:   string | null
+  ends_at:     string | null
+  sort_order:  number
 }
 
-const { data: announcementsData, refresh: refreshAnnouncements } = await useFetch<Announcement[]>("/api/admin/live/announcements")
+const ANNOUNCEMENT_CHANNELS: { value: AnnouncementChannel; label: string }[] = [
+  { value: 'live', label: 'Live ticker' },
+  { value: 'ops',  label: 'Ops banner (logged-in participants)' },
+  { value: 'site', label: 'Site banner (everyone)' },
+]
+
+const ANNOUNCEMENT_AUDIENCES: { value: AnnouncementAudience; label: string }[] = [
+  { value: 'all',             label: 'Everyone registered' },
+  { value: 'leaders',         label: 'Team leaders' },
+  { value: 'no_team',         label: 'Participants without a team' },
+  { value: 'missing_profile', label: 'Missing dietary or experience' },
+]
+
+const { data: announcementsData, refresh: refreshAnnouncements } = await useFetch<Announcement[]>("/api/admin/live/announcements", { query: editionQuery })
+
+const announcementChannel = ref<AnnouncementChannel>('live')
+
+// Drag-and-drop reorders within the selected channel only, so the list the
+// draggable owns is the filtered one.
 const announcementItems = computed({
-  get: () => announcementsData.value ?? [],
-  set: (v) => { if (announcementsData.value) announcementsData.value = v },
+  get: () => (announcementsData.value ?? []).filter((a) => a.channel === announcementChannel.value),
+  set: (v) => {
+    if (!announcementsData.value) return
+    const others = announcementsData.value.filter((a) => a.channel !== announcementChannel.value)
+    announcementsData.value = [...others, ...v]
+  },
 })
+
 const announcementsReordering = ref(false)
 const announcementEditId      = ref<string | null>(null)
-const announcementEditBody    = ref('')
+const announcementError       = ref('')
 
-const announcementNewBody = ref('')
-const announcementAdding  = ref(false)
+function blankAnnouncement() {
+  return {
+    body:        '',
+    channel:     announcementChannel.value,
+    audience:    'all' as AnnouncementAudience,
+    variant:     'info' as AnnouncementVariant,
+    href:        '',
+    dismissible: true,
+    active:      true,
+    starts_at:   '',
+    ends_at:     '',
+  }
+}
+
+const announcementEditForm = ref(blankAnnouncement())
+const announcementNewForm  = ref(blankAnnouncement())
+const announcementAdding   = ref(false)
+
+watch(announcementChannel, () => {
+  announcementNewForm.value.channel = announcementChannel.value
+})
+
+function announcementPayload(form: ReturnType<typeof blankAnnouncement>) {
+  return {
+    body:        form.body.trim(),
+    channel:     form.channel,
+    audience:    form.audience,
+    variant:     form.variant,
+    href:        form.href.trim() || null,
+    dismissible: form.dismissible,
+    active:      form.active,
+    starts_at:   form.starts_at ? fromSofiaLocal(form.starts_at) : null,
+    ends_at:     form.ends_at   ? fromSofiaLocal(form.ends_at)   : null,
+  }
+}
 
 async function onAnnouncementsDragEnd() {
   announcementsReordering.value = true
   try {
     await $fetch('/api/admin/live/announcements/reorder', {
       method: 'POST',
-      body: { items: announcementItems.value.map((a, i) => ({ id: a.id, sort_order: i + 1 })) },
+      query: editionQuery.value,
+      body: {
+        channel: announcementChannel.value,
+        items: announcementItems.value.map((a, i) => ({ id: a.id, sort_order: i + 1 })),
+      },
     })
     await refreshAnnouncements()
   } finally {
@@ -211,35 +407,69 @@ async function onAnnouncementsDragEnd() {
 }
 
 function startEditAnnouncement(item: Announcement) {
-  announcementEditId.value   = item.id
-  announcementEditBody.value = item.body
+  announcementEditId.value = item.id
+  announcementEditForm.value = {
+    body:        item.body,
+    channel:     item.channel,
+    audience:    item.audience,
+    variant:     item.variant,
+    href:        item.href ?? '',
+    dismissible: item.dismissible,
+    active:      item.active,
+    starts_at:   toSofiaLocal(item.starts_at),
+    ends_at:     toSofiaLocal(item.ends_at),
+  }
 }
 
 async function saveEditAnnouncement(id: string) {
-  await $fetch(`/api/admin/live/announcements/${id}`, {
-    method: 'PATCH',
-    body: { body: announcementEditBody.value },
-  })
-  announcementEditId.value = null
-  await refreshAnnouncements()
+  announcementError.value = ''
+  try {
+    await $fetch(`/api/admin/live/announcements/${id}`, {
+      method: 'PATCH',
+      query: editionQuery.value,
+      body: announcementPayload(announcementEditForm.value),
+    })
+    announcementEditId.value = null
+    await refreshAnnouncements()
+  } catch (e: unknown) {
+    announcementError.value = (e as { data?: { message?: string } }).data?.message ?? 'Failed to save'
+  }
+}
+
+async function toggleAnnouncementActive(item: Announcement) {
+  announcementError.value = ''
+  try {
+    await $fetch(`/api/admin/live/announcements/${item.id}`, {
+      method: 'PATCH',
+      query: editionQuery.value,
+      body: { active: !item.active },
+    })
+    await refreshAnnouncements()
+  } catch (e: unknown) {
+    announcementError.value = (e as { data?: { message?: string } }).data?.message ?? 'Failed to save'
+  }
 }
 
 async function deleteAnnouncement(id: string) {
   if (!confirm('Delete this announcement?')) return
-  await $fetch(`/api/admin/live/announcements/${id}`, { method: 'DELETE' })
+  await $fetch(`/api/admin/live/announcements/${id}`, { method: 'DELETE', query: editionQuery.value })
   await refreshAnnouncements()
 }
 
 async function addAnnouncement() {
-  if (!announcementNewBody.value.trim()) return
+  if (!announcementNewForm.value.body.trim()) return
   announcementAdding.value = true
+  announcementError.value = ''
   try {
     await $fetch('/api/admin/live/announcements', {
       method: 'POST',
-      body: { body: announcementNewBody.value.trim() },
+      query: editionQuery.value,
+      body: announcementPayload(announcementNewForm.value),
     })
-    announcementNewBody.value = ''
+    announcementNewForm.value = blankAnnouncement()
     await refreshAnnouncements()
+  } catch (e: unknown) {
+    announcementError.value = (e as { data?: { message?: string } }).data?.message ?? 'Failed to add'
   } finally {
     announcementAdding.value = false
   }
@@ -248,10 +478,136 @@ async function addAnnouncement() {
 
 <template>
   <main class="max-w-5xl mx-auto p-6 space-y-12 bg-base-100">
-    <div class="flex flex-col md:flex-row items-center justify-between">
+    <div class="flex flex-col md:flex-row items-center justify-between gap-3">
       <h1 class="text-4xl font-black uppercase">Admin</h1>
-      <NuxtLink to="/ops/dashboard" class="btn btn-ghost btn-sm">← Dashboard</NuxtLink>
+      <div class="flex items-center gap-3">
+        <label class="text-sm font-semibold opacity-70">Edition</label>
+        <select v-model="selectedSlug" class="select select-bordered select-sm">
+          <option v-for="e in editions ?? []" :key="e.slug" :value="e.slug">
+            {{ e.name }}{{ e.is_current ? ' (current)' : ` — ${e.status}` }}
+          </option>
+        </select>
+        <NuxtLink to="/ops/dashboard" class="btn btn-ghost btn-sm">← Dashboard</NuxtLink>
+      </div>
     </div>
+
+    <div v-if="editionReadOnly" class="alert alert-warning text-sm">
+      Viewing an archived edition. Its data is read-only.
+    </div>
+
+    <!-- ── Editions ─────────────────────────────────────────────────────── -->
+    <section class="space-y-6">
+      <h2 class="text-2xl font-bold">Editions</h2>
+
+      <div class="card bg-base-200 border border-base-content/20">
+        <div class="card-body space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="font-black text-lg uppercase">All editions</h3>
+            <button class="btn btn-ghost btn-xs" @click="showEditions = !showEditions">
+              {{ showEditions ? 'Hide' : 'Show' }}
+            </button>
+          </div>
+
+          <div v-show="showEditions" class="space-y-4">
+            <div v-if="editionError" class="alert alert-error text-sm">{{ editionError }}</div>
+
+            <div class="overflow-x-auto">
+              <table class="table table-sm">
+                <thead>
+                  <tr>
+                    <th>Slug</th><th>Name</th><th>Status</th><th>Cap</th><th>Participant area</th><th />
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="e in editions ?? []" :key="e.slug">
+                    <td class="font-mono">{{ e.slug }}</td>
+                    <td>{{ e.name }}</td>
+                    <td>
+                      <span
+                        class="badge badge-sm"
+                        :class="{
+                          'badge-success': e.is_current,
+                          'badge-ghost': e.status === 'draft',
+                          'badge-neutral': e.status === 'archived',
+                        }"
+                      >
+                        {{ e.is_current ? 'live (current)' : e.status }}
+                      </span>
+                    </td>
+                    <td>{{ e.participant_cap }}</td>
+                    <td>
+                      <label class="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          class="toggle toggle-sm toggle-success"
+                          :checked="e.ops_enabled"
+                          :disabled="editionBusy || e.status === 'archived'"
+                          @change="setOpsEnabled(e, ($event.target as HTMLInputElement).checked)"
+                        />
+                        <span class="text-xs uppercase font-bold opacity-70">
+                          {{ e.ops_enabled ? 'open' : 'closed' }}
+                        </span>
+                      </label>
+                    </td>
+                    <td>
+                      <button
+                        v-if="e.status === 'draft'"
+                        class="btn btn-warning btn-xs font-black uppercase"
+                        :disabled="editionBusy"
+                        @click="goLive(e.slug)"
+                      >
+                        Go live
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="border-t border-base-content/20 pt-4 space-y-3">
+              <h4 class="font-bold text-sm uppercase opacity-70">Create next edition (draft)</h4>
+              <div class="flex flex-col sm:flex-row gap-3">
+                <input
+                  v-model="newEdition.slug"
+                  type="text"
+                  placeholder="2027"
+                  class="input input-bordered input-sm flex-1"
+                />
+                <input
+                  v-model="newEdition.name"
+                  type="text"
+                  placeholder="LiberHack 2027"
+                  class="input input-bordered input-sm flex-1"
+                />
+                <input
+                  v-model.number="newEdition.participant_cap"
+                  type="number"
+                  min="1"
+                  class="input input-bordered input-sm w-28"
+                />
+              </div>
+              <div class="flex flex-col sm:flex-row gap-3">
+                <div class="flex flex-col gap-1 flex-1">
+                  <label class="text-sm font-semibold opacity-70">Starts at (Sofia)</label>
+                  <input v-model="newEdition.starts_at" type="datetime-local" class="input input-bordered input-sm w-full" />
+                </div>
+                <div class="flex flex-col gap-1 flex-1">
+                  <label class="text-sm font-semibold opacity-70">Ends at (Sofia)</label>
+                  <input v-model="newEdition.ends_at" type="datetime-local" class="input input-bordered input-sm w-full" />
+                </div>
+              </div>
+              <button
+                class="btn btn-primary btn-sm font-black uppercase"
+                :disabled="editionBusy || !newEdition.slug.trim() || !newEdition.name.trim()"
+                @click="createEdition"
+              >
+                {{ editionBusy ? 'Working…' : 'Create draft' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
 
     <!-- ── Live CMS ─────────────────────────────────────────────────────── -->
     <section class="space-y-6">
@@ -305,7 +661,7 @@ async function addAnnouncement() {
             </div>
             <button
               class="btn btn-primary btn-sm"
-              :disabled="configSaving"
+              :disabled="editionReadOnly || configSaving"
               @click="saveConfig"
             >
               {{ configSaving ? 'Saving…' : 'Save' }}
@@ -419,7 +775,7 @@ async function addAnnouncement() {
               </div>
               <button
                 class="btn btn-primary btn-sm shrink-0"
-                :disabled="scheduleAdding || !scheduleNewForm.label.trim()"
+                :disabled="editionReadOnly || scheduleAdding || !scheduleNewForm.label.trim()"
                 @click="addScheduleItem"
               >
                 {{ scheduleAdding ? 'Adding…' : '+ Add' }}
@@ -432,14 +788,23 @@ async function addAnnouncement() {
       <!-- Announcements -->
       <div class="card bg-base-200 border border-base-content/20">
         <div class="card-body space-y-4">
-          <div class="flex items-center justify-between">
+          <div class="flex items-center justify-between gap-3 flex-wrap">
             <h3 class="font-black text-lg uppercase">Announcements ({{ announcementItems.length }})</h3>
-            <button class="btn btn-ghost btn-xs" @click="showAnnouncements = !showAnnouncements">
-              {{ showAnnouncements ? 'Hide' : 'Show' }}
-            </button>
+            <div class="flex items-center gap-2">
+              <select v-model="announcementChannel" class="select select-bordered select-xs">
+                <option v-for="c in ANNOUNCEMENT_CHANNELS" :key="c.value" :value="c.value">
+                  {{ c.label }}
+                </option>
+              </select>
+              <button class="btn btn-ghost btn-xs" @click="showAnnouncements = !showAnnouncements">
+                {{ showAnnouncements ? 'Hide' : 'Show' }}
+              </button>
+            </div>
           </div>
 
           <div v-show="showAnnouncements" class="space-y-4">
+            <div v-if="announcementError" class="alert alert-error text-sm">{{ announcementError }}</div>
+
             <div
               class="overflow-x-auto transition-opacity"
               :class="{ 'pointer-events-none opacity-50': announcementsReordering }"
@@ -447,9 +812,11 @@ async function addAnnouncement() {
               <table class="table table-xs w-full">
                 <thead>
                   <tr>
-                    <th class="w-8"></th>
+                    <th class="w-8" />
                     <th>Body</th>
-                    <th></th>
+                    <th>Shown to</th>
+                    <th>State</th>
+                    <th />
                   </tr>
                 </thead>
                 <VueDraggable
@@ -458,28 +825,93 @@ async function addAnnouncement() {
                   handle=".ann-drag-handle"
                   @end="onAnnouncementsDragEnd"
                 >
-                  <tr v-for="item in announcementItems" :key="item.id">
+                  <tr v-for="item in announcementItems" :key="item.id" :class="{ 'opacity-40': !item.active }">
                     <td>
                       <span class="ann-drag-handle cursor-grab select-none text-base opacity-40 hover:opacity-80">⠿</span>
                     </td>
                     <template v-if="announcementEditId === item.id">
-                      <td>
-                        <input
-                          v-model="announcementEditBody"
-                          type="text"
-                          class="input input-bordered input-xs w-full min-w-48"
-                        />
-                      </td>
-                      <td class="flex gap-1">
-                        <button class="btn btn-success btn-xs" @click="saveEditAnnouncement(item.id)">Save</button>
-                        <button class="btn btn-ghost btn-xs" @click="announcementEditId = null">Cancel</button>
+                      <td colspan="4">
+                        <div class="flex flex-col gap-2 py-2">
+                          <textarea
+                            v-model="announcementEditForm.body"
+                            rows="2"
+                            maxlength="300"
+                            class="textarea textarea-bordered textarea-xs w-full min-w-64"
+                          />
+                          <div class="flex flex-wrap gap-2">
+                            <select v-model="announcementEditForm.channel" class="select select-bordered select-xs">
+                              <option v-for="c in ANNOUNCEMENT_CHANNELS" :key="c.value" :value="c.value">{{ c.label }}</option>
+                            </select>
+                            <select
+                              v-if="announcementEditForm.channel === 'ops'"
+                              v-model="announcementEditForm.audience"
+                              class="select select-bordered select-xs"
+                            >
+                              <option v-for="a in ANNOUNCEMENT_AUDIENCES" :key="a.value" :value="a.value">{{ a.label }}</option>
+                            </select>
+                            <select v-model="announcementEditForm.variant" class="select select-bordered select-xs">
+                              <option value="info">Info</option>
+                              <option value="warning">Warning</option>
+                            </select>
+                            <input
+                              v-model="announcementEditForm.href"
+                              type="text"
+                              placeholder="/ops/dashboard or https://…"
+                              class="input input-bordered input-xs flex-1 min-w-48"
+                            />
+                          </div>
+                          <div class="flex flex-wrap gap-3 items-center">
+                            <label class="flex items-center gap-1 text-xs">
+                              <input v-model="announcementEditForm.dismissible" type="checkbox" class="checkbox checkbox-xs" />
+                              Dismissible
+                            </label>
+                            <label class="flex items-center gap-1 text-xs">
+                              <input v-model="announcementEditForm.active" type="checkbox" class="checkbox checkbox-xs" />
+                              Active
+                            </label>
+                            <label class="flex items-center gap-1 text-xs">
+                              From
+                              <input v-model="announcementEditForm.starts_at" type="datetime-local" class="input input-bordered input-xs" />
+                            </label>
+                            <label class="flex items-center gap-1 text-xs">
+                              Until
+                              <input v-model="announcementEditForm.ends_at" type="datetime-local" class="input input-bordered input-xs" />
+                            </label>
+                          </div>
+                          <div class="flex gap-1">
+                            <button class="btn btn-success btn-xs" @click="saveEditAnnouncement(item.id)">Save</button>
+                            <button class="btn btn-ghost btn-xs" @click="announcementEditId = null">Cancel</button>
+                          </div>
+                        </div>
                       </td>
                     </template>
                     <template v-else>
-                      <td>{{ item.body }}</td>
+                      <td>
+                        {{ item.body }}
+                        <span v-if="item.href" class="opacity-50 font-mono text-[10px] block">{{ item.href }}</span>
+                      </td>
+                      <td>
+                        <span v-if="item.channel === 'ops'" class="badge badge-ghost badge-xs">{{ item.audience }}</span>
+                        <span v-else class="opacity-40">—</span>
+                      </td>
+                      <td class="whitespace-nowrap">
+                        <span class="badge badge-xs" :class="item.variant === 'warning' ? 'badge-warning' : 'badge-ghost'">
+                          {{ item.variant }}
+                        </span>
+                        <span v-if="!item.dismissible" class="badge badge-xs badge-neutral ml-1">pinned</span>
+                        <span v-if="item.starts_at || item.ends_at" class="badge badge-xs badge-outline ml-1">scheduled</span>
+                      </td>
                       <td class="flex gap-1">
-                        <button class="btn btn-outline btn-xs" @click="startEditAnnouncement(item)">Edit</button>
-                        <button class="btn btn-error btn-xs" @click="deleteAnnouncement(item.id)">Delete</button>
+                        <button
+                          class="btn btn-xs"
+                          :class="item.active ? 'btn-outline' : 'btn-warning'"
+                          :disabled="editionReadOnly"
+                          @click="toggleAnnouncementActive(item)"
+                        >
+                          {{ item.active ? 'Disable' : 'Enable' }}
+                        </button>
+                        <button class="btn btn-outline btn-xs" :disabled="editionReadOnly" @click="startEditAnnouncement(item)">Edit</button>
+                        <button class="btn btn-error btn-xs" :disabled="editionReadOnly" @click="deleteAnnouncement(item.id)">Delete</button>
                       </td>
                     </template>
                   </tr>
@@ -488,23 +920,62 @@ async function addAnnouncement() {
             </div>
 
             <!-- Add row -->
-            <div class="flex gap-2 items-end border-t border-base-content/10 pt-3">
-              <div class="flex flex-col gap-1 flex-1">
-                <label class="text-xs opacity-60">Announcement text</label>
+            <div class="flex flex-col gap-2 border-t border-base-content/10 pt-3">
+              <label class="text-xs opacity-60">New announcement</label>
+              <textarea
+                v-model="announcementNewForm.body"
+                rows="2"
+                maxlength="300"
+                class="textarea textarea-bordered textarea-sm w-full"
+                placeholder="Lunch is served on floor 2!"
+              />
+              <div class="flex flex-wrap gap-2">
+                <select v-model="announcementNewForm.channel" class="select select-bordered select-xs">
+                  <option v-for="c in ANNOUNCEMENT_CHANNELS" :key="c.value" :value="c.value">{{ c.label }}</option>
+                </select>
+                <select
+                  v-if="announcementNewForm.channel === 'ops'"
+                  v-model="announcementNewForm.audience"
+                  class="select select-bordered select-xs"
+                >
+                  <option v-for="a in ANNOUNCEMENT_AUDIENCES" :key="a.value" :value="a.value">{{ a.label }}</option>
+                </select>
+                <select v-model="announcementNewForm.variant" class="select select-bordered select-xs">
+                  <option value="info">Info</option>
+                  <option value="warning">Warning</option>
+                </select>
                 <input
-                  v-model="announcementNewBody"
+                  v-model="announcementNewForm.href"
                   type="text"
-                  class="input input-bordered input-sm w-full"
-                  placeholder="Lunch is served on floor 2!"
+                  placeholder="/ops/dashboard or https://…"
+                  class="input input-bordered input-xs flex-1 min-w-48"
                 />
               </div>
-              <button
-                class="btn btn-primary btn-sm shrink-0"
-                :disabled="announcementAdding || !announcementNewBody.trim()"
-                @click="addAnnouncement"
-              >
-                {{ announcementAdding ? 'Adding…' : '+ Add' }}
-              </button>
+              <div class="flex flex-wrap gap-3 items-center">
+                <label class="flex items-center gap-1 text-xs">
+                  <input v-model="announcementNewForm.dismissible" type="checkbox" class="checkbox checkbox-xs" />
+                  Dismissible
+                </label>
+                <label class="flex items-center gap-1 text-xs">
+                  <input v-model="announcementNewForm.active" type="checkbox" class="checkbox checkbox-xs" />
+                  Active
+                </label>
+                <label class="flex items-center gap-1 text-xs">
+                  From
+                  <input v-model="announcementNewForm.starts_at" type="datetime-local" class="input input-bordered input-xs" />
+                </label>
+                <label class="flex items-center gap-1 text-xs">
+                  Until
+                  <input v-model="announcementNewForm.ends_at" type="datetime-local" class="input input-bordered input-xs" />
+                </label>
+                <button
+                  class="btn btn-primary btn-sm shrink-0"
+                  :disabled="editionReadOnly || announcementAdding || !announcementNewForm.body.trim()"
+                  @click="addAnnouncement"
+                >
+                  {{ announcementAdding ? 'Adding…' : '+ Add' }}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -515,7 +986,7 @@ async function addAnnouncement() {
     <section>
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-2xl font-bold">Participants ({{ participants?.length ?? 0 }})</h2>
-        <a href="/api/admin/participants/export" download class="btn btn-outline btn-sm">↓ Export CSV</a>
+        <a :href="`/api/admin/participants/export?edition=${selectedSlug}`" download class="btn btn-outline btn-sm">↓ Export CSV</a>
       </div>
       <div class="overflow-x-auto">
         <table class="table table-xs md:table-md w-full">
@@ -549,6 +1020,7 @@ async function addAnnouncement() {
               <td>
                 <button
                   class="btn btn-error btn-xs"
+                  :disabled="editionReadOnly"
                   @click.stop="deleteParticipant(p.id)"
                 >
                   Delete
@@ -564,7 +1036,7 @@ async function addAnnouncement() {
     <section>
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-2xl font-bold">Teams ({{ teams?.length ?? 0 }})</h2>
-        <a href="/api/admin/teams/export" download class="btn btn-outline btn-sm">↓ Export CSV</a>
+        <a :href="`/api/admin/teams/export?edition=${selectedSlug}`" download class="btn btn-outline btn-sm">↓ Export CSV</a>
       </div>
       <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div
@@ -577,6 +1049,7 @@ async function addAnnouncement() {
               <h3 class="card-title font-black text-base">{{ team.name }}</h3>
               <button
                 class="btn btn-error btn-xs shrink-0"
+                :disabled="editionReadOnly"
                 @click="deleteTeam(team.id)"
               >
                 Delete
@@ -627,7 +1100,10 @@ async function addAnnouncement() {
           <span>{{ selected.dietary || '—' }}</span>
 
           <span class="opacity-50 font-semibold">Registered</span>
-          <span>{{ new Date(selected.created_at).toLocaleString() }}</span>
+          <span>{{ new Date(selected.registered_at).toLocaleString() }}</span>
+
+          <span class="opacity-50 font-semibold">Public</span>
+          <span>{{ selected.public ? 'yes' : 'opted out' }}</span>
         </div>
 
         <div v-if="selected.skills?.length">
@@ -649,6 +1125,7 @@ async function addAnnouncement() {
       <div class="modal-action">
         <button
           class="btn btn-error btn-sm"
+          :disabled="editionReadOnly"
           @click="deleteParticipant(selected.id)"
         >Delete participant</button>
         <button class="btn btn-sm" @click="selected = null">Close</button>
