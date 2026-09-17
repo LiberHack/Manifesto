@@ -8,6 +8,8 @@ export interface Edition {
   ends_at: string | null;
   status: "draft" | "live" | "archived";
   participant_cap: number;
+  /** Whether the participant area is open for this edition. Admin-controlled. */
+  ops_enabled: boolean;
 }
 
 export interface Registration {
@@ -43,7 +45,7 @@ export async function getCurrentEdition(
 ): Promise<Edition | null> {
   const { data } = await supabase
     .from("editions")
-    .select("slug, name, starts_at, ends_at, status, participant_cap")
+    .select("slug, name, starts_at, ends_at, status, participant_cap, ops_enabled")
     .eq("is_current", true)
     .maybeSingle();
 
@@ -57,6 +59,7 @@ export async function getCurrentEdition(
  * is the thin H3 wrapper that supplies the user and the client.
  *
  * @throws 401 when `user` is null, 503 when no edition is live,
+ *   403 `ops_closed` when the edition's participant area has not opened,
  *   403 `not_registered` when the account has not opted into it.
  */
 export async function resolveRegistrationContext(
@@ -68,6 +71,12 @@ export async function resolveRegistrationContext(
   const edition = await getCurrentEdition(supabase);
   if (!edition) {
     throw createError({ statusCode: 503, message: "no_live_edition" });
+  }
+
+  // Checked before the registration lookup: while the participant area is
+  // closed, whether the caller happens to be registered is not the point.
+  if (!edition.ops_enabled) {
+    throw createError({ statusCode: 403, message: "ops_closed" });
   }
 
   const { data: registration } = await supabase

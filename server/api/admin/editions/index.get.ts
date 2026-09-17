@@ -6,7 +6,7 @@ export default defineEventHandler(async (event) => {
   const { data, error } = await supabase
     .from("editions")
     .select(
-      "slug, name, starts_at, ends_at, status, is_current, participant_cap, created_at",
+      "slug, name, starts_at, ends_at, status, is_current, participant_cap, ops_enabled, created_at",
     )
     .order("created_at", { ascending: false });
 

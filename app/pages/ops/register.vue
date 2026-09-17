@@ -21,14 +21,13 @@ if (inviteCode) {
 }
 
 // Pre-flight: the cap now lives on registrations, so signup itself no longer
-// fails when an edition is full — the form has to check and say so.
-const { data: editionState } = await useFetch<{
-  edition: { name: string } | null;
-  full: boolean;
-}>("/api/editions/current");
+// fails when an edition is full — the form has to check and say so. The same
+// call says whether registration has opened at all.
+const { data: editionState } = await useCurrentEdition();
 
+const opsClosed = computed(() => !editionState.value.ops_open);
 const registrationFull = computed(
-  () => !editionState.value?.edition || editionState.value.full,
+  () => !editionState.value.edition || editionState.value.full,
 );
 
 const form = reactive({
@@ -84,7 +83,24 @@ async function register() {
 
 <template>
   <main class="w-full min-h-screen flex items-center justify-center p-4 py-12">
+    <div
+      v-if="opsClosed"
+      class="w-full max-w-md flex flex-col gap-4 bg-base-100 p-8 border-primary border-2"
+    >
+      <h1 class="text-4xl font-black uppercase tracking-tight">
+        Registration is not open yet
+      </h1>
+      <p class="text-sm opacity-70">
+        Sign-ups for the next LiberHack have not started. Watch this page — and
+        our channels — for the date.
+      </p>
+      <NuxtLink to="/" class="btn btn-primary font-black uppercase">
+        Back to the site
+      </NuxtLink>
+    </div>
+
     <form
+      v-else
       class="w-full max-w-md flex flex-col gap-2 bg-base-100 p-8 border-primary border-2"
       @submit.prevent="register"
     >

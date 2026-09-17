@@ -28,14 +28,18 @@ run() { psql -q -d liberhack -v ON_ERROR_STOP=1 -f "$1" >/dev/null; }
 
 run "$ROOT/supabase/tests/00-bootstrap.sql"
 
+# Migrations from here on are the edition system under test; everything before
+# it is the schema the seed data was written against.
+UNDER_TEST_FROM=20260916000100
+
 # Everything already deployed, then realistic 2026 data, then the new migrations.
 for f in "$ROOT"/supabase/migrations/*.sql; do
-  case "$(basename "$f")" in 20260916*) continue ;; esac
-  run "$f"
+  if [[ "$(basename "$f")" < "$UNDER_TEST_FROM" ]]; then run "$f"; fi
 done
 run "$ROOT/supabase/tests/01-seed-2026.sql"
 
-for f in "$ROOT"/supabase/migrations/20260916*.sql; do
+for f in "$ROOT"/supabase/migrations/*.sql; do
+  [[ "$(basename "$f")" < "$UNDER_TEST_FROM" ]] && continue
   printf '%-58s' "$(basename "$f")"
   run "$f"
   echo "applied"
@@ -46,6 +50,7 @@ echo
 # verification files share one session.
 psql -d liberhack -v ON_ERROR_STOP=1 \
   -f "$ROOT/supabase/tests/02-verify-editions.sql" \
-  -f "$ROOT/supabase/tests/03-verify-announcements.sql" 2>&1 \
+  -f "$ROOT/supabase/tests/03-verify-announcements.sql" \
+  -f "$ROOT/supabase/tests/04-verify-ops-toggle.sql" 2>&1 \
   | grep -E 'PASS|FAIL|VERIFICATION' \
   | sed 's/^psql:.*NOTICE:  //'
