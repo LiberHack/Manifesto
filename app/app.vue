@@ -5,9 +5,9 @@ useHead({
 });
 
 useSeoMeta({
-	description: "The LiberHack burgas hackaton.",
+	description: "LiberHack · Edition 2 — 48-часов хакатон за граждански технологии, 27-29 ноември 2026, Международен конгресен център Бургас.",
 	ogTitle: "LiberHack",
-	ogDescription: "The LiberHack burgas hackaton",
+	ogDescription: "LiberHack · Edition 2 — 48-часов хакатон за граждански технологии, 27-29 ноември 2026, Бургас",
 	ogImage: "/favicon.webp",
 	twitterCard: "summary_large_image",
 });

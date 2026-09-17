@@ -1,56 +1,57 @@
 ---
-title: Privacy Policy
+title: Политика за поверителност
 ---
 
-# Privacy Policy
+# Политика за поверителност
 
-**Last updated: April 2026**
+**Последна актуализация: септември 2026 г.**
 
-LiberHack ("we", "us", "our") collects personal data when you register for the event. This page explains what we collect, why, and how long we keep it.
+LiberHack („ние") събира лични данни, когато се регистрирате за събитието. Тази страница обяснява какво събираме, защо и колко дълго го съхраняваме.
 
-## What We Collect
+## Какви данни събираме
 
-When you register, we collect:
+При регистрация събираме:
 
-- **Name** — for registration, team assignment, and certificate issuance.
-- **Email address** — to send event results, logistics, and notifications about future LiberHack editions, training, and related initiatives.
-- **Password** — stored hashed; we never see it in plain text.
-- **Skills** — to assist with team-matching and to help you find collaborators.
-- **Experience level** — to allocate mentors and workshops appropriately, and for sponsor sharing (see below).
-- **Dietary requirements** — passed to our catering provider only; not shared with sponsors or third parties beyond that.
+- **Име** — за регистрацията, разпределението по отбори и издаването на сертификати.
+- **Имейл адрес** — за изпращане на резултатите от събитието, организационна информация и известия за бъдещи издания на LiberHack, обучения и свързани инициативи.
+- **Парола** — съхранява се хеширана; ние никога не я виждаме в явен вид.
+- **Умения** — за подпомагане на разпределението по отбори и за да намерите съотборници.
+- **Ниво на опит** — за подходящо разпределение на ментори и уъркшопи, както и за споделяне с партньори (виж по-долу).
+- **Хранителни изисквания** — предават се само на кетъринг доставчика; не се споделят с партньори или други трети страни.
 
-## How We Use Your Data
+## Как използваме данните ви
 
-- **Registration and logistics** — name, email, and event-related fields are used to organise your participation and issue certificates.
-- **Future communications** — your email address will be used to inform you about results and future LiberHack events, training, and initiatives.
+- **Регистрация и организация** — името, имейлът и свързаните със събитието полета се използват, за да организираме участието ви и да издадем сертификати.
+- **Бъдеща комуникация** — имейл адресът ви ще се използва, за да ви информираме за резултатите и за бъдещи събития, обучения и инициативи на LiberHack.
 
-## Sponsor Data Sharing
+## Споделяне на данни с партньори
 
-With your explicit consent given at registration, your **name, contact details (email), and skills** may be shared with LiberHack's official partners for the purposes of internships and career opportunities.
+С вашето изрично съгласие, дадено при регистрацията, вашите **име, контакти (имейл) и умения** могат да бъдат споделени с официалните партньори на LiberHack за целите на стажове и кариерни възможности.
 
-**Platinum sponsors** additionally receive a structured participant profile database — including name, email, skills, and experience level — compiled from consenting registrants. This is a stated benefit of the Platinum sponsorship tier.
+**Платинените партньори** допълнително получават структурирана база с профили на участниците — включително име, имейл, умения и ниво на опит — съставена от регистрираните, които са дали съгласие. Това е обявена полза от платиненото ниво на партньорство.
 
-You may withdraw your consent for sponsor data sharing at any time by emailing us before the event. Withdrawal does not affect the lawfulness of sharing that occurred before the request.
+Можете да оттеглите съгласието си за споделяне с партньори по всяко време, като ни пишете преди събитието. Оттеглянето не засяга законосъобразността на споделянето, извършено преди искането.
 
-## How Long We Keep It
+## Колко дълго съхраняваме данните
 
-| Data | Retention period |
+| Данни | Срок на съхранение |
 |------|-----------------|
-| Administrative event data (skills, experience, dietary) | Deleted within **1 month** after the event |
-| Email address | Stored for up to **3 years** for future event communication, unless you request deletion earlier |
-| Anonymised aggregate statistics | Kept indefinitely |
+| Административни данни за събитието (умения, опит, хранителни изисквания) | Изтриват се до **1 месец** след събитието |
+| Имейл адрес | Съхранява се до **3 години** за комуникация относно бъдещи издания, освен ако не поискате изтриване по-рано |
+| Анонимизирана обобщена статистика | Съхранява се безсрочно |
 
-## Your Rights
+## Вашите права
 
-Under GDPR you have the right to:
+Съгласно Общия регламент относно защитата на данните (GDPR) имате право да:
 
-- Access the personal data we hold about you
-- Correct inaccurate data
-- Request deletion of your data
-- Withdraw consent for sponsor data sharing
+- получите достъп до личните данни, които съхраняваме за вас;
+- коригирате неточни данни;
+- поискате изтриване на данните си;
+- оттеглите съгласието си за споделяне с партньори;
+- подадете жалба до Комисията за защита на личните данни (КЗЛД).
 
-To exercise any of these rights, email **[privacy@liberhack.org](mailto:contact@liberhack.org)**.
+За да упражните някое от тези права, пишете на **[privacy@liberhack.org](mailto:privacy@liberhack.org)**.
 
-## Contact
+## Контакт
 
-For any privacy-related questions, contact us at **[privacy@liberhack.org](mailto:contact@liberhack.org)**.
+При въпроси, свързани с поверителността, пишете ни на **[privacy@liberhack.org](mailto:privacy@liberhack.org)**.
