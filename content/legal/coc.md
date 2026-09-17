@@ -1,57 +1,57 @@
 ---
-title: Code of Conduct
+title: Етичен кодекс
 ---
 
-# Code of Conduct
+# Етичен кодекс
 
-LiberHack is a community event. We want it to be a good experience for everyone — regardless of background, skill level, or how you got here.
+LiberHack е събитие на общност. Искаме то да е добро преживяване за всички — независимо от произход, ниво на умения или как сте попаднали тук.
 
-## The Short Version
+## Накратко
 
-Be decent. Don't be an asshole.
+Дръж се свястно. Не бъди гадняр.
 
-## The Longer Version
+## По-дългата версия
 
-### Expected Behaviour
+### Очаквано поведение
 
-- Treat everyone with respect. Yes, even people you disagree with.
-- Be welcoming to newcomers. They're the point.
-- Give feedback on ideas, not on people.
-- Ask before photographing or recording others.
-- If something feels off, speak up — to the person or to an organiser.
+- Отнасяйте се с уважение към всички. Да, включително към хората, с които не сте съгласни.
+- Бъдете посрещащи към новодошлите. Те са смисълът.
+- Давайте обратна връзка за идеите, не за хората.
+- Питайте, преди да снимате или записвате други.
+- Ако нещо не е наред, кажете — на човека или на организатор.
 
-### Unacceptable Behaviour
+### Неприемливо поведение
 
-The following will not be tolerated:
+Следното няма да бъде толерирано:
 
-- Harassment, intimidation, or discrimination of any kind — including but not limited to sex, gender identity, sexual orientation, race, ethnicity, disability, age, religion, or skill level.
-- Deliberate misgendering or use of rejected names.
-- Sexualised language, imagery, or unwanted physical contact.
-- Sustained disruption of talks, workshops, or general work.
-- Threats or acts of violence.
-- Doxxing or sharing others' personal information without consent.
+- Тормоз, сплашване или дискриминация от всякакъв вид — включително, но не само, на основата на пол, полова идентичност, сексуална ориентация, раса, етническа принадлежност, увреждане, възраст, религия или ниво на умения.
+- Умишлено обръщение с грешен пол или с отхвърлено име.
+- Сексуализиран език, изображения или нежелан физически контакт.
+- Продължително възпрепятстване на презентации, уъркшопи или работата на останалите.
+- Заплахи или актове на насилие.
+- Разкриване или споделяне на чужди лични данни без съгласие.
 
-### Alcohol & Substances
+### Алкохол и вещества
 
-If the event serves alcohol, you are responsible for your own consumption. Being intoxicated is not an excuse for violating this code.
+Ако на събитието се сервира алкохол, вие носите отговорност за собствената си консумация. Употребата не е извинение за нарушаване на този кодекс.
 
-### Consequences
+### Последствия
 
-Violations may result in:
+Нарушенията могат да доведат до:
 
-1. A warning
-2. Removal from the event without refund
-3. A ban from future LiberHack events
-4. Referral to relevant authorities where applicable
+1. Предупреждение
+2. Отстраняване от събитието без възстановяване на суми
+3. Забрана за участие в бъдещи събития на LiberHack
+4. Сезиране на компетентните органи, когато е приложимо
 
-Organisers have final say.
+Организаторите имат последната дума.
 
-## Reporting
+## Подаване на сигнал
 
-To report a violation, contact an organiser in person or email **[contact@liberhack.org](mailto:contact@liberhack.org)**. All reports are treated confidentially.
+За да подадете сигнал за нарушение, потърсете организатор на място или пишете на **[contact@liberhack.org](mailto:contact@liberhack.org)**. Всички сигнали се третират поверително.
 
-If you are in immediate danger, call emergency services first.
+Ако сте в непосредствена опасност, първо се обадете на спешните служби.
 
 ---
 
-*Based on the [Contributor Covenant](https://www.contributor-covenant.org/) and adapted for live event use.*
+*Базиран на [Contributor Covenant](https://www.contributor-covenant.org/) и адаптиран за събития на живо.*
