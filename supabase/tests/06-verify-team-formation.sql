@@ -196,6 +196,85 @@ select assert(
            (select id from public.teams where name = 'formers'), 'invite_link')$$, 'team_full'),
   'a seventh member is refused');
 
+-- ── declared size, switching and archived editions ─────────────────────────
+-- 'others' (led by r208) declares room for two.
+update public.teams set desired_size = 2 where name = 'others';
+
+select assert(
+  raises($$update public.teams set desired_size = 5 where name = 'formers'$$,
+         'desired_size_below_members'),
+  'a team cannot declare a size below its membership');
+
+select public.join_team('00000000-0000-0000-0000-000000000207',
+  (select id from public.teams where name = 'others'), 'invite_link');
+
+select assert(
+  raises($$select public.join_team('00000000-0000-0000-0000-000000000202',
+           (select id from public.teams where name = 'others'), 'invite_link', null, true)$$,
+         'team_full'),
+  'joins respect the declared size, not only the six-person cap');
+
+select assert(
+  (select team_id = (select id from public.teams where name = 'formers')
+   from public.registrations where id = '00000000-0000-0000-0000-000000000202'),
+  'a switch into a full team leaves the person in their old team');
+
+update public.teams set desired_size = 3 where name = 'others';
+select public.join_team('00000000-0000-0000-0000-000000000202',
+  (select id from public.teams where name = 'others'), 'invite_link', null, true);
+
+select assert(
+  (select team_id = (select id from public.teams where name = 'others')
+   from public.registrations where id = '00000000-0000-0000-0000-000000000202')
+  and (select count(*) from public.membership_events
+       where registration_id = '00000000-0000-0000-0000-000000000202') = 3,
+  'a confirmed switch leaves and joins in one step, both recorded');
+
+select assert(
+  raises($$select public.join_team('00000000-0000-0000-0000-000000000203',
+           (select id from public.teams where name = 'others'), 'invite_link')$$,
+         'already_in_team'),
+  'without the switch flag a member is never moved');
+
+-- Leaving as the last member dissolves the team; leaving as leader hands over.
+insert into auth.users (id, email, raw_user_meta_data)
+values ('00000000-0000-0000-0000-000000000109', 'tf9@example.com', '{"name":"TF 9"}');
+insert into public.registrations (id, participant_id, edition_slug)
+values ('00000000-0000-0000-0000-000000000209', '00000000-0000-0000-0000-000000000109', '2027');
+select public.create_team('00000000-0000-0000-0000-000000000209', 'solo', '{}', null);
+select public.leave_team('00000000-0000-0000-0000-000000000209');
+select assert(not exists (select 1 from public.teams where name = 'solo'),
+  'the last member leaving dissolves the team');
+
+-- r202 and r207 registered together, so the id breaks the tie.
+select public.leave_team('00000000-0000-0000-0000-000000000208');
+select assert(
+  (select leader_id = '00000000-0000-0000-0000-000000000202' from public.teams where name = 'others')
+  and (select role = 'leader' from public.registrations where id = '00000000-0000-0000-0000-000000000202'),
+  'a leader leaving hands the team to the earliest-registered member');
+
+-- Put things back the way 07 expects them. r202 switching away hands
+-- 'others' to r207.
+select public.join_team('00000000-0000-0000-0000-000000000202',
+  (select id from public.teams where name = 'formers'), 'organizer', null, true);
+select public.join_team('00000000-0000-0000-0000-000000000208',
+  (select id from public.teams where name = 'others'), 'organizer');
+update public.teams set leader_id = '00000000-0000-0000-0000-000000000208' where name = 'others';
+update public.registrations set role = 'leader' where id = '00000000-0000-0000-0000-000000000208';
+update public.registrations set role = 'participant' where id = '00000000-0000-0000-0000-000000000207';
+select public.leave_team('00000000-0000-0000-0000-000000000207');
+update public.teams set desired_size = 6 where name = 'others';
+
+insert into public.join_requests (id, participant_id, team_id, edition_slug, message) values
+  ('00000000-0000-0000-0000-000000000308', '00000000-0000-0000-0000-000000000107',
+   (select id from public.teams where edition_slug = '2026' limit 1), '2026',
+   'Late application to an archived team.');
+
+select assert(
+  raises($$select public.decide_join_request('00000000-0000-0000-0000-000000000308',
+           null, 'approve')$$, 'edition_not_writable'),
+  'requests in an archived edition cannot be decided, even by organizers');
+
 -- ── history and privacy ─────────────────────────────────────────────────────
 update public.registrations set team_id = null, role = 'participant'
 where id = '00000000-0000-0000-0000-000000000206';
