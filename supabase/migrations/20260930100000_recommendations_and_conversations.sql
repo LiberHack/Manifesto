@@ -466,6 +466,9 @@ begin
   if req.status <> 'pending' then
     raise exception 'request_not_pending';
   end if;
+  if not (select is_current from public.editions where slug = req.edition_slug) then
+    raise exception 'edition_not_writable';
+  end if;
 
   if req.expires_at is not null and req.expires_at <= now() then
     update public.join_requests

@@ -55,5 +55,5 @@ psql -d liberhack -v ON_ERROR_STOP=1 \
   -f "$ROOT/supabase/tests/05-verify-direct-access.sql" \
   -f "$ROOT/supabase/tests/06-verify-team-formation.sql" \
   -f "$ROOT/supabase/tests/07-verify-conversations.sql" 2>&1 \
-  | grep -E 'PASS|FAIL|VERIFICATION' \
+  | grep -E 'PASS|FAIL|VERIFICATION|ERROR' \
   | sed 's/^psql:.*NOTICE:  //'
