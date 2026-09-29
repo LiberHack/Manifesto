@@ -43,6 +43,12 @@ revoke all on public.teams from anon, authenticated;
 
 drop policy if exists "join_requests_insert_own" on public.join_requests;
 
+-- The old policy also let leaders read their team's requests by looking up
+-- teams, which clients can no longer read; leaders go through the API.
+drop policy if exists "join_requests_select_own" on public.join_requests;
+create policy "join_requests_select_own" on public.join_requests
+  for select to authenticated using (auth.uid() = participant_id);
+
 revoke insert, update, delete on public.registrations from anon, authenticated;
 revoke insert, update, delete on public.join_requests from anon, authenticated;
 

@@ -42,6 +42,10 @@ select assert(
   'join requests cannot be written directly');
 
 select assert(
+  not denied($$select count(*) from public.join_requests$$),
+  'a user can still read their own join requests');
+
+select assert(
   denied($$select public.rotate_team_invite_code('aaaaaaaa-0000-0000-0000-000000000001')$$),
   'rotate_team_invite_code is not callable by clients');
 
