@@ -210,14 +210,56 @@ create trigger record_membership_change
 drop trigger if exists on_request_approved on public.join_requests;
 drop function if exists public.handle_request_approved();
 
--- Put a registration into a team: same edition, not already in a team,
--- capacity available. Locks the team, then the registration, so concurrent
--- joins serialise on the team row.
+-- Take a registration out of its team. A leader hands over to the
+-- earliest-registered remaining member; a last member dissolves the team.
+-- Mirrors handle_leader_departure, which covers registration deletes.
+create or replace function public.leave_team(p_registration uuid)
+returns void
+language plpgsql
+as $$
+declare
+  r record;
+  successor uuid;
+begin
+  select id, team_id into r from public.registrations where id = p_registration for update;
+  if not found then
+    raise exception 'registration_not_found';
+  end if;
+  if r.team_id is null then
+    return;
+  end if;
+
+  perform 1 from public.teams where id = r.team_id for update;
+
+  update public.registrations set team_id = null, role = 'participant' where id = r.id;
+
+  if exists (select 1 from public.teams where id = r.team_id and leader_id = r.id) then
+    select id into successor from public.registrations
+    where team_id = r.team_id
+    order by registered_at, id
+    limit 1;
+
+    if successor is null then
+      delete from public.teams where id = r.team_id;
+    else
+      update public.teams set leader_id = successor where id = r.team_id;
+      update public.registrations set role = 'leader' where id = successor;
+    end if;
+  end if;
+end;
+$$;
+
+-- Put a registration into a team of the current edition, within the team's
+-- declared size (never more than six). With p_allow_switch the registration
+-- first leaves its current team, in the same transaction, so a failed join
+-- never leaves anyone teamless. Team rows are locked in id order so two
+-- opposite switches cannot deadlock.
 create or replace function public.join_team(
   p_registration uuid,
   p_team uuid,
   p_source public.formation_source,
-  p_request uuid default null
+  p_request uuid default null,
+  p_allow_switch boolean default false
 )
 returns void
 language plpgsql
@@ -225,11 +267,25 @@ as $$
 declare
   t record;
   r record;
+  current_team uuid;
   members int;
+  capacity int;
 begin
-  select id, edition_slug into t from public.teams where id = p_team for update;
+  select team_id into current_team from public.registrations where id = p_registration;
+
+  perform 1 from public.teams
+  where id in (p_team, current_team)
+  order by id
+  for update;
+
+  select tm.id, tm.edition_slug, tm.desired_size, e.is_current into t
+  from public.teams tm join public.editions e on e.slug = tm.edition_slug
+  where tm.id = p_team;
   if not found then
     raise exception 'team_not_found';
+  end if;
+  if not t.is_current then
+    raise exception 'edition_not_writable';
   end if;
 
   select id, participant_id, edition_slug, team_id into r
@@ -241,13 +297,24 @@ begin
   if r.edition_slug <> t.edition_slug then
     raise exception 'edition_mismatch';
   end if;
-  if r.team_id is not null then
+  if r.team_id is not distinct from p_team then
     raise exception 'already_in_team';
   end if;
+  if r.team_id is not null then
+    -- A concurrent change moved them after the unlocked read above.
+    if not p_allow_switch or r.team_id is distinct from current_team then
+      raise exception 'already_in_team';
+    end if;
+  end if;
 
+  capacity := least(t.desired_size, 6);
   select count(*) into members from public.registrations where team_id = p_team;
-  if members >= 6 then
+  if members >= capacity then
     raise exception 'team_full';
+  end if;
+
+  if r.team_id is not null then
+    perform public.leave_team(r.id);
   end if;
 
   perform set_config('app.formation_source', p_source::text, true);
@@ -265,13 +332,33 @@ begin
     and status = 'pending'
     and id is distinct from p_request;
 
-  if members + 1 >= 6 then
+  if members + 1 >= capacity then
     update public.join_requests
     set status = 'rejected', close_reason = 'team_full', decided_at = now()
     where team_id = p_team and status = 'pending' and id is distinct from p_request;
   end if;
 end;
 $$;
+
+-- A leader cannot shrink the declared size below the current membership.
+-- The UPDATE holds the team row lock that join_team also takes, so the count
+-- here sees every committed join.
+create or replace function public.check_desired_size()
+returns trigger
+language plpgsql
+as $$
+begin
+  if new.desired_size < (select count(*) from public.registrations where team_id = new.id) then
+    raise exception 'desired_size_below_members';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger check_desired_size
+  before update of desired_size on public.teams
+  for each row
+  execute function public.check_desired_size();
 
 -- Create a team led by a registration that is not yet in one.
 create or replace function public.create_team(
@@ -333,6 +420,9 @@ begin
   end if;
   if req.status <> 'pending' then
     raise exception 'request_not_pending';
+  end if;
+  if not (select is_current from public.editions where slug = req.edition_slug) then
+    raise exception 'edition_not_writable';
   end if;
 
   if req.expires_at is not null and req.expires_at <= now() then
@@ -402,7 +492,9 @@ begin
 end;
 $$;
 
-revoke all on function public.join_team(uuid, uuid, public.formation_source, uuid) from public, anon, authenticated;
+revoke all on function public.join_team(uuid, uuid, public.formation_source, uuid, boolean) from public, anon, authenticated;
+revoke all on function public.leave_team(uuid) from public, anon, authenticated;
+revoke all on function public.check_desired_size() from public, anon, authenticated;
 revoke all on function public.create_team(uuid, text, text[], text) from public, anon, authenticated;
 revoke all on function public.decide_join_request(uuid, uuid, text) from public, anon, authenticated;
 revoke all on function public.record_membership_change() from public, anon, authenticated;

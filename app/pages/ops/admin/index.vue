@@ -976,8 +976,8 @@ async function addAnnouncement() {
             :href="`/api/admin/participants/export?edition=${selectedSlug}&include_contacts=1`"
             download
             class="btn btn-ghost btn-sm"
-            title="Organizer-only. Do not share with sponsors."
-          >↓ With contacts (organizers only)</a>
+            title="Adds preferred contacts. Organizer-only, like the plain export."
+          >↓ With contacts</a>
         </div>
       </div>
       <div class="overflow-x-auto">

@@ -66,6 +66,8 @@ const DECISION_ERRORS: Record<string, [number, string]> = {
   team_not_found: [404, "Team not found"],
   registration_not_found: [409, "The person is not registered for this edition"],
   edition_mismatch: [409, "The team belongs to another edition"],
+  edition_not_writable: [409, "This edition is archived and can no longer change"],
+  desired_size_below_members: [400, "Desired size cannot be smaller than the current team"],
 };
 
 /**

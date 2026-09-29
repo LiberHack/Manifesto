@@ -13,8 +13,8 @@ const COLUMNS = [
   "matching_status",
 ] as const;
 
-// Private contact columns, only with ?include_contacts=1. The default export
-// is the one that may be handed to sponsors.
+// Preferred-contact columns, only with ?include_contacts=1. Neither variant is
+// safe to hand to sponsors: both carry email and dietary data for organizers.
 const CONTACT_COLUMNS = ["contact_method", "contact_handle", "contact_reachable"] as const;
 
 interface Row {

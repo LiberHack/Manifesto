@@ -1,6 +1,7 @@
 import { requireRegistration } from "#server/utils/requireRegistration";
 import { requireTeamLeadership } from "#server/utils/registrationContext";
 import { parseTeamRecruitmentFields } from "#server/utils/profileInput";
+import { membershipError } from "#server/utils/joinRequests";
 
 const MAX_SKILLS = 10;
 const MAX_SKILL_LENGTH = 30;
@@ -20,19 +21,6 @@ export default defineEventHandler(async (event) => {
   const body = (await readBody<Record<string, unknown>>(event)) ?? {};
 
   const update: Record<string, unknown> = { ...parseTeamRecruitmentFields(body) };
-
-  if (update.desired_size !== undefined) {
-    const { count } = await supabase
-      .from("registrations")
-      .select("id", { count: "exact", head: true })
-      .eq("team_id", teamId!);
-    if ((update.desired_size as number) < (count ?? 0)) {
-      throw createError({
-        statusCode: 400,
-        message: "Desired size cannot be smaller than the current team",
-      });
-    }
-  }
 
   if (body.skills_wanted !== undefined) {
     if (!Array.isArray(body.skills_wanted)) {
@@ -81,9 +69,8 @@ export default defineEventHandler(async (event) => {
     .select()
     .single();
 
-  if (error) {
-    console.error("[teams.patch] update failed:", error.message);
-    throw createError({ statusCode: 500, message: "Internal server error" });
-  }
+  // The check_desired_size trigger rejects a size below the current membership,
+  // under the same row lock joins take.
+  if (error) membershipError(error, "teams.patch");
   return data;
 });
