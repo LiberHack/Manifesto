@@ -2,6 +2,7 @@ import { requireRegistration } from "#server/utils/requireRegistration";
 import { sendJoinRequestNotification } from "#server/utils/email";
 import { parseRequestMessage } from "#server/utils/profileInput";
 import { getSeatState } from "#server/utils/joinRequests";
+import { isBlocked, wasRecommended } from "#server/utils/recommendations";
 
 /**
  * Apply to join a team. The message is required and stored as submitted.
@@ -11,7 +12,7 @@ export default defineEventHandler(async (event) => {
   const { registration, edition, supabase } = await requireRegistration(event);
 
   const teamId = getRouterParam(event, "id")!;
-  const body = (await readBody<{ message?: unknown }>(event)) ?? {};
+  const body = (await readBody<{ message?: unknown; recommended?: unknown }>(event)) ?? {};
   const message = parseRequestMessage(body.message);
 
   if (registration.team_id) {
@@ -35,6 +36,20 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 409, message: "Team is full" });
   }
 
+  const { data: leaderReg } = await supabase
+    .from("registrations")
+    .select("participant_id")
+    .eq("id", team.leader_id)
+    .single();
+  if (leaderReg && (await isBlocked(supabase, registration.participant_id, leaderReg.participant_id))) {
+    throw createError({ statusCode: 403, message: "You can't apply to this team" });
+  }
+
+  // Attributed to recommendations only if this person was actually shown it.
+  const recommended =
+    body.recommended === true &&
+    (await wasRecommended(supabase, registration.id, teamId, null));
+
   const { data: request, error } = await supabase
     .from("join_requests")
     .insert({
@@ -42,7 +57,7 @@ export default defineEventHandler(async (event) => {
       team_id: teamId,
       edition_slug: edition.slug,
       kind: "application",
-      source: "application",
+      source: recommended ? "recommendation" : "application",
       message,
     })
     .select("id, kind, status, message, created_at, expires_at")

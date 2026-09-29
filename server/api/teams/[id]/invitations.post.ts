@@ -3,6 +3,7 @@ import { requireTeamLeadership } from "#server/utils/registrationContext";
 import { parseRequestMessage } from "#server/utils/profileInput";
 import { getSeatState } from "#server/utils/joinRequests";
 import { sendInvitationNotification } from "#server/utils/email";
+import { isBlocked, wasRecommended } from "#server/utils/recommendations";
 
 /**
  * A leader invites a specific participant. Only people who opted into
@@ -16,7 +17,9 @@ export default defineEventHandler(async (event) => {
   const teamId = getRouterParam(event, "id")!;
   const team = await requireTeamLeadership(ctx, teamId, "Only the team leader can invite");
 
-  const body = (await readBody<{ registration_id?: unknown; message?: unknown }>(event)) ?? {};
+  const body =
+    (await readBody<{ registration_id?: unknown; message?: unknown; recommended?: unknown }>(event)) ??
+    {};
   const message = parseRequestMessage(body.message);
   if (typeof body.registration_id !== "string") {
     throw createError({ statusCode: 400, message: "registration_id is required" });
@@ -39,6 +42,11 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 409, message: "That participant already has a team" });
   }
 
+  if (await isBlocked(supabase, registration.participant_id, invitee.participant_id)) {
+    // Reported as not found so a block is not revealed to the blocked side.
+    throw createError({ statusCode: 404, message: "Participant not found" });
+  }
+
   const seats = await getSeatState(supabase, teamId);
   if (seats.vacancies === 0) {
     throw createError({ statusCode: 409, message: "Your team has no open places" });
@@ -51,7 +59,11 @@ export default defineEventHandler(async (event) => {
       team_id: teamId,
       edition_slug: edition.slug,
       kind: "invitation",
-      source: "direct_invite",
+      source:
+        body.recommended === true &&
+        (await wasRecommended(supabase, registration.id, teamId, invitee.id))
+          ? "recommendation"
+          : "direct_invite",
       invited_by: registration.id,
       message,
     })

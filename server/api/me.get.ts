@@ -29,7 +29,7 @@ export default defineEventHandler(async (event) => {
     .from("registrations")
     .select(
       "id, role, team_id, skills, skills_input, dietary, experience, public, accepted_terms_at, registered_at, " +
-        "matching_status, intro, preferred_roles, interests, goals, languages, " +
+        "matching_status, intro, preferred_roles, interests, goals, languages, organizer_help_requested_at, " +
         "github_url, gitlab_url, codeberg_url, portfolio_url, " +
         "contact:registration_contacts(method), " +
         "team:teams!registrations_team_id_fkey(id, name, skills_wanted, description, leader_id, invite_code, github_url, " +

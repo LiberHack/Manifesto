@@ -24,6 +24,7 @@ export interface MeRegistration {
   gitlab_url: string | null;
   codeberg_url: string | null;
   portfolio_url: string | null;
+  organizer_help_requested_at: string | null;
   /** Whether a preferred contact is saved; the value itself is never in /api/me. */
   contact_complete: boolean;
 }

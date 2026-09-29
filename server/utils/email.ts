@@ -138,3 +138,15 @@ export async function sendInvitationAcceptedNotification(
     text: `${body}\n\n${link}`,
   });
 }
+
+export async function sendProposalNotification(email: string, teamName: string) {
+  const config = useRuntimeConfig();
+  const link = `${config.siteUrl}/ops/dashboard#proposals`;
+  const body = `The LiberHack organizers suggested a new team, "${teamName}", with you in it. Meet the others and accept or decline from your dashboard — nothing happens until everyone agrees.`;
+  await sendEmail({
+    to: email,
+    subject: `The organizers suggested a team for you`,
+    html: fill(SIMPLE_HTML, { BODY: body, LINK: link, LINK_LABEL: "Open your dashboard" }),
+    text: `${body}\n\n${link}`,
+  });
+}
