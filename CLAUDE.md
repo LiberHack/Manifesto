@@ -195,7 +195,9 @@ Three pieces of config exist only for the test run — do not remove them:
 - `$test` in `nuxt.config.ts`: `node-server` preset (a `cloudflare_module` bundle cannot be started
   by Node), SQLite content, dummy Supabase config for the module **and** for `runtimeConfig`, which
   is what `useSupabaseAdmin()` reads — `createClient()` throws on an empty key, which turns every
-  401 into a 500 in CI, where there is no `.env`.
+  401 into a 500 in CI, where there is no `.env`. It also lifts `rateLimitMax`: every test request
+  comes from one IP, and the in-memory fallback limiter would otherwise answer 429 once the suite
+  makes more than 60 API calls a minute.
 - `tests/supabase-stub.ts`, started by `global-setup` and injected as `NUXT_PUBLIC_SUPABASE_URL`.
   Pointing the fixture at a closed port instead costs ~7s per query — supabase-js retries network
   failures — which blows vitest's 5s timeout on any route that reads the database.

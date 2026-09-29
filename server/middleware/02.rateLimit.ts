@@ -1,5 +1,4 @@
 const WINDOW_MS = 60_000; // 1 minute
-const MAX_REQUESTS = 60;
 
 // Tighter limits for unauthenticated/expensive endpoints.
 // The binding name must match `ratelimits[].name` in wrangler.jsonc.
@@ -39,9 +38,10 @@ export default defineEventHandler(async (event) => {
     getHeader(event, "x-forwarded-for")?.split(",")[0]?.trim() ??
     "unknown";
 
+  const maxRequests = Number(useRuntimeConfig(event).rateLimitMax) || 60;
   const [, routeMax, bindingName] =
     ROUTE_LIMITS.find(([pattern]) => pattern.test(event.path)) ??
-    [null, MAX_REQUESTS, "RL_API"];
+    [null, maxRequests, "RL_API"];
 
   const limiter = event.context.cloudflare?.env?.[bindingName] as
     | RateLimitBinding
