@@ -128,6 +128,16 @@ async function deleteParticipant(id: string) {
   await refreshParticipants();
 }
 
+/** Record that an organizer reached this person on their preferred channel. */
+async function confirmContact(p: any, confirmed: boolean) {
+  const result = await $fetch<{ reachable_confirmed_at: string | null }>(
+    `/api/admin/registrations/${p.registration_id}/contact-confirm`,
+    { method: "POST", body: { confirmed }, query: editionQuery.value },
+  );
+  p.contact = { ...p.contact, reachable_confirmed_at: result.reachable_confirmed_at };
+  await refreshParticipants();
+}
+
 async function deleteTeam(id: string) {
   if (!confirm("Delete this team? All members will be freed.")) return;
   await $fetch(`/api/admin/teams/${id}`, { method: "DELETE" });
@@ -960,7 +970,15 @@ async function addAnnouncement() {
     <section>
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-2xl font-bold">Participants ({{ participants?.length ?? 0 }})</h2>
-        <a :href="`/api/admin/participants/export?edition=${selectedSlug}`" download class="btn btn-outline btn-sm">↓ Export CSV</a>
+        <div class="flex gap-2 flex-wrap">
+          <a :href="`/api/admin/participants/export?edition=${selectedSlug}`" download class="btn btn-outline btn-sm">↓ Export CSV</a>
+          <a
+            :href="`/api/admin/participants/export?edition=${selectedSlug}&include_contacts=1`"
+            download
+            class="btn btn-ghost btn-sm"
+            title="Organizer-only. Do not share with sponsors."
+          >↓ With contacts (organizers only)</a>
+        </div>
       </div>
       <div class="overflow-x-auto">
         <table class="table table-xs md:table-md w-full">
@@ -970,6 +988,8 @@ async function addAnnouncement() {
               <th>Email</th>
               <th>Role</th>
               <th>Team</th>
+              <th>Matching</th>
+              <th>Contact</th>
               <th></th>
             </tr>
           </thead>
@@ -991,6 +1011,12 @@ async function addAnnouncement() {
                 </span>
               </td>
               <td>{{ p.team_id ? "✓" : "—" }}</td>
+              <td>{{ p.matching_status ?? "—" }}</td>
+              <td>
+                <span v-if="!p.contact" class="badge badge-warning badge-sm">missing</span>
+                <span v-else-if="p.contact.reachable_confirmed_at" class="badge badge-success badge-sm">confirmed</span>
+                <span v-else class="badge badge-ghost badge-sm">{{ p.contact.method }}</span>
+              </td>
               <td>
                 <button
                   class="btn btn-error btn-xs"
@@ -1078,6 +1104,31 @@ async function addAnnouncement() {
 
           <span class="opacity-50 font-semibold">Public</span>
           <span>{{ selected.public ? 'yes' : 'opted out' }}</span>
+
+          <span class="opacity-50 font-semibold">Matching</span>
+          <span>{{ selected.matching_status ?? 'not answered' }}</span>
+
+          <span class="opacity-50 font-semibold">Contact</span>
+          <span v-if="!selected.contact">— not provided yet</span>
+          <span v-else class="flex flex-col gap-1">
+            <span>
+              {{ selected.contact.method === 'other' ? selected.contact.other_label : selected.contact.method }}
+              <template v-if="selected.contact.handle">· {{ selected.contact.handle }}</template>
+            </span>
+            <span class="text-xs opacity-60">
+              {{ selected.contact.share_with_team ? 'Shared with teammates' : 'Organizers only' }}
+            </span>
+            <span class="flex items-center gap-2">
+              <span v-if="selected.contact.reachable_confirmed_at" class="badge badge-success badge-sm">
+                Reached {{ new Date(selected.contact.reachable_confirmed_at).toLocaleDateString() }}
+              </span>
+              <button
+                class="btn btn-xs"
+                :disabled="editionReadOnly"
+                @click="confirmContact(selected, !selected.contact.reachable_confirmed_at)"
+              >{{ selected.contact.reachable_confirmed_at ? 'Clear confirmation' : 'Mark as reached' }}</button>
+            </span>
+          </span>
         </div>
 
         <div v-if="selected.skills?.length">

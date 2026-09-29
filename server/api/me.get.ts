@@ -43,7 +43,7 @@ export default defineEventHandler(async (event) => {
     return { ...participant, edition, registration: null, team: null };
   }
 
-  const { team, contact, ...rest } = registration as Record<string, unknown> & {
+  const { team, contact, ...rest } = registration as unknown as Record<string, unknown> & {
     team: unknown;
     contact: unknown;
   };

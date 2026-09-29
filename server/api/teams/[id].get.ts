@@ -45,7 +45,9 @@ export default defineEventHandler(async (event) => {
   // Members are exposed by registration id (which is what leader_id points at),
   // with the display name pulled from the identity mirror. A member's contact
   // reaches fellow members only, and only when that member chose to share it.
-  const members = ((team.members ?? []) as unknown as MemberRow[]).map((m) => ({
+  const members = (
+    ((team as unknown as { members: MemberRow[] | null }).members ?? []) as MemberRow[]
+  ).map((m) => ({
     id: m.id,
     participant_id: m.participant?.id ?? null,
     name: m.participant?.name ?? "",

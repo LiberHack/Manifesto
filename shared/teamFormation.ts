@@ -118,3 +118,96 @@ export interface PublicProfile {
   codeberg_url: string | null;
   portfolio_url: string | null;
 }
+
+// ── Form state shared by the onboarding, dashboard and team pages ──────────
+
+export interface ProfileForm {
+  matching_status: MatchingStatus | null;
+  intro: string;
+  preferred_roles: ContributionRole[];
+  interests: string[];
+  goals: ParticipantGoal[];
+  languages: string[];
+  github_url: string;
+  gitlab_url: string;
+  codeberg_url: string;
+  portfolio_url: string;
+}
+
+type ProfileSource = Partial<{
+  [K in keyof ProfileForm]: ProfileForm[K] | null;
+}>;
+
+/** Editable profile state from a registration (or prefill); nulls become blanks. */
+export function profileFormFrom(source: ProfileSource | null | undefined): ProfileForm {
+  return {
+    matching_status: source?.matching_status ?? null,
+    intro: source?.intro ?? "",
+    preferred_roles: [...(source?.preferred_roles ?? [])],
+    interests: [...(source?.interests ?? [])],
+    goals: [...(source?.goals ?? [])],
+    languages: [...(source?.languages ?? [])],
+    github_url: source?.github_url ?? "",
+    gitlab_url: source?.gitlab_url ?? "",
+    codeberg_url: source?.codeberg_url ?? "",
+    portfolio_url: source?.portfolio_url ?? "",
+  };
+}
+
+export interface ContactForm {
+  method: ContactMethod | "";
+  handle: string;
+  other_label: string;
+  share_with_team: boolean;
+}
+
+export function contactFormFrom(
+  source:
+    | { method: string; handle: string | null; other_label: string | null; share_with_team: boolean }
+    | null
+    | undefined,
+): ContactForm {
+  return {
+    method: (source?.method as ContactMethod | undefined) ?? "",
+    handle: source?.handle ?? "",
+    other_label: source?.other_label ?? "",
+    share_with_team: source?.share_with_team ?? false,
+  };
+}
+
+export interface RecruitmentForm {
+  recruiting: boolean;
+  wanted_roles: ContributionRole[];
+  desired_size: number;
+  interests: string[];
+  goals: ParticipantGoal[];
+  welcomes_beginners: boolean;
+  languages: string[];
+}
+
+export function recruitmentFormFrom(
+  team: Partial<RecruitmentForm> | null | undefined,
+): RecruitmentForm {
+  return {
+    recruiting: team?.recruiting ?? true,
+    wanted_roles: [...(team?.wanted_roles ?? [])],
+    desired_size: team?.desired_size ?? MAX_TEAM_SIZE,
+    interests: [...(team?.interests ?? [])],
+    goals: [...(team?.goals ?? [])],
+    welcomes_beginners: team?.welcomes_beginners ?? false,
+    languages: [...(team?.languages ?? [])],
+  };
+}
+
+/** Add `value` if absent, remove it if present; returns a new array. */
+export function toggleValue<T>(list: readonly T[], value: T): T[] {
+  return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
+}
+
+/** Split comma-separated text into trimmed, non-empty tags. */
+export function parseTagText(text: string): string[] {
+  return text
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean);
+}

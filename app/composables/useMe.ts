@@ -1,3 +1,9 @@
+import type {
+  ContributionRole,
+  MatchingStatus,
+  ParticipantGoal,
+} from "#shared/teamFormation";
+
 export interface MeRegistration {
   id: string;
   role: "participant" | "leader";
@@ -8,6 +14,18 @@ export interface MeRegistration {
   public: boolean;
   accepted_terms_at: string;
   registered_at: string;
+  matching_status: MatchingStatus | null;
+  intro: string | null;
+  preferred_roles: ContributionRole[];
+  interests: string[];
+  goals: ParticipantGoal[];
+  languages: string[];
+  github_url: string | null;
+  gitlab_url: string | null;
+  codeberg_url: string | null;
+  portfolio_url: string | null;
+  /** Whether a preferred contact is saved; the value itself is never in /api/me. */
+  contact_complete: boolean;
 }
 
 export interface MeEdition {
@@ -37,6 +55,13 @@ export interface Me {
     leader_id: string;
     invite_code: string;
     github_url: string | null;
+    recruiting: boolean;
+    wanted_roles: ContributionRole[];
+    desired_size: number;
+    interests: string[];
+    goals: ParticipantGoal[];
+    welcomes_beginners: boolean;
+    languages: string[];
   } | null;
   skills?: string[];
   dietary?: string | null;

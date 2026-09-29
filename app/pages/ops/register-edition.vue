@@ -1,4 +1,11 @@
 <script setup lang="ts">
+import {
+  contactFormFrom,
+  profileFormFrom,
+  type ContactForm,
+  type ProfileForm,
+} from "#shared/teamFormation";
+
 definePageMeta({ middleware: ["auth"] });
 
 interface RegistrationState {
@@ -10,12 +17,13 @@ interface RegistrationState {
   } | null;
   registered: boolean;
   full: boolean;
-  prefill: {
+  prefill: (Partial<ProfileForm> & {
     skills: string[];
     dietary: string | null;
     experience: "" | "beginner" | "intermediate" | "experienced" | null;
     public: boolean;
-  } | null;
+    contact?: Parameters<typeof contactFormFrom>[0];
+  }) | null;
 }
 
 const router = useRouter();
@@ -45,6 +53,13 @@ const form = reactive({
   coc: false,
 });
 
+// Matching status is never prefilled: discovery consent is given per edition.
+const profile = ref<ProfileForm>({
+  ...profileFormFrom(state.value?.prefill),
+  matching_status: null,
+});
+const contact = ref<ContactForm>(contactFormFrom(state.value?.prefill?.contact));
+
 const error = ref("");
 const loading = ref(false);
 
@@ -63,6 +78,8 @@ async function submit() {
         experience: form.experience,
         public: form.public,
         accepted_terms: form.coc,
+        ...profile.value,
+        contact: contact.value,
       },
     });
     await refreshMe();
@@ -150,6 +167,12 @@ async function submit() {
           />
         </label>
 
+        <ContactFields v-model="contact" />
+
+        <div class="divider my-1" />
+        <ProfileFields v-model="profile" />
+        <div class="divider my-1" />
+
         <label class="flex items-start gap-3 cursor-pointer">
           <input
             :checked="!form.public"
@@ -178,7 +201,7 @@ async function submit() {
 
         <button
           type="submit"
-          :disabled="loading || !form.coc || !form.experience"
+          :disabled="loading || !form.coc || !form.experience || !contact.method"
           class="btn btn-primary w-full font-black uppercase"
         >
           {{ loading ? "Registering…" : `Register for ${state.edition.name}` }}
