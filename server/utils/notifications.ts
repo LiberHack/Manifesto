@@ -113,6 +113,23 @@ const HANDLERS: Record<string, Handler> = {
     };
   },
 
+  // Batched reminder for unread conversation messages. Re-counted at send
+  // time: if everything was read since it was queued, no email.
+  chat_unread_digest: async (job, _r, supabase) => {
+    const { data } = await supabase.rpc("list_conversations", {
+      p_registration: job.registration_id,
+    });
+    const unread = ((data ?? []) as Array<{ unread: number }>).filter((c) => Number(c.unread) > 0);
+    if (unread.length === 0) return "skip";
+    const total = unread.reduce((sum, c) => sum + Number(c.unread), 0);
+    return {
+      subject: `${total} unread ${total === 1 ? "message" : "messages"} on LiberHack`,
+      body: `You have ${total} unread ${total === 1 ? "message" : "messages"} in ${unread.length} ${unread.length === 1 ? "conversation" : "conversations"}. Your team or a team you applied to may be waiting for you.`,
+      path: "/ops/messages",
+      linkLabel: "Open messages",
+    };
+  },
+
   leader_unanswered: async (job, _r, supabase) => {
     // dedup_key is leader_unanswered:<edition>:<request id>
     const requestId = job.dedup_key.split(":").at(-1)!;

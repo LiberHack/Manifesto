@@ -154,6 +154,8 @@ export async function sendProposalNotification(email: string, teamName: string) 
     subject: `The organizers suggested a team for you`,
     html: fill(SIMPLE_HTML, { BODY: body, LINK: link, LINK_LABEL: "Open your dashboard" }),
     text: `${body}\n\n${link}`,
+  });
+}
 
 /**
  * A plain notice with one call to action, for notification jobs.

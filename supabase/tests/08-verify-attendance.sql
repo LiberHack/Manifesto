@@ -143,3 +143,22 @@ select assert(raises($$select public.change_seat('00000000-0000-0000-0000-000000
  'seat mutation is server-only');
 reset role;
 select 'ATTENDANCE VERIFICATION COMPLETE' as result;
+
+-- ── chat digests (phase 2 on top of phase 3) ───────────────────────────────
+-- r201 leads 'formers'; post a message from another member, backdated.
+insert into public.conversation_messages (conversation_id, author_id, body, created_at)
+select c.id, '00000000-0000-0000-0000-000000000203', 'Anyone up for pairing?', now() - interval '2 hours'
+from public.conversations c join public.teams t on t.id = c.team_id
+where c.kind = 'team' and t.name = 'formers';
+
+select assert(public.queue_chat_digests('2027', interval '1 hour') >= 1,
+  'people with messages unread for an hour get a digest queued');
+select assert(public.queue_chat_digests('2027', interval '1 hour') = 0,
+  'at most one digest per person per day');
+select assert(
+  not exists (select 1 from public.notification_jobs
+              where kind = 'chat_unread_digest'
+                and registration_id = '00000000-0000-0000-0000-000000000203'),
+  'nobody is reminded about their own messages');
+
+select 'CHAT DIGEST VERIFICATION COMPLETE' as result;

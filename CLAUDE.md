@@ -180,6 +180,10 @@ Phase 1 of `docs/superpowers/plans/2026-09-29-team-formation-and-attendance.md`.
   - archived editions: everything read-only;
   - organizers read a conversation only through a report about it
     (`/api/admin/reports/:id`), and can hide a reported message.
+- Unread-message email digests: `queue_chat_digests` (run by the operations
+  run) queues at most one `chat_unread_digest` job per person per day for
+  messages unread over an hour; the dispatcher re-counts at send time and
+  skips it if everything was read.
 - Delivery is polling (`/api/conversations/:id/messages`), not realtime, so
   every read re-checks access and no client ever holds a Supabase channel.
   Sends are limited to 10/minute and 200/day per person, 2000 characters,
