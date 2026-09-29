@@ -11,7 +11,7 @@ export default defineEventHandler(async (event) => {
   const update: Record<string, unknown> = {};
   for (const [field, value] of Object.entries(body ?? {})) {
     if (field in bounds) {
-      const [min, max] = bounds[field];
+      const [min, max] = bounds[field]!;
       if (!Number.isInteger(value) || (value as number) < min || (value as number) > max)
         throw createError({ statusCode: 400, message: `Invalid ${field}` });
       update[field] = value;

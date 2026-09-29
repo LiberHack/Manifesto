@@ -1,7 +1,17 @@
 <script setup lang="ts">
-definePageMeta({ middleware: ["auth"] });
+import { fromSofiaLocal, toSofiaLocal } from "~/utils/sofiaTime";
+
+definePageMeta({ middleware: ["admin"] });
 const { data, refresh } = await useFetch<any>("/api/admin/attendance");
 const { data: timing, refresh: refreshTiming } = await useFetch<any>("/api/admin/attendance/config");
+
+// The slot is stored as a UTC timestamp and edited as Sofia wall-clock time.
+const formationSlot = computed({
+  get: () => toSofiaLocal(timing.value?.team_formation_slot ?? null),
+  set: (local: string) => {
+    if (timing.value) timing.value.team_formation_slot = local ? fromSofiaLocal(local) : null;
+  },
+});
 const message = ref("");
 const reason = ref("Arrival desk");
 async function checkin(id: string, checked_in: boolean) {
@@ -17,12 +27,21 @@ async function expireOffers() {
   catch (e: any) { message.value = e.data?.message ?? "Could not expire offers"; }
 }
 async function saveTiming() {
-  try { await $fetch("/api/admin/attendance/config", { method: "PATCH", body: timing.value }); await refreshTiming(); message.value = "Timing saved."; }
+  try {
+    const body = { ...timing.value, arrival_host: timing.value.arrival_host?.trim() || null };
+    await $fetch("/api/admin/attendance/config", { method: "PATCH", body }); await refreshTiming(); message.value = "Timing saved."; }
   catch (e: any) { message.value = e.data?.message ?? "Could not save timing"; }
 }
 async function snapshot(cutoff: string) {
   try { await $fetch("/api/admin/attendance/snapshot", { method: "POST", body: { cutoff } }); await refresh(); message.value = `${cutoff} snapshot captured.`; }
   catch (e: any) { message.value = e.data?.message ?? "Snapshot unavailable"; }
+}
+async function runOperations() {
+  try {
+    const r = await $fetch<any>("/api/admin/notifications/dispatch", { method: "POST" });
+    await refresh();
+    message.value = `Expired ${r.expired_offers} offers · snapshots ${r.snapshots.length ? r.snapshots.join(", ") : "none due"} · queued ${r.queued} · sent ${r.sent}, skipped ${r.skipped}, failed ${r.failed}.`;
+  } catch (e: any) { message.value = e.data?.message ?? "Operations run failed"; }
 }
 async function queueReminders() {
   try { const result = await $fetch<{ candidates: number }>("/api/admin/attendance/queue", { method: "POST" }); message.value = `${result.candidates} due reminder candidates queued (duplicates ignored).`; }
@@ -38,10 +57,12 @@ async function queueReminders() {
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <label v-for="field in ['reminder_mixer_days','reminder_reconfirm_days','reminder_arrival_hours','unanswered_request_hours','seat_offer_hours']" :key="field" class="form-control"><span class="label-text">{{ field.replaceAll('_', ' ') }}</span><input v-model.number="timing[field]" type="number" min="0" class="input input-bordered"></label>
         <label class="form-control"><span class="label-text">Arrival host</span><input v-model="timing.arrival_host" class="input input-bordered" maxlength="120"></label>
-        <label class="form-control"><span class="label-text">Team formation slot</span><input v-model="timing.team_formation_slot" type="datetime-local" class="input input-bordered"></label>
+        <label class="form-control"><span class="label-text">Team formation slot</span><input v-model="formationSlot" type="datetime-local" class="input input-bordered"><span class="label-text-alt">Sofia time · clear to remove</span></label>
       </div>
       <button class="btn btn-primary" @click="saveTiming">Save timing</button>
       <button class="btn btn-outline ml-2" @click="queueReminders">Queue due reminders</button>
+      <button class="btn btn-secondary ml-2" @click="runOperations">Run operations now</button>
+      <p class="text-xs opacity-70">Runs offer expiry, due snapshots, reminder queueing and email delivery. Until a schedule is configured, run it at least daily in the weeks before the event.</p>
       <div class="flex flex-wrap gap-2"><button v-for="cutoff in ['14_days','7_days','1_day']" :key="cutoff" class="btn btn-outline btn-sm" @click="snapshot(cutoff)">Capture {{ cutoff }} snapshot</button></div>
     </section>
     <section v-if="data" class="border-2 border-base-content p-4 space-y-3">

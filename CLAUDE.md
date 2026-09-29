@@ -165,14 +165,28 @@ the edition row, and the revised `enforce_edition_cap` counts accepted seats
 and offered seats. An organizer can expire due offers from the attendance desk.
 Check-ins and corrections are recorded in `checkin_events`.
 
+Admission is decided in the database: `admit_new_registration` places a new
+registration on the waitlist (instead of failing) when the edition is full or
+anyone is still waiting for a first offer, and `advance_waitlist` offers a
+freed seat whenever a reserved registration is waitlisted-in or deleted.
+
 `notification_jobs` stores edition-scoped delivery status, attempts, and a
-unique dedup key. `scripts/send-event-reminder.ts --edition <slug>` reads
-registrations through participants, including solo registrants; it is never
-run as part of development. The organizer desk at `/ops/admin/attendance`
-shows queues and metrics. The attendance denominator is accepted seats plus
-offered seats; waitlisted and cancelled registrations are reported separately.
-Capture immutable `attendance_snapshots` at the 14-day, 7-day and 1-day
-cutoffs for cohort comparisons.
+unique dedup key. `server/utils/notifications.ts` delivers them:
+`claim_notification_jobs` leases due jobs (SKIP LOCKED, 15-minute lease, at
+most five attempts), each kind has a handler that re-checks relevance at send
+time, and outcomes are logged by job id only — never addresses. Seat offers
+and welcomes are dispatched immediately by the route that creates them; the
+rest go out on an operations run (`POST /api/admin/notifications/dispatch`,
+"Run operations now" on `/ops/admin/attendance`), which also expires lapsed
+offers, captures due snapshots and queues due reminders. There is no schedule
+yet: a Cloudflare cron trigger for that run is a deploy-config decision.
+`scripts/send-event-reminder.ts --edition <slug>` only queues arrival jobs
+(counts only in its output) and is never run as part of development.
+
+The attendance denominator is accepted seats plus offered seats; waitlisted
+and cancelled registrations are reported separately. `attendance_snapshots`
+at the 14-day, 7-day and 1-day cutoffs can only be captured inside their
+window (from the cutoff until the event starts) and are immutable.
 
 ## Announcements & banners
 

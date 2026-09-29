@@ -4,6 +4,7 @@ import { requireOpenEdition } from "#server/utils/registrationContext";
 import { parseContact, parseProfileFields } from "#server/utils/profileInput";
 import { addSkillsToCatalogue, resolveSkills } from "#server/utils/skills";
 import { saveContact } from "#server/utils/contacts";
+import { dispatchDueJobs } from "#server/utils/notifications";
 
 const EXPERIENCE_VALUES = ["beginner", "intermediate", "experienced"] as const;
 type ExperienceLevel = (typeof EXPERIENCE_VALUES)[number];
@@ -16,8 +17,8 @@ const MAX_DIETARY_LENGTH = 200;
  * Besides the core fields it takes the optional matching profile and the
  * required preferred contact (`{ method: "email_only" }` is the explicit
  * opt-out). Refused with 403 `ops_closed` until the edition's participant area
- * opens. The per-edition participant cap is enforced by the
- * `enforce_edition_cap` trigger, surfaced here as 409 `registration_closed`.
+ * opens. Past the per-edition cap the registration still succeeds with
+ * `seat_state = 'waitlisted'` (the `admit_new_registration` trigger).
  */
 export default defineEventHandler(async (event) => {
   const user = await serverSupabaseUser(event);
@@ -57,7 +58,7 @@ export default defineEventHandler(async (event) => {
   const contact = parseContact(body.contact);
   const { skills, skills_input, new_skills } = await resolveSkills(supabase, body.skills);
 
-  let { data: registration, error } = await supabase
+  const { data: registration, error } = await supabase
     .from("registrations")
     .insert({
       ...profile,
@@ -73,16 +74,8 @@ export default defineEventHandler(async (event) => {
     .select("id, edition_slug, skills, dietary, experience, public, matching_status, seat_state")
     .single();
 
-  if (error?.message?.includes("registration_closed")) {
-    // Keep the person's registration and their place in the explicit waitlist.
-    ({ data: registration, error } = await supabase.from("registrations").insert({
-      ...profile, participant_id: user.sub, edition_slug: edition.slug,
-      skills, skills_input, dietary: dietary === "" ? null : dietary,
-      experience: body.experience as ExperienceLevel, public: body.public !== false,
-      accepted_terms_at: new Date().toISOString(), seat_state: "waitlisted",
-    }).select("id, edition_slug, skills, dietary, experience, public, matching_status, seat_state").single());
-  }
-
+  // Past the cap the database itself places the registration on the waitlist
+  // (admit_new_registration), atomically under the edition lock.
   if (error) {
     if (error.code === "23505") {
       throw createError({ statusCode: 409, message: "Already registered" });
@@ -107,6 +100,8 @@ export default defineEventHandler(async (event) => {
     kind: "welcome", dedup_key: `welcome:${edition.slug}:${registration.id}`,
   });
   if (welcomeError) console.error("[me/registration.post] welcome job failed:", welcomeError.message);
+  // Deliver it (and anything else due) now rather than on the next run.
+  await dispatchDueJobs(supabase, 5).catch(() => {});
 
   return registration;
 });
