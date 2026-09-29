@@ -155,7 +155,27 @@ Phase 1 of `docs/superpowers/plans/2026-09-29-team-formation-and-attendance.md`.
   trigger on `registrations.team_id`; functions tag the source with the
   transaction-local `app.formation_source` setting.
 
+## Attendance
+
+Phase 3 stores each person's `intention`/`intention_at` separately from their
+`seat_state` and `checked_in_at`. Private help requests are in
+`attendance_barriers`; only organizer routes read them. Seats are `accepted`,
+`offered`, `waitlisted`, or `cancelled`; `change_seat` and `offer_next_seat` lock
+the edition row, and the revised `enforce_edition_cap` counts accepted seats
+and offered seats. An organizer can expire due offers from the attendance desk.
+Check-ins and corrections are recorded in `checkin_events`.
+
+`notification_jobs` stores edition-scoped delivery status, attempts, and a
+unique dedup key. `scripts/send-event-reminder.ts --edition <slug>` reads
+registrations through participants, including solo registrants; it is never
+run as part of development. The organizer desk at `/ops/admin/attendance`
+shows queues and metrics. The attendance denominator is accepted seats plus
+offered seats; waitlisted and cancelled registrations are reported separately.
+Capture immutable `attendance_snapshots` at the 14-day, 7-day and 1-day
+cutoffs for cohort comparisons.
+
 ## Announcements & banners
+
 
 `announcements` is the single source for every notice the site shows. Nothing is
 hardcoded — adding or retiring a banner is an admin-panel action, not a deploy.
