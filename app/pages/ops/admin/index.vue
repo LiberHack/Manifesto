@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { VueDraggable } from 'vue-draggable-plus'
+import { fromSofiaLocal, toSofiaLocal } from '~/utils/sofiaTime'
 
 definePageMeta({ middleware: ["admin"] });
 
@@ -132,33 +133,6 @@ async function deleteTeam(id: string) {
   await $fetch(`/api/admin/teams/${id}`, { method: "DELETE" });
   await refreshTeams();
   await refreshParticipants();
-}
-
-// ── Timezone helpers (Europe/Sofia) ─────────────────────────────────────────
-function toSofiaLocal(iso: string | null): string {
-  if (!iso) return ''
-  const d = new Date(iso)
-  const formatter = new Intl.DateTimeFormat('sv-SE', {
-    timeZone: 'Europe/Sofia',
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit',
-  })
-  return formatter.format(d).replace(' ', 'T')
-}
-
-function fromSofiaLocal(localStr: string): string {
-  if (!localStr) return ''
-  // Compute the UTC offset for Europe/Sofia at the given local time.
-  // We interpret localStr as a Sofia wall-clock time (YYYY-MM-DDTHH:mm),
-  // then find the UTC equivalent by probing with Intl.DateTimeFormat.
-  const probe = new Date(localStr)
-  const sofiaStr = new Intl.DateTimeFormat('sv-SE', {
-    timeZone: 'Europe/Sofia',
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit',
-  }).format(probe).replace(' ', 'T')
-  const offsetMs = probe.getTime() - new Date(sofiaStr).getTime()
-  return new Date(new Date(localStr).getTime() - offsetMs).toISOString()
 }
 
 // ── Section visibility toggles ───────────────────────────────────────────────
