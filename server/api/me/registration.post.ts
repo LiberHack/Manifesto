@@ -57,7 +57,7 @@ export default defineEventHandler(async (event) => {
   const contact = parseContact(body.contact);
   const { skills, skills_input, new_skills } = await resolveSkills(supabase, body.skills);
 
-  const { data: registration, error } = await supabase
+  let { data: registration, error } = await supabase
     .from("registrations")
     .insert({
       ...profile,
@@ -70,13 +70,20 @@ export default defineEventHandler(async (event) => {
       public: body.public !== false,
       accepted_terms_at: new Date().toISOString(),
     })
-    .select("id, edition_slug, skills, dietary, experience, public, matching_status")
+    .select("id, edition_slug, skills, dietary, experience, public, matching_status, seat_state")
     .single();
 
+  if (error?.message?.includes("registration_closed")) {
+    // Keep the person's registration and their place in the explicit waitlist.
+    ({ data: registration, error } = await supabase.from("registrations").insert({
+      ...profile, participant_id: user.sub, edition_slug: edition.slug,
+      skills, skills_input, dietary: dietary === "" ? null : dietary,
+      experience: body.experience as ExperienceLevel, public: body.public !== false,
+      accepted_terms_at: new Date().toISOString(), seat_state: "waitlisted",
+    }).select("id, edition_slug, skills, dietary, experience, public, matching_status, seat_state").single());
+  }
+
   if (error) {
-    if (error.message?.includes("registration_closed")) {
-      throw createError({ statusCode: 409, message: "registration_closed" });
-    }
     if (error.code === "23505") {
       throw createError({ statusCode: 409, message: "Already registered" });
     }
@@ -93,6 +100,13 @@ export default defineEventHandler(async (event) => {
   }
 
   await addSkillsToCatalogue(supabase, new_skills, user.sub);
+
+  // Persist welcome work for the notification dispatcher.
+  const { error: welcomeError } = await supabase.from("notification_jobs").insert({
+    edition_slug: edition.slug, registration_id: registration.id,
+    kind: "welcome", dedup_key: `welcome:${edition.slug}:${registration.id}`,
+  });
+  if (welcomeError) console.error("[me/registration.post] welcome job failed:", welcomeError.message);
 
   return registration;
 });
