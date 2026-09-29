@@ -5,7 +5,7 @@ export type Access = "read" | "write";
 
 export const MESSAGE_MAX_LENGTH = 2000;
 export const PAGE_SIZE = 30;
-/** Per-person send limits across all conversations. */
+/** Per-person send limits across all conversations (enforced by send_message). */
 export const SEND_LIMIT_PER_MINUTE = 10;
 export const SEND_LIMIT_PER_DAY = 200;
 
@@ -33,30 +33,6 @@ export async function requireConversationAccess(
     throw createError({ statusCode: 404, message: "Conversation not found" });
   }
   return data;
-}
-
-/**
- * Reject a send over the per-person limits. Counted from stored messages, so
- * it holds across Worker isolates.
- */
-export async function enforceSendLimits(
-  supabase: SupabaseClient,
-  registrationId: string,
-): Promise<void> {
-  const since = (ms: number) => new Date(Date.now() - ms).toISOString();
-  const count = async (ms: number) => {
-    const { count } = await supabase
-      .from("conversation_messages")
-      .select("id", { count: "exact", head: true })
-      .eq("author_id", registrationId)
-      .gte("created_at", since(ms));
-    return count ?? 0;
-  };
-
-  const [minute, day] = await Promise.all([count(60_000), count(86_400_000)]);
-  if (minute >= SEND_LIMIT_PER_MINUTE || day >= SEND_LIMIT_PER_DAY) {
-    throw createError({ statusCode: 429, message: "You're sending messages too quickly" });
-  }
 }
 
 /** Display names for registration ids, via the identity mirror. */

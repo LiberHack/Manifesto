@@ -146,7 +146,7 @@ async function resolve(hideMessage: boolean) {
           v-model="proposal.note"
           maxlength="500"
           rows="2"
-          placeholder="Why these people fit together (shown to them)"
+          placeholder="Why these people fit together (shown to them, not used as the team description)"
           class="textarea textarea-bordered"
         />
         <p v-if="proposalError" class="text-error text-sm">{{ proposalError }}</p>

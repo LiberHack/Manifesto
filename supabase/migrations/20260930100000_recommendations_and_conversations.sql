@@ -158,7 +158,9 @@ begin
   from public.team_proposal_members where proposal_id = p_proposal
   order by position limit 1;
 
-  created := public.create_team(leader, prop.name, '{}', prop.note);
+  -- The note (up to 500 characters) explains the proposal to its members; it
+  -- stays on the proposal rather than becoming the 200-character description.
+  created := public.create_team(leader, prop.name, '{}', null);
 
   for member in
     select registration_id from public.team_proposal_members
@@ -383,6 +385,59 @@ where not exists (
   select 1 from public.conversations c where c.team_id = t.id and c.kind = 'team'
 );
 
+-- Backfill conversations for requests still open when this migration runs,
+-- opened by their message when they have one. Resolved requests need none.
+insert into public.conversations (edition_slug, kind, team_id, request_id)
+select jr.edition_slug, 'request', jr.team_id, jr.id
+from public.join_requests jr
+where jr.status = 'pending'
+  and not exists (select 1 from public.conversations c where c.request_id = jr.id);
+
+insert into public.conversation_messages (conversation_id, author_id, body, created_at)
+select c.id,
+       case when jr.kind = 'invitation' then jr.invited_by else applicant.id end,
+       jr.message, jr.created_at
+from public.conversations c
+join public.join_requests jr on jr.id = c.request_id
+left join public.registrations applicant
+  on applicant.participant_id = jr.participant_id
+ and applicant.edition_slug = jr.edition_slug
+where jr.status = 'pending'
+  and jr.message is not null
+  and (case when jr.kind = 'invitation' then jr.invited_by else applicant.id end) is not null
+  and not exists (select 1 from public.conversation_messages m where m.conversation_id = c.id);
+
+-- Send a message within the per-author limits. The advisory lock serialises
+-- one author's concurrent sends, so the count and the insert cannot race.
+create or replace function public.send_message(
+  p_conversation uuid,
+  p_author uuid,
+  p_body text,
+  p_per_minute int,
+  p_per_day int
+)
+returns public.conversation_messages
+language plpgsql
+as $$
+declare
+  sent public.conversation_messages;
+begin
+  perform pg_advisory_xact_lock(hashtextextended(p_author::text, 0));
+
+  if (select count(*) from public.conversation_messages
+      where author_id = p_author and created_at > now() - interval '1 minute') >= p_per_minute
+     or (select count(*) from public.conversation_messages
+         where author_id = p_author and created_at > now() - interval '1 day') >= p_per_day then
+    raise exception 'send_rate_limited';
+  end if;
+
+  insert into public.conversation_messages (conversation_id, author_id, body)
+  values (p_conversation, p_author, btrim(p_body))
+  returning * into sent;
+  return sent;
+end;
+$$;
+
 -- Conversations the registration can currently see, with its access mode,
 -- unread count and last activity. Hidden messages do not count as unread.
 create or replace function public.list_conversations(p_registration uuid)
@@ -564,6 +619,7 @@ revoke all on function public.is_blocked(uuid, uuid) from public, anon, authenti
 revoke all on function public.respond_to_proposal(uuid, uuid, boolean) from public, anon, authenticated;
 revoke all on function public.conversation_access(uuid, uuid) from public, anon, authenticated;
 revoke all on function public.list_conversations(uuid) from public, anon, authenticated;
+revoke all on function public.send_message(uuid, uuid, text, int, int) from public, anon, authenticated;
 revoke all on function public.create_team_conversation() from public, anon, authenticated;
 revoke all on function public.create_request_conversation() from public, anon, authenticated;
 revoke all on function public.decide_join_request(uuid, uuid, text) from public, anon, authenticated;

@@ -54,6 +54,33 @@ select assert(access_of((select id from rconv), '00000000-0000-0000-0000-0000000
 select assert(access_of((select id from rconv), '00000000-0000-0000-0000-000000000202') is null,
   'nobody else can read a request conversation');
 
+-- A pre-migration request may have no message. A backfilled conversation still
+-- needs to be visible and writable to its two parties.
+insert into public.join_requests (id, participant_id, team_id, edition_slug) values
+  ('00000000-0000-0000-0000-000000000403', '00000000-0000-0000-0000-000000000107',
+   (select id from public.teams where name = 'formers'), '2027');
+insert into public.conversations (edition_slug, kind, team_id, request_id)
+values ('2027', 'request', (select id from public.teams where name = 'formers'),
+        '00000000-0000-0000-0000-000000000403');
+select assert(
+  (select count(*) from public.conversation_messages m join public.conversations c
+   on c.id = m.conversation_id where c.request_id = '00000000-0000-0000-0000-000000000403') = 0
+  and (select public.conversation_access(c.id, '00000000-0000-0000-0000-000000000207') = 'write'
+       from public.conversations c where c.request_id = '00000000-0000-0000-0000-000000000403')
+  and (select public.conversation_access(c.id, '00000000-0000-0000-0000-000000000201') = 'write'
+       from public.conversations c where c.request_id = '00000000-0000-0000-0000-000000000403'),
+  'a pending request with no message still grants conversation access');
+
+insert into public.join_requests (id, participant_id, team_id, edition_slug, kind, invited_by, message) values
+  ('00000000-0000-0000-0000-000000000404', '00000000-0000-0000-0000-000000000105',
+   (select id from public.teams where name = 'formers'), '2027', 'invitation',
+   '00000000-0000-0000-0000-000000000201', 'Would you like to join our team?');
+select assert(
+  (select count(*) from public.conversation_messages m join public.conversations c
+   on c.id = m.conversation_id where c.request_id = '00000000-0000-0000-0000-000000000404'
+   and m.author_id = '00000000-0000-0000-0000-000000000201') = 1,
+  'an invitation opens with a message authored by invited_by');
+
 -- Blocking turns a pending request conversation read-only.
 insert into public.participant_blocks (blocker_id, blocked_id)
 values ('00000000-0000-0000-0000-000000000108', '00000000-0000-0000-0000-000000000107');
@@ -140,9 +167,9 @@ begin
 end
 $$;
 
-insert into public.team_proposals (id, edition_slug, name) values
-  ('00000000-0000-0000-0000-000000000701', '2027', 'assisted'),
-  ('00000000-0000-0000-0000-000000000702', '2027', 'declined');
+insert into public.team_proposals (id, edition_slug, name, note) values
+  ('00000000-0000-0000-0000-000000000701', '2027', 'assisted', repeat('x', 500)),
+  ('00000000-0000-0000-0000-000000000702', '2027', 'declined', null);
 insert into public.team_proposal_members (proposal_id, registration_id, position) values
   ('00000000-0000-0000-0000-000000000701', '00000000-0000-0000-0000-000000000601', 1),
   ('00000000-0000-0000-0000-000000000701', '00000000-0000-0000-0000-000000000602', 2),
@@ -165,8 +192,34 @@ select assert(
   and (select role = 'leader' from public.registrations where id = '00000000-0000-0000-0000-000000000601')
   and (select team_id = (select team_id from public.team_proposals
                          where id = '00000000-0000-0000-0000-000000000701')
-       from public.registrations where id = '00000000-0000-0000-0000-000000000602'),
-  'the team forms once all accept, led by the first-listed member');
+       from public.registrations where id = '00000000-0000-0000-0000-000000000602')
+  and (select t.description is null from public.teams t join public.team_proposals p
+       on p.team_id = t.id where p.id = '00000000-0000-0000-0000-000000000701'),
+  'a proposal with a 500-character note forms a team without copying its note');
+
+do $$
+declare
+  team_conversation uuid;
+  i int;
+begin
+  select c.id into team_conversation from public.conversations c
+  join public.team_proposals p on p.team_id = c.team_id
+  where p.id = '00000000-0000-0000-0000-000000000701' and c.kind = 'team';
+  for i in 1..10 loop
+    perform public.send_message(team_conversation,
+      '00000000-0000-0000-0000-000000000601', 'Rate limit check', 10, 200);
+  end loop;
+end
+$$;
+select assert(
+  raises($$select public.send_message(
+    (select c.id from public.conversations c join public.team_proposals p on p.team_id = c.team_id
+     where p.id = '00000000-0000-0000-0000-000000000701' and c.kind = 'team'),
+    '00000000-0000-0000-0000-000000000601', 'Eleventh message', 10, 200)$$,
+    'send_rate_limited')
+  and (select count(*) from public.conversation_messages
+       where author_id = '00000000-0000-0000-0000-000000000601') = 10,
+  'send_message refuses the eleventh message in a minute');
 
 select assert(
   (select source = 'organizer' from public.membership_events
@@ -194,6 +247,12 @@ select assert(
   raises($$select public.list_conversations('00000000-0000-0000-0000-000000000202')$$,
          'permission denied for function list_conversations'),
   'list_conversations is server-only');
+select assert(
+  raises($$select public.send_message(
+    '00000000-0000-0000-0000-000000000001',
+    '00000000-0000-0000-0000-000000000202', 'No direct calls', 10, 200)$$,
+    'permission denied for function send_message'),
+  'send_message is not callable by authenticated');
 reset role;
 reset request.jwt.claim.sub;
 

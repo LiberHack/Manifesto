@@ -32,6 +32,7 @@ const { data: page, error: loadError } = await useFetch<Page>(
 
 const messages = ref<Message[]>(page.value?.messages ?? []);
 const hasMore = ref(page.value?.has_more ?? false);
+const pollFailed = ref(false);
 const access = computed(() => page.value?.access ?? "read");
 
 function merge(incoming: Message[]) {
@@ -58,13 +59,18 @@ async function poll() {
     const before = messages.value.at(-1)?.id ?? 0;
     merge(latest.messages);
     if ((messages.value.at(-1)?.id ?? 0) > before) await markRead();
-  } catch {
-    // Lost access (e.g. left the team): stop and show the error state.
-    stopPolling();
-    loadError.value = createError({ statusCode: 404, message: "Conversation not available" });
+    pollFailed.value = false;
+  } catch (e: any) {
+    // Only a confirmed denial means access is gone (e.g. left the team);
+    // anything else is transient, so keep polling and say we're retrying.
+    if (e?.statusCode === 404 || e?.statusCode === 403 || e?.statusCode === 401) {
+      stopPolling();
+      loadError.value = createError({ statusCode: 404, message: "Conversation not available" });
+    } else {
+      pollFailed.value = true;
+    }
   }
 }
-
 let timer: ReturnType<typeof setInterval> | null = null;
 function stopPolling() {
   if (timer) clearInterval(timer);
@@ -179,6 +185,9 @@ function time(iso: string) {
         This conversation is read-only.
       </p>
       <p v-if="notice" role="status" class="alert text-sm">{{ notice }}</p>
+      <p v-if="pollFailed" role="status" class="alert alert-warning text-sm">
+        Can't reach the server right now — retrying.
+      </p>
 
       <button v-if="hasMore" class="btn btn-ghost btn-xs self-center" :disabled="loadingOlder" @click="loadOlder">
         {{ loadingOlder ? "Loading…" : "Load earlier messages" }}

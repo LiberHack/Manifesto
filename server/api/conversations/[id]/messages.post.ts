@@ -1,7 +1,8 @@
 import { requireRegistration } from "#server/utils/requireRegistration";
 import {
   MESSAGE_MAX_LENGTH,
-  enforceSendLimits,
+  SEND_LIMIT_PER_DAY,
+  SEND_LIMIT_PER_MINUTE,
   requireConversationAccess,
 } from "#server/utils/conversations";
 
@@ -24,16 +25,20 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  await enforceSendLimits(supabase, registration.id);
-
-  const { data, error } = await supabase
-    .from("conversation_messages")
-    .insert({ conversation_id: conversationId, author_id: registration.id, body: text })
-    .select("id, created_at")
-    .single();
+  // Counted and inserted in one transaction under a per-author lock.
+  const { data, error } = await supabase.rpc("send_message", {
+    p_conversation: conversationId,
+    p_author: registration.id,
+    p_body: text,
+    p_per_minute: SEND_LIMIT_PER_MINUTE,
+    p_per_day: SEND_LIMIT_PER_DAY,
+  });
 
   if (error) {
-    console.error("[conversations/messages.post] insert failed:", error.message);
+    if (error.message?.includes("send_rate_limited")) {
+      throw createError({ statusCode: 429, message: "You're sending messages too quickly" });
+    }
+    console.error("[conversations/messages.post] send failed:", error.message);
     throw createError({ statusCode: 500, message: "Failed to send" });
   }
 
@@ -45,5 +50,5 @@ export default defineEventHandler(async (event) => {
     updated_at: new Date().toISOString(),
   });
 
-  return data;
+  return { id: data.id, created_at: data.created_at };
 });
