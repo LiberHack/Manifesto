@@ -155,6 +155,41 @@ Phase 1 of `docs/superpowers/plans/2026-09-29-team-formation-and-attendance.md`.
   trigger on `registrations.team_id`; functions tag the source with the
   transaction-local `app.formation_source` setting.
 
+### Recommendations and conversations (phase 2)
+
+- Scoring is `shared/recommendations.ts` (contribution 45 / interests 25 /
+  goals 20 / experience 10, normalised over signals both sides filled in;
+  unknown is never a penalty; declared working languages with no overlap is
+  the only hard exclusion). Ranking rotates near-equal matches by recent
+  exposure. `/api/recommendations/teams` (3, solo participants) and
+  `/candidates` (5, recruiting leaders) recompute on every call and log
+  `recommendation_exposures`; a request made from a suggestion is attributed
+  `source = 'recommendation'` only when such an exposure exists.
+- `participant_blocks` is identity-level and two-way: no applications,
+  invitations or request messages between blocked people, and no suggestions.
+- Organizer-assisted teams are `team_proposals`; `respond_to_proposal` forms
+  the team (source `organizer`) only after every proposed member accepts.
+- **Conversation access** is defined once, in `conversation_access()`:
+  - team chat: current members read and write; new members see the full
+    history (disclosed in the UI); leaving removes access;
+  - request chat (per application/invitation, opened by its required message):
+    the applicant/invitee and the *current* leader while pending (read-only if
+    either blocked the other); afterwards read-only history for the current
+    leader, and for the applicant only if they joined that team. Former leaders
+    and people who joined elsewhere keep nothing;
+  - archived editions: everything read-only;
+  - organizers read a conversation only through a report about it
+    (`/api/admin/reports/:id`), and can hide a reported message.
+- Delivery is polling (`/api/conversations/:id/messages`), not realtime, so
+  every read re-checks access and no client ever holds a Supabase channel.
+  Sends are limited to 10/minute and 200/day per person, 2000 characters,
+  rendered as text with only http(s) links (`shared/linkify.ts`).
+- Retention and deletion: messages belong to the author's registration and are
+  deleted with the account (cascade); reports keep no reporter once the account
+  is gone. Conversations are never exported or shown in archives. Purging an
+  archived edition's conversations is not automated yet; any change to the
+  archival/erasure paths needs explicit human review (AGENTS.md).
+
 ## Announcements & banners
 
 `announcements` is the single source for every notice the site shows. Nothing is
