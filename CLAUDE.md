@@ -127,6 +127,34 @@ Later phases (static/dormant mode, archive export, showcase pages, redaction
 tooling, `presentation_order`) are specified in
 `docs/superpowers/specs/2026-06-08-edition-archiving-design.md` and not built yet.
 
+## Team formation
+
+Phase 1 of `docs/superpowers/plans/2026-09-29-team-formation-and-attendance.md`.
+
+- `registrations.matching_status` is discovery consent (`looking` | `arranging` |
+  `not_needed`, NULL = unanswered). Only `looking` + no team appears in
+  `/api/participants/looking` (leaders only). It is never inferred from `public`
+  and never prefilled from a prior edition.
+- Profile fields (`intro`, `preferred_roles`, `interests`, `goals`, `languages`,
+  code-host/portfolio links) live on the registration and are prefilled across
+  editions. `skills` is normalised (`server/utils/skillNormalize.ts`);
+  `skills_input` keeps what was typed. Vocabulary and form helpers are in
+  `shared/teamFormation.ts`, mirroring the Postgres enums.
+- Private contact is `registration_contacts`: organizer-only, no client grants.
+  Teammates see it only when `share_with_team`. It must never be added to
+  `PUBLIC_PROFILE_COLUMNS` (`server/utils/joinRequests.ts`) or the default
+  participant export (`?include_contacts=1` is the organizer-only variant).
+- `join_requests` holds applications and leader invitations (`kind`), each with a
+  20–500 character `message`, `expires_at`, `decided_at` and `close_reason`.
+- **All membership changes go through DB functions**: `join_team`,
+  `create_team`, `decide_join_request` (approve/reject/accept/decline/withdraw).
+  They lock the team row, so capacity and one-team-per-registration hold under
+  concurrency. Do not write `registrations.team_id` for a join directly.
+- `membership_events` records every join/leave with its `source` (founded,
+  application, direct_invite, invite_link, recommendation, organizer) via a
+  trigger on `registrations.team_id`; functions tag the source with the
+  transaction-local `app.formation_source` setting.
+
 ## Announcements & banners
 
 `announcements` is the single source for every notice the site shows. Nothing is
