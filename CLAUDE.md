@@ -185,7 +185,10 @@ Phase 1 of `docs/superpowers/plans/2026-09-29-team-formation-and-attendance.md`.
   messages unread over an hour; the dispatcher re-counts at send time and
   skips it if everything was read.
 - Delivery is polling (`/api/conversations/:id/messages`), not realtime, so
-  every read re-checks access and no client ever holds a Supabase channel.
+  every read re-checks access and no client ever holds a Supabase channel:
+  every 3s in an open thread, 10s in the inbox, 15s for the dashboard badge,
+  all paused while the tab is hidden (`useVisiblePolling`). An open thread is
+  ~20 requests/minute, inside the 60/minute per-IP API limit.
   Sends are limited to 10/minute and 200/day per person, 2000 characters,
   rendered as text with only http(s) links (`shared/linkify.ts`).
 - Retention and deletion: messages belong to the author's registration and are

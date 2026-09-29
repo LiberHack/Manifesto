@@ -20,7 +20,8 @@ interface Page {
 }
 
 const MAX_LENGTH = 2000;
-const POLL_MS = 10_000;
+// Fast enough to feel live; ~20 requests a minute, within the 60/min API limit.
+const POLL_MS = 3_000;
 
 const route = useRoute();
 const id = computed(() => route.params.id as string);
@@ -53,6 +54,7 @@ async function markRead() {
 
 // Polling rather than a realtime channel: the server re-checks access on every
 // call, so someone who leaves the team stops receiving messages at once.
+// Paused while the tab is hidden.
 async function poll() {
   try {
     const latest = await $fetch<Page>(`/api/conversations/${id.value}/messages`);
@@ -71,16 +73,8 @@ async function poll() {
     }
   }
 }
-let timer: ReturnType<typeof setInterval> | null = null;
-function stopPolling() {
-  if (timer) clearInterval(timer);
-  timer = null;
-}
-onMounted(() => {
-  markRead();
-  timer = setInterval(poll, POLL_MS);
-});
-onUnmounted(stopPolling);
+const { stop: stopPolling } = useVisiblePolling(poll, POLL_MS);
+onMounted(markRead);
 
 const loadingOlder = ref(false);
 async function loadOlder() {

@@ -4,13 +4,7 @@ definePageMeta({ middleware: ["auth"] });
 const { data: conversations, refresh } = await useConversations();
 
 // Polling, not realtime: access is re-checked by the server on every call.
-let timer: ReturnType<typeof setInterval> | null = null;
-onMounted(() => {
-  timer = setInterval(() => refresh(), 30_000);
-});
-onUnmounted(() => {
-  if (timer) clearInterval(timer);
-});
+useVisiblePolling(refresh, 10_000);
 </script>
 
 <template>

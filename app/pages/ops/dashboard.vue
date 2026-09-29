@@ -42,7 +42,8 @@ async function changeSeat(action: "accept" | "cancel") {
 const supabase = useSupabaseClient();
 const router = useRouter();
 const { data: me, refresh: refreshMe } = await useMe();
-const { unreadTotal } = await useConversations();
+const { unreadTotal, refresh: refreshConversations } = await useConversations();
+useVisiblePolling(refreshConversations, 15_000);
 
 // leader_id points at a registration, not an account.
 const isLeader = computed(
