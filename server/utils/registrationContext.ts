@@ -53,6 +53,25 @@ export async function getCurrentEdition(
 }
 
 /**
+ * The current edition, provided its participant area is open.
+ *
+ * @throws 503 when no edition is live, 403 `ops_closed` when the edition's
+ *   participant area has not opened.
+ */
+export async function requireOpenEdition(
+  supabase: SupabaseClient,
+): Promise<Edition> {
+  const edition = await getCurrentEdition(supabase);
+  if (!edition) {
+    throw createError({ statusCode: 503, message: "no_live_edition" });
+  }
+  if (!edition.ops_enabled) {
+    throw createError({ statusCode: 403, message: "ops_closed" });
+  }
+  return edition;
+}
+
+/**
  * Resolve a user's registration in the current edition.
  *
  * Kept free of Nitro-only imports so it is unit-testable; `requireRegistration`
@@ -68,16 +87,9 @@ export async function resolveRegistrationContext(
 ): Promise<RegistrationContext> {
   if (!user) throw createError({ statusCode: 401, message: "Unauthorized" });
 
-  const edition = await getCurrentEdition(supabase);
-  if (!edition) {
-    throw createError({ statusCode: 503, message: "no_live_edition" });
-  }
-
   // Checked before the registration lookup: while the participant area is
   // closed, whether the caller happens to be registered is not the point.
-  if (!edition.ops_enabled) {
-    throw createError({ statusCode: 403, message: "ops_closed" });
-  }
+  const edition = await requireOpenEdition(supabase);
 
   const { data: registration } = await supabase
     .from("registrations")
