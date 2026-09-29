@@ -9,6 +9,7 @@ interface RequestRow {
   message: string | null;
   created_at: string;
   expires_at: string | null;
+  conversation: { id: string } | null;
 }
 
 /**
@@ -25,7 +26,7 @@ export default defineEventHandler(async (event) => {
 
   const { data, error } = await supabase
     .from("join_requests")
-    .select("id, kind, participant_id, message, created_at, expires_at")
+    .select("id, kind, participant_id, message, created_at, expires_at, conversation:conversations(id)")
     .eq("team_id", teamId)
     .eq("edition_slug", edition.slug)
     .eq("status", "pending")
@@ -37,7 +38,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 500, message: "Internal server error" });
   }
 
-  const rows = (data ?? []) as RequestRow[];
+  const rows = (data ?? []) as unknown as RequestRow[];
   if (rows.length === 0) return [];
 
   // Profiles live on each person's registration for this edition.

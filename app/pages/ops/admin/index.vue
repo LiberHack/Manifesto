@@ -966,6 +966,10 @@ async function addAnnouncement() {
       </div>
     </section>
 
+    <NuxtLink to="/ops/admin/matching" class="btn btn-outline btn-sm font-black uppercase">
+      > Matching queue, proposals &amp; reports
+    </NuxtLink>
+
     <!-- ── Participants ────────────────────────────────────────────────────── -->
     <section>
       <div class="flex items-center justify-between mb-4">

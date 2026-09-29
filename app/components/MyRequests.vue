@@ -9,6 +9,7 @@ interface MyRequest {
   message: string | null;
   created_at: string;
   expires_at: string | null;
+  conversation: { id: string } | null;
   team: {
     id: string;
     name: string;
@@ -89,6 +90,9 @@ function expiresIn(r: MyRequest): string | null {
         </div>
         <blockquote class="text-sm whitespace-pre-line border-l-2 border-base-content/30 pl-3">{{ r.message }}</blockquote>
         <p v-if="expiresIn(r)" class="text-xs opacity-60">Open until {{ expiresIn(r) }}</p>
+        <NuxtLink v-if="r.conversation" :to="`/ops/messages/${r.conversation.id}`" class="link text-sm">
+          Ask the team a question →
+        </NuxtLink>
         <div class="flex gap-2">
           <button class="btn btn-success btn-sm font-black" :disabled="busy === r.id" @click="act(r.id, 'accept')">
             Accept
@@ -107,6 +111,9 @@ function expiresIn(r: MyRequest): string | null {
         <p class="text-xs opacity-60">
           Waiting for the leader<template v-if="expiresIn(r)"> · open until {{ expiresIn(r) }}</template>
         </p>
+        <NuxtLink v-if="r.conversation" :to="`/ops/messages/${r.conversation.id}`" class="link text-sm">
+          Conversation with the team →
+        </NuxtLink>
         <button class="btn btn-ghost btn-xs self-start" :disabled="busy === r.id" @click="act(r.id, 'withdraw')">
           Withdraw
         </button>

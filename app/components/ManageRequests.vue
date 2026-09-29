@@ -7,6 +7,7 @@ interface TeamRequest {
   message: string | null;
   created_at: string;
   expires_at: string | null;
+  conversation: { id: string } | null;
   profile: PublicProfile | null;
 }
 
@@ -57,6 +58,9 @@ defineExpose({ refresh });
           v-if="req.message"
           class="text-sm whitespace-pre-line border-l-2 border-primary pl-3"
         >{{ req.message }}</blockquote>
+        <NuxtLink v-if="req.conversation" :to="`/ops/messages/${req.conversation.id}`" class="link text-sm">
+          Reply or ask a question →
+        </NuxtLink>
         <div class="flex gap-2">
           <button class="btn btn-success btn-sm font-black" :disabled="busy === req.id" @click="act(req.id, 'approve')">
             Accept

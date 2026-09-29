@@ -2,8 +2,6 @@
 import {
   CONTRIBUTION_ROLES,
   CONTRIBUTION_ROLE_LABELS,
-  REQUEST_MESSAGE_MAX_LENGTH,
-  REQUEST_MESSAGE_MIN_LENGTH,
   type ContributionRole,
   type PublicProfile,
 } from "#shared/teamFormation";
@@ -14,13 +12,22 @@ interface LookingProfile extends PublicProfile {
   open_request: "application" | "invitation" | null;
 }
 
-const { data: me } = await useMe();
-const teamId = computed(() => me.value?.team?.id);
+interface Suggestion {
+  profile: PublicProfile;
+  reasons: string[];
+  evidence: "none" | "weak" | "some";
+}
 
-const { data: people, error: loadError, refresh } = await useFetch<LookingProfile[]>(
-  "/api/participants/looking",
-  { default: () => [] },
-);
+const { data: me } = await useMe();
+const teamId = computed(() => me.value?.team?.id ?? "");
+
+const [{ data: people, error: loadError, refresh }, { data: suggested, refresh: refreshSuggested }] =
+  await Promise.all([
+    useFetch<LookingProfile[]>("/api/participants/looking", { default: () => [] }),
+    useFetch<{ suggestions: Suggestion[]; reason?: string }>("/api/recommendations/candidates", {
+      default: () => ({ suggestions: [] }),
+    }),
+  ]);
 
 const roleFilter = ref<ContributionRole | "">("");
 const visible = computed(() =>
@@ -29,38 +36,19 @@ const visible = computed(() =>
     : people.value,
 );
 
+// "s:<id>" for a suggestion card, "l:<id>" for the full list.
 const inviting = ref<string | null>(null);
-const inviteMessage = ref("");
-const sending = ref(false);
-const feedback = ref<{ id: string; text: string; ok: boolean } | null>(null);
+const notice = ref("");
 
-const messageLength = computed(() => inviteMessage.value.trim().length);
-const messageValid = computed(
-  () =>
-    messageLength.value >= REQUEST_MESSAGE_MIN_LENGTH &&
-    messageLength.value <= REQUEST_MESSAGE_MAX_LENGTH,
-);
-
-function startInvite(id: string) {
-  inviting.value = id;
-  inviteMessage.value = "";
-  feedback.value = null;
+async function onSent(name: string) {
+  inviting.value = null;
+  notice.value = `Invitation sent to ${name}.`;
+  await Promise.all([refresh(), refreshSuggested()]);
 }
 
-async function sendInvite(id: string) {
-  sending.value = true;
-  try {
-    await $fetch(`/api/teams/${teamId.value}/invitations`, {
-      method: "POST",
-      body: { registration_id: id, message: inviteMessage.value },
-    });
-    feedback.value = { id, text: "Invitation sent.", ok: true };
-    inviting.value = null;
-    await refresh();
-  } catch (e: any) {
-    feedback.value = { id, text: e.data?.message ?? "Something went wrong", ok: false };
-  }
-  sending.value = false;
+async function dismiss(candidateId: string) {
+  await $fetch("/api/recommendations/dismiss", { method: "POST", body: { candidate_id: candidateId } });
+  await refreshSuggested();
 }
 </script>
 
@@ -80,67 +68,85 @@ async function sendInvite(id: string) {
         Everyone here chose to be found by teams. Invitations need their acceptance,
         and nobody's contact details are shown.
       </p>
+      <p v-if="notice" role="status" class="alert alert-success text-sm">{{ notice }}</p>
 
-      <label class="form-control max-w-xs">
-        <span class="label-text font-bold">Filter by role</span>
-        <select v-model="roleFilter" class="select select-bordered select-sm">
-          <option value="">Any role</option>
-          <option v-for="role in CONTRIBUTION_ROLES" :key="role" :value="role">
-            {{ CONTRIBUTION_ROLE_LABELS[role] }}
-          </option>
-        </select>
-      </label>
+      <section class="flex flex-col gap-3">
+        <h2 class="text-xl font-bold">Suggested for your team</h2>
+        <p v-if="suggested.reason === 'not_recruiting'" class="text-sm opacity-60">
+          Your team isn't recruiting. Turn recruiting on in your dashboard to get suggestions.
+        </p>
+        <p v-else-if="suggested.reason === 'full'" class="text-sm opacity-60">Your team has no open places.</p>
+        <p v-else-if="!suggested.suggestions.length" class="text-sm opacity-60">
+          No suggestions right now — try the full list below.
+        </p>
+        <div
+          v-for="s in suggested.suggestions"
+          :key="s.profile.registration_id"
+          class="p-4 border border-primary flex flex-col gap-3"
+        >
+          <ProfileCard :profile="s.profile" />
+          <ul v-if="s.reasons.length" class="text-xs list-disc pl-4">
+            <li v-for="r in s.reasons" :key="r">{{ r }}</li>
+          </ul>
+          <p v-else class="text-xs opacity-60">Not enough profile information to compare yet.</p>
+          <InviteForm
+            v-if="inviting === `s:${s.profile.registration_id}`"
+            :team-id="teamId"
+            :registration-id="s.profile.registration_id"
+            recommended
+            @sent="onSent(s.profile.name)"
+            @cancel="inviting = null"
+          />
+          <div v-else class="flex gap-2">
+            <button class="btn btn-outline btn-sm font-black uppercase" @click="inviting = `s:${s.profile.registration_id}`">
+              Invite
+            </button>
+            <button class="btn btn-ghost btn-sm" @click="dismiss(s.profile.registration_id)">Not a fit</button>
+          </div>
+        </div>
+      </section>
 
-      <p v-if="!visible.length" class="opacity-60">Nobody matches right now.</p>
+      <section class="flex flex-col gap-3">
+        <h2 class="text-xl font-bold">Everyone looking</h2>
+        <label class="form-control max-w-xs">
+          <span class="label-text font-bold">Filter by role</span>
+          <select v-model="roleFilter" class="select select-bordered select-sm">
+            <option value="">Any role</option>
+            <option v-for="role in CONTRIBUTION_ROLES" :key="role" :value="role">
+              {{ CONTRIBUTION_ROLE_LABELS[role] }}
+            </option>
+          </select>
+        </label>
 
-      <ul class="flex flex-col gap-4">
-        <li v-for="person in visible" :key="person.registration_id" class="p-4 border border-base-content/20 flex flex-col gap-3">
-          <ProfileCard :profile="person" />
+        <p v-if="!visible.length" class="opacity-60">Nobody matches right now.</p>
 
-          <p
-            v-if="feedback?.id === person.registration_id"
-            class="text-sm"
-            :class="feedback.ok ? 'text-success' : 'text-error'"
+        <ul class="flex flex-col gap-4">
+          <li
+            v-for="person in visible"
+            :key="person.registration_id"
+            class="p-4 border border-base-content/20 flex flex-col gap-3"
           >
-            {{ feedback.text }}
-          </p>
-
-          <p v-if="person.open_request" class="text-xs opacity-60">
-            {{ person.open_request === "invitation" ? "Invitation pending." : "They applied to your team — see your dashboard." }}
-          </p>
-
-          <form
-            v-else-if="inviting === person.registration_id"
-            class="flex flex-col gap-2"
-            @submit.prevent="sendInvite(person.registration_id)"
-          >
-            <textarea
-              v-model="inviteMessage"
-              rows="3"
-              :maxlength="REQUEST_MESSAGE_MAX_LENGTH"
-              placeholder="Why your team, and what you'd work on together"
-              class="textarea textarea-bordered w-full"
+            <ProfileCard :profile="person" />
+            <p v-if="person.open_request" class="text-xs opacity-60">
+              {{ person.open_request === "invitation" ? "Invitation pending." : "They applied to your team — see your dashboard." }}
+            </p>
+            <InviteForm
+              v-else-if="inviting === `l:${person.registration_id}`"
+              :team-id="teamId"
+              :registration-id="person.registration_id"
+              @sent="onSent(person.name)"
+              @cancel="inviting = null"
             />
-            <span class="text-xs" :class="messageValid ? 'opacity-60' : 'text-warning'">
-              {{ messageLength }}/{{ REQUEST_MESSAGE_MAX_LENGTH }} (at least {{ REQUEST_MESSAGE_MIN_LENGTH }})
-            </span>
-            <div class="flex gap-2">
-              <button type="submit" class="btn btn-primary btn-sm font-black" :disabled="sending || !messageValid">
-                {{ sending ? "Sending…" : "Send invitation" }}
-              </button>
-              <button type="button" class="btn btn-ghost btn-sm" @click="inviting = null">Cancel</button>
-            </div>
-          </form>
-
-          <button
-            v-else
-            class="btn btn-outline btn-sm self-start font-black uppercase"
-            @click="startInvite(person.registration_id)"
-          >
-            Invite to your team
-          </button>
-        </li>
-      </ul>
+            <button
+              v-else
+              class="btn btn-outline btn-sm self-start font-black uppercase"
+              @click="inviting = `l:${person.registration_id}`"
+            >
+              Invite to your team
+            </button>
+          </li>
+        </ul>
+      </section>
     </template>
   </main>
 </template>

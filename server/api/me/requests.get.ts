@@ -12,7 +12,8 @@ export default defineEventHandler(async (event) => {
     .from("join_requests")
     .select(
       "id, kind, status, close_reason, message, created_at, decided_at, expires_at, " +
-        "team:teams(id, name, description, wanted_roles, welcomes_beginners)",
+        "team:teams(id, name, description, wanted_roles, welcomes_beginners), " +
+        "conversation:conversations(id)",
     )
     .eq("participant_id", registration.participant_id)
     .eq("edition_slug", edition.slug)

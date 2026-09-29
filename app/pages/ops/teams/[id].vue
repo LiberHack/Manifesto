@@ -55,7 +55,8 @@ async function sendRequest() {
   try {
     await $fetch(`/api/teams/${route.params.id}/requests`, {
       method: "POST",
-      body: { message: applicationMessage.value },
+      // Attributed to recommendations only if the server finds the exposure.
+      body: { message: applicationMessage.value, recommended: route.query.recommended === "1" },
     });
     message.value = "Request sent!";
   } catch (e: any) {

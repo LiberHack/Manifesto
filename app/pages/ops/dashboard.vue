@@ -15,6 +15,7 @@ definePageMeta({ middleware: ["auth"] });
 const supabase = useSupabaseClient();
 const router = useRouter();
 const { data: me, refresh: refreshMe } = await useMe();
+const { unreadTotal } = await useConversations();
 
 // leader_id points at a registration, not an account.
 const isLeader = computed(
@@ -251,6 +252,10 @@ async function logout() {
         <h1 class="text-xl md:text-4xl font-black uppercase">Dashboard</h1>
         <div class="flex gap-2 items-center">
           <NuxtLink to="/ops/teams" class="btn btn-outline font-black uppercase">> Teams</NuxtLink>
+          <NuxtLink to="/ops/messages" class="btn btn-outline font-black uppercase">
+            > Messages
+            <span v-if="unreadTotal" class="badge badge-primary" :aria-label="`${unreadTotal} unread`">{{ unreadTotal }}</span>
+          </NuxtLink>
           <button class="btn btn-ghost btn-sm" @click="logout">Logout</button>
         </div>
       </div>
@@ -354,6 +359,8 @@ async function logout() {
         </button>
       </section>
 
+      <MyProposals v-if="me?.registration && !me.team" @changed="refreshMe" />
+
       <section v-if="me?.registration" id="my-requests">
         <h2 class="text-xl font-bold mb-3">Applications &amp; invitations</h2>
         <MyRequests @joined="refreshMe" />
@@ -374,6 +381,7 @@ async function logout() {
           <NuxtLink :to="`/ops/teams/${me.team.id}`" class="link font-bold text-lg">
             {{ me.team.name }}
           </NuxtLink>
+          <NuxtLink to="/ops/messages" class="link text-sm ml-3">Team chat →</NuxtLink>
 
           <div v-if="showLeaveConfirm" class="mt-4 p-4 border border-error flex flex-col gap-3">
             <p class="text-sm font-bold">
@@ -501,16 +509,15 @@ async function logout() {
           </button>
         </section>
       </section>
-      <section v-else id="no-team">
-        <h2 class="text-xl font-bold mb-2">No Team Yet</h2>
-        <div class="flex flex-col md:flex-row gap-3">
-          <NuxtLink to="/ops/teams" class="btn btn-primary btn-sm font-black uppercase">
-            Browse Teams
-          </NuxtLink>
-          <NuxtLink to="/ops/team/create" class="btn btn-outline btn-sm font-black uppercase">
-            Form a Team
-          </NuxtLink>
-        </div>
+      <section v-else id="no-team" class="flex flex-col gap-3">
+        <h2 class="text-xl font-bold">No Team Yet</h2>
+        <SuggestedTeams
+          :help-requested-at="me?.registration?.organizer_help_requested_at ?? null"
+          @changed="refreshMe"
+        />
+        <NuxtLink to="/ops/team/create" class="btn btn-outline btn-sm font-black uppercase self-start">
+          Form a Team
+        </NuxtLink>
       </section>
 
       <section v-if="me?.role === 'admin'" id="admin">
