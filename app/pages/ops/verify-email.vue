@@ -34,8 +34,10 @@ function onConfirmed() {
   router.replace('/ops/dashboard')
 }
 
+// useSupabaseUser() holds JWT claims, which carry user_metadata.email_verified
+// but not email_confirmed_at — the same check the auth middleware makes.
 watch(user, (u) => {
-  if (u?.email_confirmed_at) onConfirmed()
+  if (u?.user_metadata?.email_verified) onConfirmed()
 }, { immediate: true })
 
 const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
