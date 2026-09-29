@@ -238,11 +238,11 @@ select assert(
 
 -- Leaving as the last member dissolves the team; leaving as leader hands over.
 insert into auth.users (id, email, raw_user_meta_data)
-values ('00000000-0000-0000-0000-000000000109', 'tf9@example.com', '{"name":"TF 9"}');
+values ('00000000-0000-0000-0000-000000000199', 'tf99@example.com', '{"name":"TF 99"}');
 insert into public.registrations (id, participant_id, edition_slug)
-values ('00000000-0000-0000-0000-000000000209', '00000000-0000-0000-0000-000000000109', '2027');
-select public.create_team('00000000-0000-0000-0000-000000000209', 'solo', '{}', null);
-select public.leave_team('00000000-0000-0000-0000-000000000209');
+values ('00000000-0000-0000-0000-000000000299', '00000000-0000-0000-0000-000000000199', '2027');
+select public.create_team('00000000-0000-0000-0000-000000000299', 'solo', '{}', null);
+select public.leave_team('00000000-0000-0000-0000-000000000299');
 select assert(not exists (select 1 from public.teams where name = 'solo'),
   'the last member leaving dissolves the team');
 
