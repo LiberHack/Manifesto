@@ -1,5 +1,6 @@
 import { requireRegistration } from "#server/utils/requireRegistration";
 import { releaseTeamLeadership } from "#server/utils/teamMembership";
+import { membershipError } from "#server/utils/joinRequests";
 
 export default defineEventHandler(async (event) => {
   const { registration, edition, supabase } = await requireRegistration(event);
@@ -26,11 +27,12 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 409, message: "already_in_team" });
   }
 
+  // Checked again under a lock by join_team; this early check only avoids
+  // leaving the current team for one that is already full.
   const { count } = await supabase
     .from("registrations")
     .select("id", { count: "exact", head: true })
     .eq("team_id", team.id);
-
   if ((count ?? 0) >= 6) {
     throw createError({ statusCode: 409, message: "Team is full" });
   }
@@ -39,28 +41,20 @@ export default defineEventHandler(async (event) => {
   // teams.leader_id would point at a non-member.
   if (registration.team_id) {
     await releaseTeamLeadership(supabase, registration.id, registration.team_id);
+    await supabase
+      .from("registrations")
+      .update({ team_id: null, role: "participant" })
+      .eq("id", registration.id);
   }
 
-  const { error } = await supabase
-    .from("registrations")
-    .update({ team_id: team.id, role: "participant" })
-    .eq("id", registration.id);
-
-  if (error) {
-    if (error.message?.includes("team_full")) {
-      throw createError({ statusCode: 409, message: "Team is full" });
-    }
-    console.error("[invite.accept] update failed:", error.message);
-    throw createError({ statusCode: 500, message: "Internal server error" });
-  }
-
-  // Cancel any pending join requests for the new member
-  await supabase
-    .from("join_requests")
-    .update({ status: "rejected" })
-    .eq("participant_id", registration.participant_id)
-    .eq("edition_slug", edition.slug)
-    .eq("status", "pending");
+  // join_team checks capacity under a lock and closes the person's other open
+  // requests as joined_other_team.
+  const { error } = await supabase.rpc("join_team", {
+    p_registration: registration.id,
+    p_team: team.id,
+    p_source: "invite_link",
+  });
+  if (error) membershipError(error, "invite.accept");
 
   return { team_id: team.id, team_name: team.name };
 });

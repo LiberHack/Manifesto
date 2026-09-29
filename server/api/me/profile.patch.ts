@@ -1,4 +1,6 @@
 import { requireRegistration } from "#server/utils/requireRegistration";
+import { parseProfileFields } from "#server/utils/profileInput";
+import { addSkillsToCatalogue, resolveSkills } from "#server/utils/skills";
 
 const EXPERIENCE_VALUES = ["beginner", "intermediate", "experienced"] as const;
 type ExperienceLevel = (typeof EXPERIENCE_VALUES)[number];
@@ -6,15 +8,19 @@ type ExperienceLevel = (typeof EXPERIENCE_VALUES)[number];
 const MAX_DIETARY_LENGTH = 200;
 
 export default defineEventHandler(async (event) => {
-  const { registration, supabase } = await requireRegistration(event);
+  const { user, registration, supabase } = await requireRegistration(event);
 
-  const body = await readBody<{
-    dietary?: unknown;
-    experience?: unknown;
-    public?: unknown;
-  }>(event);
+  const body = (await readBody<Record<string, unknown>>(event)) ?? {};
 
-  const update: Record<string, string | boolean | null> = {};
+  const update: Record<string, unknown> = { ...parseProfileFields(body) };
+  let newSkills: string[] = [];
+
+  if (body.skills !== undefined) {
+    const resolved = await resolveSkills(supabase, body.skills);
+    update.skills = resolved.skills;
+    update.skills_input = resolved.skills_input;
+    newSkills = resolved.new_skills;
+  }
 
   if (body.dietary !== undefined) {
     if (body.dietary !== null && typeof body.dietary !== "string") {
@@ -63,6 +69,8 @@ export default defineEventHandler(async (event) => {
     .eq("id", registration.id);
 
   if (error) throw createError({ statusCode: 500, message: "Internal server error" });
+
+  await addSkillsToCatalogue(supabase, newSkills, user.sub);
 
   return { ok: true };
 });

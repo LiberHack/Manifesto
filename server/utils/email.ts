@@ -100,3 +100,41 @@ export async function sendRequestDecisionNotification(
     text,
   });
 }
+
+// Plain layout for notices that do not have an MJML template yet.
+const SIMPLE_HTML =
+  '<div style="font-family:monospace;max-width:560px;margin:0 auto;padding:24px">' +
+  "<p>{{BODY}}</p>" +
+  '<p><a href="{{LINK}}" style="font-weight:bold">{{LINK_LABEL}}</a></p>' +
+  "</div>";
+
+export async function sendInvitationNotification(
+  inviteeEmail: string,
+  teamName: string,
+) {
+  const config = useRuntimeConfig();
+  const link = `${config.siteUrl}/ops/dashboard#my-requests`;
+  const body = `The team "${teamName}" invited you to join them at LiberHack. Read their message and accept or decline from your dashboard.`;
+  await sendEmail({
+    to: inviteeEmail,
+    subject: `${teamName} invited you to their team`,
+    html: fill(SIMPLE_HTML, { BODY: body, LINK: link, LINK_LABEL: "Open your dashboard" }),
+    text: `${body}\n\n${link}`,
+  });
+}
+
+export async function sendInvitationAcceptedNotification(
+  leaderEmail: string,
+  inviteeName: string,
+  teamName: string,
+) {
+  const config = useRuntimeConfig();
+  const link = `${config.siteUrl}/ops/dashboard`;
+  const body = `${inviteeName} accepted your invitation and joined "${teamName}".`;
+  await sendEmail({
+    to: leaderEmail,
+    subject: `${inviteeName} joined ${teamName}`,
+    html: fill(SIMPLE_HTML, { BODY: body, LINK: link, LINK_LABEL: "Open your dashboard" }),
+    text: `${body}\n\n${link}`,
+  });
+}

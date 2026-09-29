@@ -32,7 +32,7 @@ create type public.request_kind as enum ('application', 'invitation');
 
 create type public.request_close_reason as enum (
   'leader_rejected', 'invitee_declined', 'withdrawn', 'joined_other_team',
-  'expired', 'team_full', 'left_team'
+  'expired', 'team_full', 'team_dissolved', 'left_team'
 );
 
 create type public.formation_source as enum (

@@ -1,5 +1,6 @@
 import { requireRegistration } from "#server/utils/requireRegistration";
 import { requireTeamLeadership } from "#server/utils/registrationContext";
+import { parseTeamRecruitmentFields } from "#server/utils/profileInput";
 
 const MAX_SKILLS = 10;
 const MAX_SKILL_LENGTH = 30;
@@ -16,13 +17,22 @@ export default defineEventHandler(async (event) => {
     "Only the team leader can update this team",
   );
 
-  const body = await readBody<{ skills_wanted?: unknown; description?: unknown }>(event);
+  const body = (await readBody<Record<string, unknown>>(event)) ?? {};
 
-  if (body.skills_wanted === undefined && body.description === undefined) {
-    throw createError({ statusCode: 400, message: "No fields to update" });
+  const update: Record<string, unknown> = { ...parseTeamRecruitmentFields(body) };
+
+  if (update.desired_size !== undefined) {
+    const { count } = await supabase
+      .from("registrations")
+      .select("id", { count: "exact", head: true })
+      .eq("team_id", teamId!);
+    if ((update.desired_size as number) < (count ?? 0)) {
+      throw createError({
+        statusCode: 400,
+        message: "Desired size cannot be smaller than the current team",
+      });
+    }
   }
-
-  const update: Record<string, unknown> = {};
 
   if (body.skills_wanted !== undefined) {
     if (!Array.isArray(body.skills_wanted)) {
@@ -58,6 +68,10 @@ export default defineEventHandler(async (event) => {
       });
     }
     update.description = description === "" ? null : description;
+  }
+
+  if (Object.keys(update).length === 0) {
+    throw createError({ statusCode: 400, message: "No fields to update" });
   }
 
   const { data, error } = await supabase

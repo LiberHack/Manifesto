@@ -1,10 +1,18 @@
 import { requireRegistration } from "#server/utils/requireRegistration";
 import { sendJoinRequestNotification } from "#server/utils/email";
+import { parseRequestMessage } from "#server/utils/profileInput";
+import { getSeatState } from "#server/utils/joinRequests";
 
+/**
+ * Apply to join a team. The message is required and stored as submitted.
+ * Refused when the team is not recruiting or has no vacancies left.
+ */
 export default defineEventHandler(async (event) => {
   const { registration, edition, supabase } = await requireRegistration(event);
 
-  const teamId = getRouterParam(event, "id");
+  const teamId = getRouterParam(event, "id")!;
+  const body = (await readBody<{ message?: unknown }>(event)) ?? {};
+  const message = parseRequestMessage(body.message);
 
   if (registration.team_id) {
     throw createError({ statusCode: 409, message: "Already in a team" });
@@ -13,44 +21,37 @@ export default defineEventHandler(async (event) => {
   const { data: team } = await supabase
     .from("teams")
     .select("id, name, leader_id")
-    .eq("id", teamId!)
+    .eq("id", teamId)
     .eq("edition_slug", edition.slug)
     .maybeSingle();
 
   if (!team) throw createError({ statusCode: 404, message: "Team not found" });
 
-  const { count: memberCount } = await supabase
-    .from("registrations")
-    .select("id", { count: "exact", head: true })
-    .eq("team_id", teamId!);
-
-  if ((memberCount ?? 0) >= 6) {
-    throw createError({ statusCode: 409, message: "Team is full" });
+  const seats = await getSeatState(supabase, teamId);
+  if (!seats.recruiting) {
+    throw createError({ statusCode: 409, message: "This team is not recruiting" });
   }
-
-  const { data: existing } = await supabase
-    .from("join_requests")
-    .select("id")
-    .eq("participant_id", registration.participant_id)
-    .eq("team_id", teamId!)
-    .eq("status", "pending")
-    .maybeSingle();
-
-  if (existing) {
-    throw createError({ statusCode: 409, message: "Request already pending" });
+  if (seats.vacancies === 0) {
+    throw createError({ statusCode: 409, message: "Team is full" });
   }
 
   const { data: request, error } = await supabase
     .from("join_requests")
     .insert({
       participant_id: registration.participant_id,
-      team_id: teamId!,
+      team_id: teamId,
       edition_slug: edition.slug,
+      kind: "application",
+      source: "application",
+      message,
     })
-    .select()
+    .select("id, kind, status, message, created_at, expires_at")
     .single();
 
   if (error) {
+    if (error.code === "23505") {
+      throw createError({ statusCode: 409, message: "Request already pending" });
+    }
     console.error("[teams/requests.post] insert failed:", error.message);
     throw createError({ statusCode: 500, message: "Failed to submit request" });
   }

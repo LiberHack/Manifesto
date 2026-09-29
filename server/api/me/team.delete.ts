@@ -16,10 +16,14 @@ export default defineEventHandler(async (event) => {
     .update({ team_id: null, role: "participant" })
     .eq("id", registration.id);
 
-  // Cancel any pending join requests in this edition
+  // Close anything still open for this person in this edition
   await supabase
     .from("join_requests")
-    .update({ status: "rejected" })
+    .update({
+      status: "withdrawn",
+      close_reason: "left_team",
+      decided_at: new Date().toISOString(),
+    })
     .eq("participant_id", registration.participant_id)
     .eq("edition_slug", edition.slug)
     .eq("status", "pending");

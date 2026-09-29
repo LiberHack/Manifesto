@@ -2,19 +2,40 @@ import { serverSupabaseUser } from "#supabase/server";
 import { useSupabaseAdmin } from "#server/utils/supabase";
 import { getCurrentEdition } from "#server/utils/registrationContext";
 
+const PROFILE_COLUMNS =
+  "intro, preferred_roles, interests, goals, languages, github_url, gitlab_url, codeberg_url, portfolio_url";
+
 interface Prefill {
   skills: string[];
   dietary: string | null;
   experience: "beginner" | "intermediate" | "experienced" | null;
   public: boolean;
+  intro?: string | null;
+  preferred_roles?: string[];
+  interests?: string[];
+  goals?: string[];
+  languages?: string[];
+  github_url?: string | null;
+  gitlab_url?: string | null;
+  codeberg_url?: string | null;
+  portfolio_url?: string | null;
+  /** Prior edition's preferred contact, offered for re-confirmation. */
+  contact?: {
+    method: string;
+    handle: string | null;
+    other_label: string | null;
+    share_with_team: boolean;
+  } | null;
 }
 
 /**
  * State for /ops/register-edition: the current edition, whether the caller is
  * already registered, how many seats remain, and the values to pre-fill.
  *
- * Pre-fill comes from the most recent prior registration; for a first-time
- * account it falls back to the metadata captured on the signup form.
+ * Pre-fill comes from the most recent prior registration (including its
+ * reusable introduction, links and contact); for a first-time account it falls
+ * back to the metadata captured on the signup form. Matching status is never
+ * carried over: discovery consent is given per edition.
  */
 export default defineEventHandler(async (event) => {
   const user = await serverSupabaseUser(event);
@@ -42,7 +63,10 @@ export default defineEventHandler(async (event) => {
       .maybeSingle(),
     supabase
       .from("registrations")
-      .select("skills, dietary, experience, public")
+      .select(
+        `id, skills, dietary, experience, public, ${PROFILE_COLUMNS}, ` +
+          "contact:registration_contacts(method, handle, other_label, share_with_team)",
+      )
       .eq("participant_id", user.sub)
       .neq("edition_slug", edition.slug)
       .order("registered_at", { ascending: false })
@@ -58,7 +82,7 @@ export default defineEventHandler(async (event) => {
   const experience = metadata.experience;
 
   const prefill: Prefill = prior
-    ? (prior as Prefill)
+    ? (({ id: _id, ...rest }) => rest)(prior as unknown as Prefill & { id: string })
     : {
         skills: Array.isArray(metadata.skills) ? (metadata.skills as string[]) : [],
         dietary:
