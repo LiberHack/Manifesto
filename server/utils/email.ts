@@ -36,7 +36,12 @@ interface EmailOptions {
 
 // Plain HTTP call instead of the resend SDK: the SDK drags in an optional
 // @react-email/render peer that cannot be bundled for Cloudflare Workers.
-async function sendEmail(options: EmailOptions) {
+/**
+ * Send one email. Returns whether the provider accepted it. Failures are
+ * logged by status only: never the address or the provider's response body,
+ * which can echo it.
+ */
+async function sendEmail(options: EmailOptions): Promise<boolean> {
   const config = useRuntimeConfig();
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -53,8 +58,9 @@ async function sendEmail(options: EmailOptions) {
     }),
   });
   if (!res.ok) {
-    console.error("[email] failed to send to", options.to, res.status, await res.text());
+    console.error("[email] send failed with status", res.status);
   }
+  return res.ok;
 }
 
 export async function sendJoinRequestNotification(
@@ -148,5 +154,21 @@ export async function sendProposalNotification(email: string, teamName: string) 
     subject: `The organizers suggested a team for you`,
     html: fill(SIMPLE_HTML, { BODY: body, LINK: link, LINK_LABEL: "Open your dashboard" }),
     text: `${body}\n\n${link}`,
+
+/**
+ * A plain notice with one call to action, for notification jobs.
+ * @returns whether the provider accepted the email.
+ */
+export function sendNotice(
+  to: string,
+  notice: { subject: string; body: string; path: string; linkLabel: string },
+): Promise<boolean> {
+  const config = useRuntimeConfig();
+  const link = `${config.siteUrl}${notice.path}`;
+  return sendEmail({
+    to,
+    subject: notice.subject,
+    html: fill(SIMPLE_HTML, { BODY: notice.body, LINK: link, LINK_LABEL: notice.linkLabel }),
+    text: `${notice.body}\n\n${link}`,
   });
 }

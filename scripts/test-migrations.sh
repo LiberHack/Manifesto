@@ -46,14 +46,15 @@ for f in "$ROOT"/supabase/migrations/*.sql; do
 done
 
 echo
-# 02 leaves the database in a known post-go-live state that 03 builds on, so the
-# verification files share one session.
+# 02 leaves the database in a known post-go-live state that later assertions
+# build on, so the verification files share one session.
 psql -d liberhack -v ON_ERROR_STOP=1 \
   -f "$ROOT/supabase/tests/02-verify-editions.sql" \
   -f "$ROOT/supabase/tests/03-verify-announcements.sql" \
   -f "$ROOT/supabase/tests/04-verify-ops-toggle.sql" \
   -f "$ROOT/supabase/tests/05-verify-direct-access.sql" \
   -f "$ROOT/supabase/tests/06-verify-team-formation.sql" \
-  -f "$ROOT/supabase/tests/07-verify-conversations.sql" 2>&1 \
+  -f "$ROOT/supabase/tests/07-verify-conversations.sql" \
+  -f "$ROOT/supabase/tests/08-verify-attendance.sql" 2>&1 \
   | grep -E 'PASS|FAIL|VERIFICATION|ERROR' \
   | sed 's/^psql:.*NOTICE:  //'

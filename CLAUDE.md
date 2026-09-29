@@ -190,7 +190,41 @@ Phase 1 of `docs/superpowers/plans/2026-09-29-team-formation-and-attendance.md`.
   archived edition's conversations is not automated yet; any change to the
   archival/erasure paths needs explicit human review (AGENTS.md).
 
+## Attendance
+
+Phase 3 stores each person's `intention`/`intention_at` separately from their
+`seat_state` and `checked_in_at`. Private help requests are in
+`attendance_barriers`; only organizer routes read them. Seats are `accepted`,
+`offered`, `waitlisted`, or `cancelled`; `change_seat` and `offer_next_seat` lock
+the edition row, and the revised `enforce_edition_cap` counts accepted seats
+and offered seats. An organizer can expire due offers from the attendance desk.
+Check-ins and corrections are recorded in `checkin_events`.
+
+Admission is decided in the database: `admit_new_registration` places a new
+registration on the waitlist (instead of failing) when the edition is full or
+anyone is still waiting for a first offer, and `advance_waitlist` offers a
+freed seat whenever a reserved registration is waitlisted-in or deleted.
+
+`notification_jobs` stores edition-scoped delivery status, attempts, and a
+unique dedup key. `server/utils/notifications.ts` delivers them:
+`claim_notification_jobs` leases due jobs (SKIP LOCKED, 15-minute lease, at
+most five attempts), each kind has a handler that re-checks relevance at send
+time, and outcomes are logged by job id only — never addresses. Seat offers
+and welcomes are dispatched immediately by the route that creates them; the
+rest go out on an operations run (`POST /api/admin/notifications/dispatch`,
+"Run operations now" on `/ops/admin/attendance`), which also expires lapsed
+offers, captures due snapshots and queues due reminders. There is no schedule
+yet: a Cloudflare cron trigger for that run is a deploy-config decision.
+`scripts/send-event-reminder.ts --edition <slug>` only queues arrival jobs
+(counts only in its output) and is never run as part of development.
+
+The attendance denominator is accepted seats plus offered seats; waitlisted
+and cancelled registrations are reported separately. `attendance_snapshots`
+at the 14-day, 7-day and 1-day cutoffs can only be captured inside their
+window (from the cutoff until the event starts) and are immutable.
+
 ## Announcements & banners
+
 
 `announcements` is the single source for every notice the site shows. Nothing is
 hardcoded — adding or retiring a banner is an admin-panel action, not a deploy.

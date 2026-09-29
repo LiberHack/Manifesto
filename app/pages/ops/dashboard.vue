@@ -12,6 +12,33 @@ import {
 
 definePageMeta({ middleware: ["auth"] });
 
+const { data: attendance, refresh: refreshAttendance } = await useFetch<{
+  intention: string | null; intention_at: string | null; seat_state: string;
+  offer_expires_at: string | null; checked_in_at: string | null;
+}>("/api/me/attendance");
+const intention = ref(attendance.value?.intention ?? "");
+const barrierReasons = ref<string[]>([]);
+const barrierDetails = ref("");
+const attendanceMessage = ref("");
+async function saveAttendance() {
+  try {
+    await $fetch("/api/me/attendance/intention", { method: "POST", body: {
+      intention: intention.value, reasons: barrierReasons.value, details: barrierDetails.value,
+    } });
+    await refreshAttendance();
+    attendanceMessage.value = "Attendance response saved.";
+  } catch (e: any) { attendanceMessage.value = e.data?.message ?? "Could not save response"; }
+}
+async function changeSeat(action: "accept" | "cancel") {
+  try {
+    const result = await $fetch<{ seat_state: string }>("/api/me/attendance/seat", { method: "POST", body: { action } });
+    await refreshAttendance();
+    attendanceMessage.value = action === "accept"
+      ? result.seat_state === "accepted" ? "Seat accepted." : "The offer expired. You remain on the waitlist."
+      : "Registration cancelled.";
+  } catch (e: any) { attendanceMessage.value = e.data?.message ?? "Could not change seat"; }
+}
+
 const supabase = useSupabaseClient();
 const router = useRouter();
 const { data: me, refresh: refreshMe } = await useMe();
@@ -259,6 +286,28 @@ async function logout() {
           <button class="btn btn-ghost btn-sm" @click="logout">Logout</button>
         </div>
       </div>
+
+      <section v-if="me?.registration && attendance" id="attendance" class="border-2 border-base-content p-4 space-y-3">
+        <h2 class="text-xl font-black uppercase">Attendance</h2>
+        <p>Seat: <strong>{{ attendance.seat_state }}</strong></p>
+        <p v-if="attendance.seat_state === 'offered'" class="text-sm">Accept by {{ new Date(attendance.offer_expires_at!).toLocaleString() }} or this offer expires.</p>
+        <button v-if="attendance.seat_state === 'offered'" class="btn btn-primary" @click="changeSeat('accept')">Accept seat</button>
+        <p v-if="attendance.checked_in_at" class="text-sm">Checked in: {{ new Date(attendance.checked_in_at).toLocaleString() }}</p>
+        <template v-if="attendance.seat_state !== 'cancelled'">
+          <label class="form-control"><span class="label-text font-bold">Will you come?</span>
+            <select v-model="intention" class="select select-bordered w-full">
+              <option value="" disabled>Choose your answer</option><option value="coming">Coming</option>
+              <option value="unsure">Unsure</option><option value="cannot_come">Cannot come</option>
+            </select>
+          </label>
+          <p class="text-sm">Need help? Only organizers can see these barriers.</p>
+          <div class="flex flex-wrap gap-3"><label v-for="reason in ['transport','equipment','timing','team','other']" :key="reason" class="label cursor-pointer gap-1"><input v-model="barrierReasons" type="checkbox" :value="reason" class="checkbox checkbox-sm">{{ reason }}</label></div>
+          <textarea v-model="barrierDetails" maxlength="500" class="textarea textarea-bordered w-full" placeholder="Optional details for organizers" />
+          <div class="flex flex-wrap gap-2"><button :disabled="!intention" class="btn btn-primary" @click="saveAttendance">Save response</button>
+            <button class="btn btn-outline" @click="changeSeat('cancel')">Cancel registration</button></div>
+        </template>
+        <p v-if="attendanceMessage" role="status" class="text-sm">{{ attendanceMessage }}</p>
+      </section>
 
       <div v-if="missingContact || missingMatching" role="status" class="alert alert-warning flex flex-col items-start gap-1">
         <strong>Finish your profile for this edition</strong>

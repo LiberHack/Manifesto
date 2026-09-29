@@ -10,6 +10,7 @@ export interface Edition {
   participant_cap: number;
   /** Whether the participant area is open for this edition. Admin-controlled. */
   ops_enabled: boolean;
+  unanswered_request_hours: number;
 }
 
 export interface Registration {
@@ -45,7 +46,7 @@ export async function getCurrentEdition(
 ): Promise<Edition | null> {
   const { data } = await supabase
     .from("editions")
-    .select("slug, name, starts_at, ends_at, status, participant_cap, ops_enabled")
+    .select("slug, name, starts_at, ends_at, status, participant_cap, ops_enabled, unanswered_request_hours")
     .eq("is_current", true)
     .maybeSingle();
 

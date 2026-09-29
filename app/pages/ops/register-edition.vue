@@ -115,14 +115,6 @@ async function submit() {
         </NuxtLink>
       </template>
 
-      <template v-else-if="isFull">
-        <h1 class="text-3xl font-black uppercase tracking-tight">Registration full</h1>
-        <p class="text-sm opacity-70">
-          {{ state.edition.name }} has reached its participant limit. Your
-          account is safe — you'll be able to register for the next edition.
-        </p>
-      </template>
-
       <form v-else class="flex flex-col gap-2" @submit.prevent="submit">
         <h1 class="text-3xl font-black uppercase tracking-tight">
           Register for {{ state.edition.name }}
@@ -130,6 +122,7 @@ async function submit() {
         <p class="text-sm opacity-70">
           Your account carries over. Confirm your details for this edition.
         </p>
+        <p v-if="isFull" class="alert alert-info text-sm">Seats are full. Register to join the waitlist; an offer will show its expiry time on your dashboard.</p>
 
         <div v-if="error" role="alert" class="alert alert-error text-sm">
           {{ error }}
@@ -204,7 +197,7 @@ async function submit() {
           :disabled="loading || !form.coc || !form.experience || !contact.method"
           class="btn btn-primary w-full font-black uppercase"
         >
-          {{ loading ? "Registering…" : `Register for ${state.edition.name}` }}
+          {{ loading ? "Registering…" : isFull ? "Join waitlist" : `Register for ${state.edition.name}` }}
         </button>
       </form>
     </div>

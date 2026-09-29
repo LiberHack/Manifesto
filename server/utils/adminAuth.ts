@@ -39,7 +39,7 @@ export async function resolveAdminEdition(
   if (slug) {
     const { data } = await supabase
       .from("editions")
-      .select("slug, name, starts_at, ends_at, status, participant_cap, ops_enabled")
+      .select("slug, name, starts_at, ends_at, status, participant_cap, ops_enabled, unanswered_request_hours")
       .eq("slug", slug)
       .maybeSingle();
 

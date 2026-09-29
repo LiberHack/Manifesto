@@ -472,6 +472,7 @@ async function addAnnouncement() {
           </option>
         </select>
         <NuxtLink to="/ops/dashboard" class="btn btn-ghost btn-sm">← Dashboard</NuxtLink>
+        <NuxtLink to="/ops/admin/attendance" class="btn btn-primary btn-sm">Attendance desk</NuxtLink>
       </div>
     </div>
 
