@@ -49,6 +49,20 @@ select assert(
   denied($$select public.rotate_team_invite_code('aaaaaaaa-0000-0000-0000-000000000001')$$),
   'rotate_team_invite_code is not callable by clients');
 
+select assert(
+  (select count(*) from public.join_requests
+   where participant_id <> '22222222-2222-2222-2222-222222222222') = 0,
+  'a user cannot read other people''s join requests');
+
+select assert(
+  (select count(*) from public.registrations
+   where participant_id <> '22222222-2222-2222-2222-222222222222') = 0,
+  'a user cannot read other people''s registrations');
+
+select assert(
+  denied($$insert into public.skills (name) values ('Bypass Skill')$$),
+  'skills cannot be written directly (cap and attribution are server-side)');
+
 reset role;
 set request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
 set role authenticated;

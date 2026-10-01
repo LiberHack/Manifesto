@@ -9,7 +9,9 @@
 --   * read every participant's email and dietary details,
 --   * read every team's invite_code,
 --   * edit or delete a team they once led, archived editions included,
---   * rotate any team's invite code via the SECURITY DEFINER RPC.
+--   * rotate any team's invite code via the SECURITY DEFINER RPC,
+--   * insert arbitrary skills, bypassing the 5-skill cap and created_by
+--     attribution enforced in the signup trigger.
 -- The server routes are now the only write path; direct reads are limited
 -- to the caller's own rows.
 -- ============================================================
@@ -57,6 +59,15 @@ revoke insert, update, delete on public.join_requests from anon, authenticated;
 -- ------------------------------------------------------------
 
 revoke all on function public.rotate_team_invite_code(uuid) from public, anon, authenticated;
+
+-- ------------------------------------------------------------
+-- skills: read-only to clients. The 5-skill cap and created_by attribution
+-- live in the signup trigger (SECURITY DEFINER); a direct PostgREST insert
+-- bypasses both.
+-- ------------------------------------------------------------
+
+drop policy if exists "skills_insert" on public.skills;
+revoke insert, update, delete on public.skills from anon, authenticated;
 
 -- ------------------------------------------------------------
 -- Caps: serialise competing admissions before counting.
