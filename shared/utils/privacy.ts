@@ -4,7 +4,13 @@
  * Bump PRIVACY_NOTICE_VERSION whenever content/legal/privacy*.md changes in a
  * way that affects what people agreed to: every consent record stores it.
  */
-export const PRIVACY_NOTICE_VERSION = "2026-10-draft";
+export const PRIVACY_NOTICE_VERSION = "2026-10-02";
+/**
+ * False while the launch facts in docs/privacy/README.md (controller identity,
+ * recipients, processors, retention decisions) are unresolved. The admin panel
+ * warns before opening registration while this is false.
+ */
+export const PRIVACY_NOTICE_FINAL = false;
 
 /** Fixed life of an analytics id and its journey. Never extended. */
 export const ANALYTICS_ID_DAYS = 30;

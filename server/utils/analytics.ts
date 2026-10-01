@@ -6,10 +6,20 @@ import {
   ANALYTICS_ID_DAYS,
   ANALYTICS_REJECTION_DAYS,
 } from "#shared/utils/privacy";
-import { computeAttribution, sofiaDate, type Touch } from "#shared/utils/source";
+import { computeAttribution, type Touch } from "#shared/utils/source";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DAY_SECONDS = 24 * 60 * 60;
+
+/**
+ * Server-controlled gate, independent of the per-edition admin toggle: until
+ * the age/parental-consent approach for analytics is decided and implemented,
+ * NUXT_ANALYTICS_ACTIVATION_ALLOWED stays unset and nothing is collected,
+ * whatever an admin toggles.
+ */
+export function analyticsActivationAllowed(config: { analyticsActivationAllowed?: unknown }): boolean {
+  return config.analyticsActivationAllowed === true;
+}
 
 /** The consenting browser's id from its HttpOnly cookie, or null. */
 export function readBrowserId(event: H3Event): string | null {
@@ -43,19 +53,21 @@ export function setDeniedCookies(event: H3Event): void {
 }
 
 /**
- * Record server-side completion for the consenting browser behind this
- * request, together with its attribution.
+ * Record server-side completion of a successful edition registration for the
+ * consenting browser behind this request, with its attribution.
  *
- * The browser's landings are read first, then completion and the aggregate
- * increment are written in one transaction (`analytics_complete_registration`):
- * completion is unique per browser and edition, so a replay never counts twice,
- * and a failure rolls both back. Never throws — a registration must not fail
- * because analytics did.
+ * Called only by the request that created the registration, and only when
+ * analyticsActivationAllowed() holds. Deduplicated per
+ * registration (`analytics_completion_keys`), so a shared browser can record
+ * two people's registrations while a retry for the same registration counts
+ * once. The registration id is never stored with the event. Never throws —
+ * a registration must not fail because analytics did.
  */
 export async function recordRegistrationCompleted(
   event: H3Event,
   supabase: SupabaseClient,
   editionSlug: string,
+  registrationId: string,
 ): Promise<void> {
   const browserId = readBrowserId(event);
   if (!browserId) return;
@@ -87,7 +99,7 @@ export async function recordRegistrationCompleted(
     const { error } = await supabase.rpc("analytics_complete_registration", {
       p_browser: browserId,
       p_edition: editionSlug,
-      p_day: sofiaDate(completedAt),
+      p_registration: registrationId,
       p_first: attribution.first,
       p_last: attribution.last,
       p_assisted: attribution.assisted,

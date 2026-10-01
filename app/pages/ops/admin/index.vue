@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { PRIVACY_NOTICE_VERSION } from '#shared/utils/privacy'
+import { PRIVACY_NOTICE_FINAL, PRIVACY_NOTICE_VERSION } from '#shared/utils/privacy'
 import { VueDraggable } from 'vue-draggable-plus'
 
 definePageMeta({ middleware: ["admin"] });
@@ -70,9 +70,9 @@ async function setOpsEnabled(edition: Edition, opsEnabled: boolean) {
   // against a draft notice creates evidence pointing at an unfinished text.
   if (
     opsEnabled &&
-    PRIVACY_NOTICE_VERSION.endsWith('-draft') &&
+    !PRIVACY_NOTICE_FINAL &&
     !confirm(
-      `The Privacy Notice is still a draft (${PRIVACY_NOTICE_VERSION}) with unresolved items. Registrations will record acknowledgments against it. Open "${edition.slug}" anyway?`,
+      `The Privacy Notice (${PRIVACY_NOTICE_VERSION}) is not final: launch facts in docs/privacy/README.md are unresolved. Every registration records the notice version it was made under. Open "${edition.slug}" anyway?`,
     )
   )
     return

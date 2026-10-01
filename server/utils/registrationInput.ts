@@ -12,14 +12,17 @@ export type ExperienceLevel = (typeof EXPERIENCE_VALUES)[number];
 export const MAX_SKILLS = 10;
 export const MAX_SKILL_LENGTH = 30;
 const MAX_RECIPIENTS = 50;
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export interface RegistrationInput {
   skills: string[];
   experience: ExperienceLevel;
   public: boolean;
   noticeVersion: string;
-  sponsorRecipientIds: string[];
+  /** Explicit Yes (true) / No (false) per named recipient id. */
+  sponsorChoices: Record<string, boolean>;
+  /** "18 or older?" — required only when at least one sponsor answer is Yes. */
+  recruitmentAdult: boolean | null;
   marketingEmail: boolean;
   diet: Diet;
   dietaryNote: string | null;
@@ -30,20 +33,41 @@ function bad(message: string, statusCode = 400): never {
 }
 
 /**
+ * Validate the sponsor answers: an object mapping each recipient id shown on
+ * the form to an explicit boolean. There is no default — a missing or
+ * non-boolean answer is an error, and `false` is a valid, complete answer.
+ * Whether the keys match the edition's current recipients is checked in the
+ * database, in the same transaction as the registration.
+ */
+export function parseSponsorChoices(value: unknown): Record<string, boolean> {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    bad("sponsor_choices must answer Yes or No for each organisation listed");
+  }
+  const entries = Object.entries(value as Record<string, unknown>);
+  if (entries.length > MAX_RECIPIENTS) bad("Too many sponsor answers");
+  for (const [id, answer] of entries) {
+    if (!UUID_PATTERN.test(id)) bad("Unknown organisation in sponsor answers");
+    if (typeof answer !== "boolean") {
+      bad("Each organisation needs an explicit Yes or No");
+    }
+  }
+  return Object.fromEntries(entries) as Record<string, boolean>;
+}
+
+/**
  * Validate an edition-registration body.
  *
- * Every purpose is a separate field and none implies another:
+ * Purposes are separate fields and none implies another:
  * - `accepted_terms` (rules + Code of Conduct) and `privacy_notice_acknowledged`
  *   must be `true`;
- * - `sponsor_acknowledged` must be `true` together with the exact recipient
- *   list the form showed — the organiser has made sharing a condition of
- *   taking part, recorded as an acknowledgment (see docs/privacy/README.md
- *   for why that is not "consent" and the open legal decision);
- * - `marketing_email` is optional in substance but must be an explicit boolean;
+ * - `sponsor_choices`: an explicit Yes/No for every named organisation — No is
+ *   a full answer and never affects participation;
+ * - `recruitment_adult` (18 or older) is required only alongside a Yes;
+ * - `marketing_email` must be an explicit boolean;
  * - a dietary note needs `dietary_note_consent: true`.
  *
  * @throws 400 on any missing or malformed field, 409 `notice_changed` when the
- *   form was rendered against an older privacy notice.
+ *   form was rendered against another privacy-notice version.
  */
 export function parseRegistrationInput(body: Record<string, unknown> | null): RegistrationInput {
   if (!body || typeof body !== "object") bad("Invalid body");
@@ -57,17 +81,15 @@ export function parseRegistrationInput(body: Record<string, unknown> | null): Re
   if (body.notice_version !== PRIVACY_NOTICE_VERSION) {
     bad("notice_changed", 409);
   }
-  if (body.sponsor_acknowledged !== true) {
-    bad("You must acknowledge the sponsor sharing described in the Privacy Notice");
-  }
 
-  const recipients = body.sponsor_recipient_ids;
-  if (
-    !Array.isArray(recipients) ||
-    recipients.length > MAX_RECIPIENTS ||
-    !recipients.every((id) => typeof id === "string" && UUID_PATTERN.test(id))
-  ) {
-    bad("sponsor_recipient_ids must be the list of sponsor ids shown on the form");
+  const sponsorChoices = parseSponsorChoices(body.sponsor_choices);
+  const anyYes = Object.values(sponsorChoices).some(Boolean);
+  const adult = body.recruitment_adult;
+  if (adult !== undefined && adult !== null && typeof adult !== "boolean") {
+    bad("recruitment_adult must be Yes or No");
+  }
+  if (anyYes && typeof adult !== "boolean") {
+    bad("Please tell us whether you are 18 or older before sharing your profile");
   }
 
   if (typeof body.marketing_email !== "boolean") {
@@ -116,7 +138,8 @@ export function parseRegistrationInput(body: Record<string, unknown> | null): Re
     // Public archive is opt-in: absent means no.
     public: body.public === true,
     noticeVersion: PRIVACY_NOTICE_VERSION,
-    sponsorRecipientIds: recipients as string[],
+    sponsorChoices,
+    recruitmentAdult: typeof adult === "boolean" ? adult : null,
     marketingEmail: body.marketing_email as boolean,
     diet: body.diet as Diet,
     dietaryNote: note === "" ? null : note,

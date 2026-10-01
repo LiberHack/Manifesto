@@ -20,7 +20,7 @@ interface EmailOptions {
 
 // Plain HTTP call instead of the resend SDK: the SDK drags in an optional
 // @react-email/render peer that cannot be bundled for Cloudflare Workers.
-async function sendEmail(options: EmailOptions) {
+export async function sendEmail(options: EmailOptions) {
   const config = useRuntimeConfig();
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -37,7 +37,8 @@ async function sendEmail(options: EmailOptions) {
     }),
   });
   if (!res.ok) {
-    console.error("[email] failed to send to", options.to, res.status, await res.text());
+    // No recipient address or response body in logs: both can carry personal data.
+    console.error("[email] send failed:", res.status);
   }
 }
 

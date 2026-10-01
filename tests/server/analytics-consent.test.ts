@@ -5,10 +5,15 @@ import { Socket } from "node:net";
 import { createEvent } from "h3";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { parseAnalyticsChoice } from "../../shared/utils/privacy";
-import { readAnalyticsChoice, trackIfGranted } from "../../app/utils/analyticsClient";
-import { recordRegistrationCompleted } from "../../server/utils/analytics";
+import {
+  landingToRecordOnConsent,
+  readAnalyticsChoice,
+  trackIfGranted,
+} from "../../app/utils/analyticsClient";
+import { analyticsActivationAllowed, recordRegistrationCompleted } from "../../server/utils/analytics";
 
 const BROWSER = "b0000000-0000-0000-0000-000000000001";
+const REGISTRATION = "e0000000-0000-0000-0000-000000000001";
 const NOW = Date.parse("2026-10-20T12:00:00Z");
 
 describe("analytics choice cookie", () => {
@@ -90,39 +95,71 @@ function fakeSupabase(rpc: (name: string) => { data: unknown; error: unknown } |
   return { client: client as unknown as SupabaseClient, calls };
 }
 
+describe("consent-time landing", () => {
+  const landing = { path: "/", src: "poster-fmi", refHost: "l.instagram.com" };
+
+  it("records the landing page the visitor is still on when they allow", () => {
+    expect(landingToRecordOnConsent(landing, "/")).toEqual(landing);
+  });
+
+  it("does not reconstruct the landing after the visitor navigated away", () => {
+    expect(landingToRecordOnConsent(landing, "/ops/register")).toBeNull();
+    expect(landingToRecordOnConsent(null, "/")).toBeNull();
+  });
+
+  it("sends no timestamp, so the server stamps consent time and nothing is backdated", () => {
+    const send = vi.fn(() => Promise.resolve());
+    trackIfGranted({ state: "granted", expiresAt: Date.now() + 1000 }, "landing_viewed", send, landing);
+    const sent = (send.mock.calls[0] as unknown as [Record<string, unknown>])[0];
+    expect(Object.keys(sent).toSorted()).toEqual(["event", "ref_host", "src"]);
+  });
+});
+
 describe("server-side registration completion", () => {
   it("records nothing without the consent cookie", async () => {
     const { client, calls } = fakeSupabase(() => ({ data: true, error: null }));
-    await recordRegistrationCompleted(eventWithCookie(), client, "2027");
+    await recordRegistrationCompleted(eventWithCookie(), client, "2027", REGISTRATION);
     expect(calls).toEqual([]);
   });
 
-  it("writes completion and attribution in one atomic call", async () => {
+  it("writes completion and attribution in one call keyed by the registration", async () => {
     const { client, calls } = fakeSupabase(() => ({ data: true, error: null }));
-    await recordRegistrationCompleted(eventWithCookie(`lh_aid=${BROWSER}`), client, "2027");
+    await recordRegistrationCompleted(eventWithCookie(`lh_aid=${BROWSER}`), client, "2027", REGISTRATION);
     expect(calls).toEqual(["analytics_complete_registration"]);
     expect(client.rpc).toHaveBeenCalledWith(
       "analytics_complete_registration",
-      expect.objectContaining({ p_browser: BROWSER, p_edition: "2027", p_first: "unknown", p_last: "unknown" }),
+      expect.objectContaining({
+        p_browser: BROWSER,
+        p_edition: "2027",
+        p_registration: REGISTRATION,
+        p_first: "unknown",
+        p_last: "unknown",
+      }),
     );
+  });
+
+  it("is gated by the server-side activation flag, off by default", () => {
+    expect(analyticsActivationAllowed({})).toBe(false);
+    expect(analyticsActivationAllowed({ analyticsActivationAllowed: "true" })).toBe(false);
+    expect(analyticsActivationAllowed({ analyticsActivationAllowed: true })).toBe(true);
   });
 
   it("never throws when analytics fails, so registration still succeeds", async () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     const failing = fakeSupabase(() => Promise.reject(new Error("db down")));
     await expect(
-      recordRegistrationCompleted(eventWithCookie(`lh_aid=${BROWSER}`), failing.client, "2027"),
+      recordRegistrationCompleted(eventWithCookie(`lh_aid=${BROWSER}`), failing.client, "2027", REGISTRATION),
     ).resolves.toBeUndefined();
     const erroring = fakeSupabase(() => ({ data: null, error: { message: "boom" } }));
     await expect(
-      recordRegistrationCompleted(eventWithCookie(`lh_aid=${BROWSER}`), erroring.client, "2027"),
+      recordRegistrationCompleted(eventWithCookie(`lh_aid=${BROWSER}`), erroring.client, "2027", REGISTRATION),
     ).resolves.toBeUndefined();
     error.mockRestore();
   });
 
   it("ignores a malformed id cookie", async () => {
     const { client, calls } = fakeSupabase(() => ({ data: true, error: null }));
-    await recordRegistrationCompleted(eventWithCookie("lh_aid=not-a-uuid"), client, "2027");
+    await recordRegistrationCompleted(eventWithCookie("lh_aid=not-a-uuid"), client, "2027", REGISTRATION);
     expect(calls).toEqual([]);
   });
 });

@@ -1,4 +1,5 @@
 import { requireAdmin } from "#server/utils/adminAuth";
+import { analyticsActivationAllowed } from "#server/utils/analytics";
 
 const MAX_NAME_LENGTH = 80;
 
@@ -73,6 +74,9 @@ export default defineEventHandler(async (event) => {
         statusCode: 400,
         message: "analytics_enabled must be a boolean",
       });
+    }
+    if (body.analytics_enabled && !analyticsActivationAllowed(useRuntimeConfig())) {
+      throw createError({ statusCode: 409, message: "analytics_activation_not_allowed" });
     }
     update.analytics_enabled = body.analytics_enabled;
   }

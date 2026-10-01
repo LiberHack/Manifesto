@@ -1,4 +1,4 @@
-import { requireAdmin } from "#server/utils/adminAuth";
+import { requireAdminWithMfa } from "#server/utils/adminAuth";
 import { setExportHeaders, toCsv } from "#server/utils/csv";
 import { exportFilename, recordExport } from "#server/utils/exportAudit";
 
@@ -22,7 +22,7 @@ interface EligibleRow {
  * excluded. Only the fields disclosed for this recipient are written.
  */
 export default defineEventHandler(async (event) => {
-  const { user, supabase } = await requireAdmin(event);
+  const { user, supabase } = await requireAdminWithMfa(event);
   // Launch blocker gate: no per-person sponsor export until the legal basis
   // for mandatory sharing is documented and an operator sets
   // NUXT_SPONSOR_EXPORTS_ENABLED=true for the environment.

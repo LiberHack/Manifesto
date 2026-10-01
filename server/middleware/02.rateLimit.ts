@@ -15,7 +15,9 @@ interface RateLimitBinding {
 // Fallback for runtimes without Workers rate-limit bindings (nuxt dev, node preview).
 const store = new Map<string, { count: number; resetAt: number }>();
 
-const API_PATTERN = /^\/api\//;
+// /go/* short links are public, unauthenticated and hit the database, so they
+// share the API budget.
+const API_PATTERN = /^\/(api|go)\//;
 
 function localLimit(ip: string, max: number): number | null {
   const now = Date.now();

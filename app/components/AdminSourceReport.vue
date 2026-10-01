@@ -91,11 +91,17 @@ const purgeStale = computed(() => {
   <div v-if="report" class="flex flex-col gap-4">
     <h3 class="font-black text-lg uppercase">Where registrations come from</h3>
     <p class="text-sm opacity-70 max-w-3xl">
-      Only browsers whose visitor clicked "Allow analytics" are counted, so these
-      are registrations from consenting browsers, not all visitors or all people.
-      {{ report.consenting_registrations }} of {{ report.all_registrations }}
-      registrations in this edition came from a consenting browser; the rest are
-      not attributed anywhere. Dates are Europe/Sofia.
+      Only browsers whose visitor clicked "Allow analytics" are counted, and only
+      from that moment: a visit is recorded from the page the visitor was on when
+      they allowed it, never earlier. So these are registrations from consenting
+      browsers, not all visitors or all people.
+      <strong>{{ report.consenting_registrations }}</strong> of
+      <strong>{{ report.all_registrations }}</strong> registrations in this edition
+      came from a consenting browser; the rest are not attributed anywhere. Each
+      registration counts once, so two people registering on a shared browser are
+      two; one person using two devices is two browsers. Dates are Europe/Sofia.
+      Days in the last month stay live (a withdrawal removes them); older days
+      are final totals.
     </p>
     <div v-if="purgeStale" role="alert" class="alert alert-warning text-sm">
       The retention job has not run in the last 2 days
@@ -175,9 +181,10 @@ const purgeStale = computed(() => {
     <div>
       <h4 class="font-bold text-sm mb-1">Funnel (consenting browsers, 7-day window)</h4>
       <p class="text-xs opacity-70 mb-2">
-        Each browser is counted from its first landing. Conversion = browsers that
-        completed registration within 7 days ÷ browsers that landed, both from the
-        same closed cohorts.
+        Counts browsers, not registrations: each browser once per edition, from its
+        first recorded landing (which is at or after consent). Conversion =
+        browsers with a registration within 7 days ÷ browsers that landed, both
+        from the same closed cohorts. Time before consent is not measured.
       </p>
       <table class="table table-sm w-auto">
         <thead><tr><th>Step</th><th class="text-right">Browsers</th><th class="text-right">Of landed</th></tr></thead>
@@ -185,7 +192,7 @@ const purgeStale = computed(() => {
           <tr><td>Landed</td><td class="text-right tabular-nums">{{ report.funnel.closed_totals.landed }}</td><td class="text-right">100%</td></tr>
           <tr><td>Clicked register</td><td class="text-right tabular-nums">{{ report.funnel.closed_totals.cta }}</td><td class="text-right">{{ pct(report.funnel.closed_totals.cta, report.funnel.closed_totals.landed) }}</td></tr>
           <tr><td>Started the form</td><td class="text-right tabular-nums">{{ report.funnel.closed_totals.started }}</td><td class="text-right">{{ pct(report.funnel.closed_totals.started, report.funnel.closed_totals.landed) }}</td></tr>
-          <tr class="font-bold"><td>Registered within 7 days</td><td class="text-right tabular-nums">{{ report.funnel.closed_totals.completed_7d }}</td><td class="text-right">{{ pct(report.funnel.closed_totals.completed_7d, report.funnel.closed_totals.landed) }}</td></tr>
+          <tr class="font-bold"><td>Converted browsers (registered within 7 days)</td><td class="text-right tabular-nums">{{ report.funnel.closed_totals.completed_7d }}</td><td class="text-right">{{ pct(report.funnel.closed_totals.completed_7d, report.funnel.closed_totals.landed) }}</td></tr>
         </tbody>
       </table>
       <p v-if="report.funnel.open.length" class="text-xs opacity-70 mt-2">

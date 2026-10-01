@@ -18,10 +18,27 @@ export function readAnalyticsChoice(cookieHeader: string, now: number = Date.now
 }
 
 export interface LandingContext {
+  /** Path of the page this load landed on (no query, no hash). */
+  path: string;
   /** The `?src=` value as typed in the URL; the server validates it. */
   src?: string;
   /** Hostname of the referring page only — never the URL. */
   refHost?: string;
+}
+
+/**
+ * What to record when the visitor clicks "Allow" on this page load.
+ *
+ * Only the page they are still on: if they have navigated away from the
+ * landing page, nothing from before consent is reconstructed. The server
+ * stamps the event with the time it receives it — consent time — so nothing is
+ * backdated and no earlier click or view is replayed.
+ */
+export function landingToRecordOnConsent(
+  landing: LandingContext | null,
+  currentPath: string,
+): LandingContext | null {
+  return landing && landing.path === currentPath ? landing : null;
 }
 
 export type EventSender = (body: Record<string, unknown>) => Promise<unknown>;

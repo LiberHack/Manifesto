@@ -2,10 +2,25 @@ import type { H3Event } from "h3";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { serverSupabaseUser } from "#supabase/server";
 import { useSupabaseAdmin } from "#server/utils/supabase";
+import { hasVerifiedMfa } from "#server/utils/mfa";
 import {
   getCurrentEdition,
   type Edition,
 } from "#server/utils/registrationContext";
+
+/**
+ * Admin + MFA, for anything that returns personal data in bulk (exports).
+ * Checked on every request from the verified JWT claims, never from the client.
+ *
+ * @throws 401/403 as requireAdmin, then 403 `mfa_required`.
+ */
+export async function requireAdminWithMfa(event: H3Event) {
+  const admin = await requireAdmin(event);
+  if (!hasVerifiedMfa(admin.user as { aal?: unknown })) {
+    throw createError({ statusCode: 403, message: "mfa_required" });
+  }
+  return admin;
+}
 
 export async function requireAdmin(event: H3Event) {
   const user = await serverSupabaseUser(event);

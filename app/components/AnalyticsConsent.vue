@@ -65,8 +65,8 @@ async function run(action: () => Promise<void>) {
         the same either way.
       </p>
       <p class="text-xs opacity-70 leading-snug">
-        If you are under 14, please ask a parent or guardian before allowing.
-        Details in the
+        Counting starts when you allow it: we record the page you are on now,
+        nothing from before. Details in the
         <NuxtLink to="/legal/privacy" class="link">Privacy Notice</NuxtLink>.
       </p>
 

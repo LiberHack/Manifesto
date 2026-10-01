@@ -1,42 +1,84 @@
 # Handling privacy requests
 
-Requests arrive at the privacy contact in the notice. Answer within one month.
-Verify identity by replying from the address on the account, never by asking
-for ID documents. Keep a minimal log (date, request type, participant id,
-outcome); keep it out of the database tables the request is about.
+**Where requests arrive:** `contact@liberhack.org`, the address in the
+notice. Before launch, confirm the mailbox is monitored and has a named owner:
+send a test request and record who answered and when.
+
+**Deadline:** one month.
+
+**Identity:** verify by replying from the address on the account. Never ask
+for ID documents.
+
+**Request log:** keep a minimal log (date, request type, participant ID,
+outcome), outside the tables the request is about.
 
 ## Self-service (no admin needed)
 
 | Request | Where |
 |---|---|
+| Say Yes or No (or change it) to sharing with each named organisation | `/ops/privacy` |
 | Stop or start future-event emails | `/ops/privacy` |
-| Delete the dietary note (withdraw its consent) | `/ops/privacy` |
-| Confirm newly added sponsors | `/ops/privacy` |
-| Withdraw analytics | "Privacy settings" on any page, no account |
-| Archive opt-in/out, food choice, experience | `/ops/dashboard` |
+| Delete the food note (withdraw its consent) | `/ops/privacy` |
+| Withdraw analytics; deletes this browser's events | *Privacy settings* on any page, no account needed |
+| Public archive opt-in/out, food choice, experience | `/ops/dashboard` |
 
 ## Admin actions
 
-- **Objection to / withdrawal from sponsor sharing:** Admin → participant →
-  *Record sponsor objection*. It appends `objected` with the admin's id. The
-  person is excluded from every later sponsor export, and their registration is
-  untouched.
-- **Data a sponsor already received:** a downloaded copy cannot be recalled
-  automatically. Look up which exports included the person:
-  `GET /api/admin/exports?edition=<slug>&participant=<id>` (or Admin → Sponsor
-  sharing → Export log). Then:
-  1. Tell the person which organisations received which fields, and when.
-  2. Forward the request (erasure or objection) to each recipient's privacy
-     contact. Each sponsor is an independent controller and handles it under its
-     own policy.
-  3. Note in the request log that it was forwarded, and when.
-- **Access / portability:** the person's rows in `participants`,
-  `registrations`, `registration_catering`, `consent_records`, and export-audit
-  entries that include them. Analytics is not linked to accounts. If they ask
-  about analytics, explain they can withdraw it in their browser, which deletes
-  it.
-- **Erasure:** Admin → participant → *Delete participant* deletes the auth
-  user. It cascades to participants, registrations, catering and consent
-  records. Then: handle sponsor copies (above), and add the participant id to
-  the restore re-apply list (retention-and-deletion.md → Backups).
-- **Correction:** most fields are self-service; otherwise edit in Supabase.
+Personal-data exports and the export log need an admin session with a
+verified second factor (`/ops/admin/mfa`).
+
+### Objection to sponsor sharing, by email
+
+Admin → participant → *Record sponsor objection*.
+
+- It appends an edition-wide `objected` record with the admin's ID.
+- It overrides earlier Yes answers for every recipient. Only a later explicit
+  Yes from the person changes that.
+- The registration is untouched.
+
+### Data a sponsor already received
+
+A downloaded file cannot be recalled automatically.
+
+1. Find the exports that included the person. Use Admin → Sponsor sharing →
+   Export log, or call
+   `GET /api/admin/exports?edition=<slug>&participant=<id>`.
+2. Tell the person which organisations received which fields, and when.
+3. Forward the request (erasure, objection) to each recipient's privacy
+   contact. Each one is an independent controller and handles it under its
+   own policy.
+4. Record the forwarding in the request log.
+
+### Queued exports and earlier files
+
+There are none to change. Exports are generated per request, are never stored
+or queued, and have no reusable links. A withdrawal applies to the next
+download. Files downloaded before the withdrawal are covered by the previous
+section.
+
+### Access and portability
+
+Give the person their rows in:
+
+- `participants`
+- `registrations`
+- `registration_catering`
+- `consent_records`
+- the export-log entries that include them
+
+Analytics is not linked to accounts. Explain that withdrawing in their browser
+deletes it.
+
+### Erasure
+
+1. Admin → participant → *Delete participant*. This deletes the auth user and
+   cascades to participants, registrations, catering and consent records. A
+   trigger writes the ID to `deletion_ledger`, so a backup restore re-applies
+   the deletion.
+2. Handle sponsor copies as above.
+
+The export log keeps the account ID. See README → remaining technical work.
+
+### Correction
+
+Most fields are self-service. Edit anything else in Supabase.

@@ -25,6 +25,7 @@ interface RegistrationState {
   } | null;
   notice_version: string;
   sponsor_recipients: SponsorRecipient[];
+  dietary_notes_enabled: boolean;
 }
 
 const DIET_LABELS: Record<Diet, string> = {
@@ -72,7 +73,9 @@ const form = reactive({
   public: false,
   terms: false,
   privacyNotice: false,
-  sponsorAcknowledged: false,
+  // recipient id → true (share) / false (don't). No preselected answer.
+  sponsorChoices: {} as Record<string, boolean>,
+  recruitmentAdult: null as boolean | null,
   marketingEmail: false,
 });
 
@@ -82,12 +85,20 @@ const loading = ref(false);
 const isFull = computed(() => state.value?.full ?? true);
 const editionName = computed(() => state.value?.edition?.name ?? "this edition");
 const recipients = computed(() => state.value?.sponsor_recipients ?? []);
-const hasNote = computed(() => form.diet === "other" && form.dietaryNote.trim() !== "");
+const notesEnabled = computed(() => state.value?.dietary_notes_enabled === true);
+const hasNote = computed(
+  () => notesEnabled.value && form.diet === "other" && form.dietaryNote.trim() !== "",
+);
+const allSponsorsAnswered = computed(() =>
+  recipients.value.every((r) => typeof form.sponsorChoices[r.id] === "boolean"),
+);
+const anySponsorYes = computed(() => recipients.value.some((r) => form.sponsorChoices[r.id] === true));
 const canSubmit = computed(
   () =>
     form.terms &&
     form.privacyNotice &&
-    form.sponsorAcknowledged &&
+    allSponsorsAnswered.value &&
+    (!anySponsorYes.value || form.recruitmentAdult !== null) &&
     form.experience !== "" &&
     form.diet !== "" &&
     (!hasNote.value || form.dietaryNoteConsent),
@@ -109,8 +120,10 @@ async function submit() {
         accepted_terms: form.terms,
         privacy_notice_acknowledged: form.privacyNotice,
         notice_version: state.value?.notice_version,
-        sponsor_acknowledged: form.sponsorAcknowledged,
-        sponsor_recipient_ids: recipients.value.map((r) => r.id),
+        sponsor_choices: Object.fromEntries(
+          recipients.value.map((r) => [r.id, form.sponsorChoices[r.id]]),
+        ),
+        recruitment_adult: anySponsorYes.value ? form.recruitmentAdult : null,
         marketing_email: form.marketingEmail,
       },
     });
@@ -121,7 +134,7 @@ async function submit() {
     if (message === "sponsor_recipients_changed" || message === "notice_changed") {
       // What the person is acknowledging changed while the form was open.
       await refreshState();
-      form.sponsorAcknowledged = false;
+      form.sponsorChoices = {};
       form.privacyNotice = false;
       error.value =
         "The sponsor list or the Privacy Notice changed while you were filling this in. Please review it and confirm again.";
@@ -206,7 +219,7 @@ async function submit() {
               <option v-for="diet in DIETS" :key="diet" :value="diet">{{ DIET_LABELS[diet] }}</option>
             </select>
           </label>
-          <label v-if="form.diet === 'other'" class="form-control">
+          <label v-if="form.diet === 'other' && notesEnabled" class="form-control">
             <span class="label-text font-bold">Short note (optional)</span>
             <span class="label-text text-xs opacity-60 mb-1">
               Just what the kitchen needs, e.g. "no nuts" or "halal". Please don't
@@ -219,7 +232,7 @@ async function submit() {
               class="input input-bordered w-full"
             />
           </label>
-          <label v-if="form.diet === 'other' && hasNote" class="flex items-start gap-3 cursor-pointer">
+          <label v-if="hasNote" class="flex items-start gap-3 cursor-pointer">
             <input
               v-model="form.dietaryNoteConsent"
               type="checkbox"
@@ -233,43 +246,77 @@ async function submit() {
           </label>
         </fieldset>
 
-        <!-- Sponsor sharing: a condition of taking part, acknowledged, not "consented". -->
-        <fieldset class="flex flex-col gap-2 border-2 border-primary p-3">
-          <legend class="font-bold px-1">Sponsor sharing</legend>
-          <template v-if="recipients.length">
-            <p class="text-sm leading-snug">
-              Taking part in {{ state.edition.name }} includes sharing your details
-              with these organisations for internships and jobs:
+        <!-- Sponsor sharing: voluntary, an explicit Yes/No per named organisation. -->
+        <fieldset v-if="recipients.length" class="flex flex-col gap-3 border-2 border-primary p-3">
+          <legend class="font-bold px-1">Jobs and internships · Стажове и работа</legend>
+          <p class="text-sm leading-snug">
+            Would you like us to share your name, email, skills and experience
+            level with
+            {{ recipients.length === 1 ? "the organisation" : "each organisation" }}
+            below so they can contact you about jobs and internships?
+            <strong>Your answer does not affect your participation.</strong>
+          </p>
+          <p lang="bg" class="text-sm leading-snug opacity-80">
+            Искате ли да споделим вашите име, имейл, умения и ниво на опит с
+            {{ recipients.length === 1 ? "организацията" : "всяка от организациите" }}
+            по-долу, за да се свържат с вас за стажове и работа?
+            <strong>Отговорът ви не влияе на участието ви.</strong>
+          </p>
+
+          <div
+            v-for="r in recipients"
+            :key="r.id"
+            role="radiogroup"
+            :aria-labelledby="`sponsor-${r.id}`"
+            class="flex flex-col gap-1"
+          >
+            <p :id="`sponsor-${r.id}`" class="text-sm">
+              <strong>{{ r.organisation }}</strong> — {{ r.purpose }}
             </p>
-            <ul class="text-sm list-disc pl-5">
-              <li v-for="r in recipients" :key="r.id">
-                <strong>{{ r.organisation }}</strong> — {{ r.purpose }}; receives your
-                {{ r.shared_fields.map((f) => FIELD_LABELS[f] ?? f).join(", ") }}.
-              </li>
-            </ul>
-          </template>
-          <p v-else class="text-sm leading-snug">
-            No sponsor organisation has been confirmed for {{ state.edition.name }}
-            yet. Nothing is shared until one is named, and we will ask you to
-            confirm the named organisations in your privacy settings first.
-          </p>
+            <label class="flex items-center gap-2 cursor-pointer text-sm">
+              <input
+                v-model="form.sponsorChoices[r.id]"
+                type="radio"
+                :name="`sponsor-${r.id}`"
+                :value="true"
+                required
+                class="radio radio-primary radio-sm"
+              />
+              Yes, share my profile · Да, споделете профила ми
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer text-sm">
+              <input
+                v-model="form.sponsorChoices[r.id]"
+                type="radio"
+                :name="`sponsor-${r.id}`"
+                :value="false"
+                class="radio radio-primary radio-sm"
+              />
+              No, do not share my profile · Не, не споделяйте профила ми
+            </label>
+          </div>
+
+          <div v-if="anySponsorYes" role="radiogroup" aria-labelledby="recruitment-age" class="flex flex-col gap-1">
+            <p id="recruitment-age" class="text-sm">
+              Are you 18 or older? · Навършили ли сте 18 години?
+              <span class="opacity-60">We only share profiles of people aged 18 or over.</span>
+            </p>
+            <label class="flex items-center gap-2 cursor-pointer text-sm">
+              <input v-model="form.recruitmentAdult" type="radio" name="recruitment-age" :value="true" required class="radio radio-primary radio-sm" />
+              Yes · Да
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer text-sm">
+              <input v-model="form.recruitmentAdult" type="radio" name="recruitment-age" :value="false" class="radio radio-primary radio-sm" />
+              No · Не
+            </label>
+          </div>
+
           <p class="text-xs opacity-70 leading-snug">
-            Never shared with sponsors: food choices, analytics, password or
-            account data. Each sponsor uses the data independently under its own
-            privacy policy. Details and your rights are in the
-            <NuxtLink to="/legal/privacy" target="_blank" class="link">Privacy Notice</NuxtLink>.
+            Never shared: food choices, analytics, password or account data. Each
+            organisation uses the profile independently under its own privacy
+            policy. You can change your answer any time in your
+            <NuxtLink to="/ops/privacy" target="_blank" class="link">privacy settings</NuxtLink>.
           </p>
-          <label class="flex items-start gap-3 cursor-pointer">
-            <input
-              v-model="form.sponsorAcknowledged"
-              type="checkbox"
-              required
-              class="checkbox checkbox-primary mt-1 shrink-0"
-            />
-            <span class="text-sm leading-snug font-bold">
-              I understand my details will be shared with the organisations listed above.
-            </span>
-          </label>
         </fieldset>
 
         <label class="flex items-start gap-3 cursor-pointer">

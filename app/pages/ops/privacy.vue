@@ -8,13 +8,15 @@ interface PrivacyState {
   edition: { slug: string; name: string } | null;
   registration: {
     public: boolean;
+    recruitment_adult: boolean | null;
     has_dietary_note: boolean;
-    sponsor: {
-      recipients: { id: string; organisation: string; purpose: string; shared_fields: string[] }[];
-      acknowledged_recipient_ids: string[];
-      covers_current: boolean;
-      objected: boolean;
-    };
+    sponsors: {
+      id: string;
+      organisation: string;
+      purpose: string;
+      shared_fields: string[];
+      choice: "yes" | "no" | "unanswered" | "objected";
+    }[];
   } | null;
 }
 
@@ -36,13 +38,35 @@ async function change(body: Record<string, unknown>, done: string) {
   } catch (e: unknown) {
     const m = (e as { data?: { message?: string } }).data?.message;
     error.value =
-      m === "sponsor_recipients_changed"
-        ? "The sponsor list just changed. Please review it again."
-        : "That did not work — please try again.";
-    if (m === "sponsor_recipients_changed") await refresh();
+      m === "recruitment_age_required"
+        ? "Please answer whether you are 18 or older first."
+        : m === "recipient_not_active"
+          ? "That organisation is no longer on the list."
+          : "That did not work — please try again.";
+    await refresh();
   }
   busy.value = false;
 }
+const adult = ref<boolean | null>(null);
+watch(
+  () => state.value?.registration?.recruitment_adult,
+  (v) => (adult.value = v ?? null),
+  { immediate: true },
+);
+
+function setSponsor(recipientId: string, share: boolean) {
+  return change(
+    { sponsor_choice: { recipient_id: recipientId, share }, recruitment_adult: adult.value ?? undefined },
+    share ? "Your profile will be included for this organisation." : "Your profile will not be shared with this organisation.",
+  );
+}
+
+const CHOICE_LABEL = {
+  yes: "Sharing: yes",
+  no: "Sharing: no",
+  unanswered: "Not answered — not shared",
+  objected: "Objection recorded — not shared",
+} as const;
 </script>
 
 <template>
@@ -87,41 +111,45 @@ async function change(body: Record<string, unknown>, done: string) {
       </section>
 
       <template v-if="state?.registration">
-        <section class="flex flex-col gap-2">
-          <h2 class="font-black uppercase">Sponsor sharing — {{ state.edition?.name }}</h2>
-          <p v-if="state.registration.sponsor.objected" class="text-sm">
-            You objected to sponsor sharing. You are excluded from all sponsor exports.
+        <section v-if="state.registration.sponsors.length" class="flex flex-col gap-3">
+          <h2 class="font-black uppercase">Jobs and internships — {{ state.edition?.name }}</h2>
+          <p class="text-sm">
+            Should we share your name, email, skills and experience level with
+            these organisations so they can contact you about jobs and
+            internships? Your answer does not affect your participation.
+            Nothing is shared without a Yes, and only if you are 18 or older.
           </p>
-          <template v-else-if="!state.registration.sponsor.covers_current">
-            <p class="text-sm">
-              New sponsor organisations were added after you registered. Your
-              details are not shared with them until you confirm:
-            </p>
-            <ul class="text-sm list-disc pl-5">
-              <li v-for="r in state.registration.sponsor.recipients" :key="r.id">
-                <strong>{{ r.organisation }}</strong> — {{ r.purpose }}; receives
-                {{ r.shared_fields.join(", ") }}.
-              </li>
-            </ul>
-            <button
-              type="button"
-              class="btn btn-primary btn-sm self-start"
-              :disabled="busy"
-              @click="change(
-                { sponsor_acknowledge_recipient_ids: state.registration.sponsor.recipients.map((r) => r.id) },
-                'Sponsor list confirmed.',
-              )"
-            >
-              I understand my details will be shared with these organisations
-            </button>
-          </template>
-          <p v-else class="text-sm">
-            Your name, email, skills and experience level are shared with:
-            {{ state.registration.sponsor.recipients.map((r) => r.organisation).join(", ") || "no organisation yet" }}.
-          </p>
+          <div role="radiogroup" aria-labelledby="privacy-age" class="flex flex-wrap items-center gap-3 text-sm">
+            <span id="privacy-age">Are you 18 or older?</span>
+            <label class="flex items-center gap-1"><input v-model="adult" type="radio" name="privacy-age" :value="true" class="radio radio-sm" /> Yes</label>
+            <label class="flex items-center gap-1"><input v-model="adult" type="radio" name="privacy-age" :value="false" class="radio radio-sm" /> No</label>
+          </div>
+          <div v-for="r in state.registration.sponsors" :key="r.id" class="flex flex-col gap-1 border border-base-content/20 p-2">
+            <p class="text-sm"><strong>{{ r.organisation }}</strong> — {{ r.purpose }}</p>
+            <p class="text-xs opacity-70">{{ CHOICE_LABEL[r.choice] }}</p>
+            <div class="flex gap-2">
+              <button
+                type="button"
+                class="btn btn-xs"
+                :class="r.choice === 'yes' ? 'btn-primary' : 'btn-outline'"
+                :aria-pressed="r.choice === 'yes'"
+                :disabled="busy || adult === null"
+                @click="setSponsor(r.id, true)"
+              >Yes, share my profile</button>
+              <button
+                type="button"
+                class="btn btn-xs"
+                :class="r.choice === 'no' ? 'btn-primary' : 'btn-outline'"
+                :aria-pressed="r.choice === 'no'"
+                :disabled="busy"
+                @click="setSponsor(r.id, false)"
+              >No, do not share my profile</button>
+            </div>
+          </div>
           <p class="text-xs opacity-70">
-            To object to sponsor sharing, or for data a sponsor already received,
-            email us — see "Your rights" in the Privacy Notice.
+            Saying No later stops sharing in future exports. For data an
+            organisation already received, email us — see "Your rights" in the
+            Privacy Notice.
           </p>
         </section>
 

@@ -46,10 +46,56 @@ select assert(
   not public.analytics_record(:'b1', 'landing_viewed', '2027', 'c0000000-0000-0000-0000-000000000001', null),
   'the same landing in the same hour is deduplicated');
 
+do $$
+begin
+  perform public.analytics_record(
+    (select id from public.analytics_browsers where expires_at > now() limit 1),
+    'registration_completed', '2027', null, null);
+  raise exception 'FAIL  a completion was written without a registration';
+exception when others then
+  if sqlerrm like '%completion_requires_registration%' then
+    raise notice 'PASS  completion can only be written for a successful registration';
+  else
+    raise;
+  end if;
+end
+$$;
+
+-- Registrations created by 06-verify-privacy.sql.
+select id as r1 from public.registrations
+where participant_id = 'a0000000-0000-0000-0000-000000000001' and edition_slug = '2027' \gset
+select id as r2 from public.registrations
+where participant_id = 'a0000000-0000-0000-0000-000000000002' and edition_slug = '2027' \gset
+
 select assert(
-  public.analytics_record(:'b1', 'registration_completed', '2027', null, null)
-  and not public.analytics_record(:'b1', 'registration_completed', '2027', null, null),
-  'completion is recorded once per browser and edition, whatever the retries');
+  public.analytics_complete_registration(:'b1', '2027', :'r1', 'poster-fmi', 'poster-fmi', '{}'),
+  'a successful registration from a consenting browser is recorded with its attribution');
+
+select assert(
+  not public.analytics_complete_registration(:'b1', '2027', :'r1', 'poster-fmi', 'poster-fmi', '{}'),
+  'a retry for the same registration is not counted again');
+
+select assert(
+  public.analytics_complete_registration(:'b1', '2027', :'r2', 'poster-fmi', 'poster-fmi', '{}'),
+  'a second person registering on the same (shared) browser is a second registration');
+
+select assert(
+  (select registrations from public.attribution_report('2027', 'first')
+   where source_key = 'poster-fmi') = 2,
+  'registrations are counted per registration, live from the completion events');
+
+select assert(
+  (select landed = 1 and completed_7d = 1 from public.funnel_cohorts('2027') where channel = 'poster'),
+  'the shared browser still counts as one converted browser in its cohort');
+
+select assert(
+  not exists (select 1 from information_schema.columns
+              where table_schema = 'public' and table_name = 'analytics_events'
+                and column_name in ('registration_id', 'participant_id'))
+  and not exists (select 1 from information_schema.columns
+              where table_schema = 'public' and table_name = 'analytics_completion_keys'
+                and column_name = 'browser_id'),
+  'no account or registration id is stored with analytics events, and the dedupe key holds no browser id');
 
 select assert(
   (select bool_and(occurred_at = date_trunc('hour', occurred_at))
@@ -141,11 +187,20 @@ select assert(
   'withdrawal deletes the browser''s events and its id');
 
 select assert(
-  not public.analytics_record(:'b1', 'registration_cta_clicked', '2027', null, null),
+  not exists (select 1 from public.attribution_report('2027', 'first') where source_key = 'poster-fmi'),
+  'withdrawal removes the browser''s registrations from the live totals');
+
+select assert(
+  exists (select 1 from public.deletion_ledger where subject = 'analytics_browser' and subject_id = :'b1'),
+  'the withdrawn id is written to the deletion ledger for backup re-application');
+
+select assert(
+  not public.analytics_record(:'b1', 'registration_cta_clicked', '2027', null, null)
+  and not public.analytics_complete_registration(:'b1', '2027', :'r2', 'x', 'x', '{}'),
   'an event arriving after withdrawal cannot recreate history');
 
 -- ------------------------------------------------------------
--- Funnel cohorts and aggregates
+-- Funnel cohorts
 -- ------------------------------------------------------------
 
 -- Three browsers that first landed 10 days ago (window closed) and one today.
@@ -155,15 +210,16 @@ insert into public.analytics_browsers (id, consented_at, expires_at, notice_vers
   ('b0000000-0000-0000-0000-000000000004', now() - interval '10 days', now() + interval '20 days', 'v-test'),
   ('b0000000-0000-0000-0000-000000000005', now(), now() + interval '30 days', 'v-test');
 
-insert into public.analytics_events (browser_id, event, edition_slug, ref_category, occurred_at) values
-  ('b0000000-0000-0000-0000-000000000002', 'landing_viewed', '2027', 'ref-instagram', date_trunc('hour', now() - interval '10 days')),
-  ('b0000000-0000-0000-0000-000000000002', 'registration_cta_clicked', '2027', null, date_trunc('hour', now() - interval '10 days')),
-  ('b0000000-0000-0000-0000-000000000002', 'registration_started', '2027', null, date_trunc('hour', now() - interval '9 days')),
-  ('b0000000-0000-0000-0000-000000000002', 'registration_completed', '2027', null, date_trunc('hour', now() - interval '9 days')),
-  ('b0000000-0000-0000-0000-000000000003', 'landing_viewed', '2027', 'ref-instagram', date_trunc('hour', now() - interval '10 days')),
-  ('b0000000-0000-0000-0000-000000000004', 'landing_viewed', '2027', 'ref-instagram', date_trunc('hour', now() - interval '10 days')),
-  ('b0000000-0000-0000-0000-000000000004', 'registration_completed', '2027', null, date_trunc('hour', now() - interval '1 day')),
-  ('b0000000-0000-0000-0000-000000000005', 'landing_viewed', '2027', 'direct', date_trunc('hour', now()));
+insert into public.analytics_events
+  (browser_id, event, edition_slug, ref_category, occurred_at, attr_first, attr_last, attr_assisted) values
+  ('b0000000-0000-0000-0000-000000000002', 'landing_viewed', '2027', 'ref-instagram', date_trunc('hour', now() - interval '10 days'), null, null, null),
+  ('b0000000-0000-0000-0000-000000000002', 'registration_cta_clicked', '2027', null, date_trunc('hour', now() - interval '10 days'), null, null, null),
+  ('b0000000-0000-0000-0000-000000000002', 'registration_started', '2027', null, date_trunc('hour', now() - interval '9 days'), null, null, null),
+  ('b0000000-0000-0000-0000-000000000002', 'registration_completed', '2027', null, date_trunc('hour', now() - interval '9 days'), 'ref-instagram', 'ref-instagram', '{}'),
+  ('b0000000-0000-0000-0000-000000000003', 'landing_viewed', '2027', 'ref-instagram', date_trunc('hour', now() - interval '10 days'), null, null, null),
+  ('b0000000-0000-0000-0000-000000000004', 'landing_viewed', '2027', 'ref-instagram', date_trunc('hour', now() - interval '10 days'), null, null, null),
+  ('b0000000-0000-0000-0000-000000000004', 'registration_completed', '2027', null, date_trunc('hour', now() - interval '1 day'), 'ref-instagram', 'ref-instagram', '{}'),
+  ('b0000000-0000-0000-0000-000000000005', 'landing_viewed', '2027', 'direct', date_trunc('hour', now()), null, null, null);
 
 select assert(
   (select landed = 3 and cta = 1 and started = 1 and completed_7d = 1 and window_closed
@@ -174,39 +230,23 @@ select assert(
   (select not window_closed from public.funnel_cohorts('2027') where channel = 'direct'),
   'a cohort whose 7 days are not over is reported as open');
 
-select public.attribution_increment('2027', current_date, 'poster-fmi', 'ref-instagram', array['poster-fmi']);
-select public.attribution_increment('2027', current_date, 'poster-fmi', 'poster-fmi', '{}');
-
--- Completion + attribution in one call: counted once, never on a replay.
-select assert(
-  public.analytics_complete_registration('b0000000-0000-0000-0000-000000000005', '2027', current_date, 'direct', 'direct', '{}'),
-  'a first completion is recorded with its attribution');
-select assert(
-  not public.analytics_complete_registration('b0000000-0000-0000-0000-000000000005', '2027', current_date, 'direct', 'direct', '{}'),
-  'a replayed completion is not recorded again');
-select assert(
-  (select registrations from public.attribution_daily
-   where edition_slug = '2027' and model = 'first' and source_key = 'direct') = 1,
-  'the replay did not increment the aggregates');
-
-select assert(
-  (select registrations from public.attribution_daily
-   where edition_slug = '2027' and model = 'first' and source_key = 'poster-fmi') = 2
-  and (select registrations from public.attribution_daily
-   where edition_slug = '2027' and model = 'assisted' and source_key = 'poster-fmi') = 1,
-  'attribution aggregates count each registration once per model');
-
 -- ------------------------------------------------------------
 -- Retention job
 -- ------------------------------------------------------------
 
+-- A browser whose whole life is over: consented 40 days ago, landed and
+-- registered 38 days ago. Its day can be finalised.
 insert into public.analytics_browsers (id, consented_at, expires_at, notice_version) values
+  ('b0000000-0000-0000-0000-000000000007', now() - interval '40 days', now() - interval '10 days', 'v-test'),
   ('b0000000-0000-0000-0000-000000000006', now() - interval '61 days', now() - interval '31 days', 'v-test');
-insert into public.analytics_events (browser_id, event, edition_slug, ref_category, occurred_at) values
-  ('b0000000-0000-0000-0000-000000000006', 'landing_viewed', '2027', 'direct', date_trunc('hour', now() - interval '45 days')),
-  ('b0000000-0000-0000-0000-000000000003', 'registration_cta_clicked', '2027', null, date_trunc('hour', now() - interval '61 days'));
+insert into public.analytics_events
+  (browser_id, event, edition_slug, ref_category, occurred_at, attr_first, attr_last, attr_assisted) values
+  ('b0000000-0000-0000-0000-000000000007', 'landing_viewed', '2027', 'ref-telegram', date_trunc('hour', now() - interval '38 days'), null, null, null),
+  ('b0000000-0000-0000-0000-000000000007', 'registration_completed', '2027', null, date_trunc('hour', now() - interval '38 days'), 'ref-telegram', 'ref-telegram', '{}'),
+  ('b0000000-0000-0000-0000-000000000006', 'landing_viewed', '2027', 'direct', date_trunc('hour', now() - interval '45 days'), null, null, null),
+  ('b0000000-0000-0000-0000-000000000003', 'registration_cta_clicked', '2027', null, date_trunc('hour', now() - interval '61 days'), null, null, null);
 
-select public.analytics_purge() as purge \gset
+select public.run_retention() as retention \gset
 
 select assert(
   not exists (select 1 from public.analytics_browsers where id = 'b0000000-0000-0000-0000-000000000006')
@@ -218,18 +258,47 @@ select assert(
   'no individual event outlives 60 days');
 
 select assert(
-  (select landed = 3 and completed_7d = 1 from public.funnel_cohort_daily
+  (select registrations from public.attribution_daily
+   where edition_slug = '2027' and model = 'first' and source_key = 'ref-telegram') = 1
+  and (select count(*) from public.attribution_report('2027', 'first') where source_key = 'ref-telegram') = 1
+  and (select registrations from public.attribution_report('2027', 'first') where source_key = 'ref-telegram') = 1,
+  'a day no browser can still withdraw from is finalised once and not double counted');
+
+select assert(
+  (select landed = 1 and completed_7d = 1 from public.funnel_cohort_daily
    where edition_slug = '2027' and channel = 'referral'),
-  'closed cohorts are rolled into aggregates before their events expire');
+  'a closed cohort is finalised once its browsers can no longer withdraw');
 
 select assert(
   not exists (select 1 from public.funnel_cohort_daily
-              where cohort_day = (now() at time zone 'Europe/Sofia')::date),
-  'open cohorts are not rolled up early');
+              where cohort_day = (now() at time zone 'Europe/Sofia')::date - 10),
+  'a closed cohort whose browsers can still withdraw stays live');
 
 select assert(
-  exists (select 1 from public.maintenance_runs where job = 'analytics_purge'),
+  (select count(*) from public.funnel_report('2027') where final) >= 1
+  and (select count(*) from public.funnel_report('2027') where not final) >= 1,
+  'the funnel report separates finalised from live cohorts');
+
+select assert(
+  (select (details->>'export_audit') like 'skipped%' from public.maintenance_runs
+   where job = 'retention' order by ran_at desc limit 1),
+  'categories without a decided period are skipped, not deleted');
+
+select assert(
+  exists (select 1 from public.maintenance_runs where job = 'analytics_purge')
+  and exists (select 1 from public.maintenance_runs where job = 'retention'),
   'each retention run is logged for monitoring');
+
+-- Restoring a backup: re-apply the ledger.
+insert into public.analytics_browsers (id, notice_version) values
+  ('b0000000-0000-0000-0000-000000000001', 'restored');
+insert into public.deletion_ledger (subject, subject_id) values
+  ('analytics_browser', 'b0000000-0000-0000-0000-000000000001');
+select public.reapply_deletion_ledger() as reapplied \gset
+
+select assert(
+  not exists (select 1 from public.analytics_browsers where id = 'b0000000-0000-0000-0000-000000000001'),
+  'reapply_deletion_ledger removes rows a restored backup brought back');
 
 -- ------------------------------------------------------------
 -- Access control
@@ -242,7 +311,8 @@ select assert(
 from (values ('anon'), ('authenticated')) r(role)
 cross join (values ('public.analytics_browsers'), ('public.analytics_events'),
                    ('public.source_links'), ('public.attribution_daily'),
-                   ('public.funnel_cohort_daily'), ('public.maintenance_runs')) t(tbl);
+                   ('public.funnel_cohort_daily'), ('public.maintenance_runs'),
+                   ('public.analytics_completion_keys'), ('public.analytics_rollup_days')) t(tbl);
 
 select assert(
   bool_and(not has_function_privilege(r.role, f.fn, 'execute')),
@@ -252,9 +322,10 @@ cross join (values
   ('public.analytics_grant(text)'),
   ('public.analytics_withdraw(uuid)'),
   ('public.analytics_record(uuid, text, text, uuid, text)'),
-  ('public.attribution_increment(text, date, text, text, text[])'),
   ('public.funnel_cohorts(text)'),
-  ('public.analytics_complete_registration(uuid, text, date, text, text, text[])'),
+  ('public.analytics_complete_registration(uuid, text, uuid, text, text, text[])'),
+  ('public.attribution_report(text, text)'),
+  ('public.funnel_report(text)'),
   ('public.analytics_purge()')
 ) f(fn);
 

@@ -1,113 +1,176 @@
-# Retention, deletion and deployment
+# Retention, deletion, scheduling and rollout
 
-Lifetimes below are **product defaults**, not statutory requirements. Change
-them only together with the Privacy Notice.
+Lifetimes are **product defaults** where stated and **organisational
+decisions** everywhere else. Nothing here invents a legally approved period:
+a category without a decided period is never deleted automatically, and
+features that depend on one stay off.
+
+## What is deleted, when, and by what
 
 | Data | Lifetime | Enforced by |
 |---|---|---|
-| Analytics id + journey (`analytics_browsers`) | fixed 30 days from consent, never extended; row removed 30 days after expiry | check constraint + cookie `Max-Age` + `analytics_purge()` |
-| Individual analytics events | ≤ 60 days from collection | `analytics_purge()` |
-| Attribution and funnel aggregates | kept; no browser or account ids | — |
-| `maintenance_runs` | **not yet set** | — |
-| Consent records, export log | **not yet set** — needs a documented policy | — |
-| Per-edition registration data, catering | **not yet set** — not automated | — |
+| Analytics ID (`analytics_browsers`) | fixed 30 days from consent (cookie `Max-Age` + check constraint); row deleted 30 days after expiry | `analytics_purge()` |
+| Individual analytics events, incl. completion attribution | ≤ 60 days from collection | `analytics_purge()` |
+| Completion dedupe keys | 60 days, or with the registration | `analytics_purge()`, FK cascade |
+| Analytics aggregates | kept; finalised only once no browser in the day/cohort can still withdraw | — |
+| Catering (diet + note) | **decided policy** `catering_after_edition_end` after the edition's `ends_at`. Food notes are not offered until this policy exists | `run_retention()` |
+| Export log | **decided policy** `export_audit` | `run_retention()` |
+| Superseded consent records (not the decision in force) | **decided policy** `superseded_consent_evidence` | `run_retention()` |
+| Deletion ledger | **decided policy** `deletion_ledger`; it must be ≥ the backup restore window | `run_retention()` |
+| Maintenance log | **decided policy** `maintenance_runs` | `run_retention()` |
+| Per-edition registration data (skills, experience, team) | not automated (see README → remaining technical work) | — |
+| Account and all its records | until erased | `auth.users` delete → cascades → ledger |
+| Generated exports | never stored server-side: generated per request, `no-store`, no reusable links | — |
 
-## Deploying (in this order)
+### Recording a decided period
 
-Nothing here is run automatically, and nothing turns analytics on.
-
-1. Merge to `dev` → staging. The code tolerates the migrations being absent:
-   with no readable edition, analytics stays off.
-2. `bunx supabase db push` applies
-   `20261001000100_consent_records.sql` and
-   `20261001000200_source_links_and_analytics.sql` (staging first). Both are
-   additive. Migration 1 **copies** free-text dietary answers of non-archived
-   editions into `registration_catering` as `legacy`. It deletes nothing.
-3. Schedule the retention job (below).
-4. Optional, after review: run the dietary cleanup (below).
-5. Only after the launch blockers in [README.md](README.md) are resolved: add
-   sponsor recipients, then turn on Analytics for the edition in Admin →
-   Editions.
-
-## Scheduling the retention job
-
-The migration schedules `analytics_purge()` only if `pg_cron` is **already**
-enabled. Enabling an extension is an operator decision. In the Supabase
-dashboard: Database → Extensions → enable `pg_cron`. Then, in the SQL editor:
+An operator does this once there is a written decision. It is not an app
+setting.
 
 ```sql
-select cron.schedule('analytics-purge', '17 3 * * *', 'select public.analytics_purge()');
-select * from cron.job where jobname = 'analytics-purge';   -- verify
+insert into public.retention_policies (category, keep_for, decided_by, reference)
+values ('catering_after_edition_end', interval '30 days', '<name/role>', '<decision doc or minutes>')
+on conflict (category) do update
+  set keep_for = excluded.keep_for, decided_by = excluded.decided_by,
+      reference = excluded.reference, decided_at = now();
 ```
 
-**Monitoring:** every run inserts into `maintenance_runs` (counts of cohorts
-rolled up, events and ids deleted). Admin → Sources shows a warning when the
-last run is older than two days. For alerting outside the panel, poll:
+The table is server-only, and each row records who decided and where that
+decision is documented.
+
+## Scheduling
+
+Migration `20261002000100_sponsor_consent_and_retention.sql` enables
+`pg_cron` where the database offers it (Supabase does). It then (re)creates
+exactly one job, `liberhack-retention`, which runs `select public.run_retention()`
+daily at 03:17 UTC, and removes the older `analytics-purge` job. Re-running the
+migration is safe: it always ends with a single job.
 
 ```sql
-select max(ran_at) from public.maintenance_runs where job = 'analytics_purge';
+select jobname, schedule, command, active from cron.job;                       -- verify
+select status, start_time, return_message
+from cron.job_run_details order by start_time desc limit 5;                    -- last runs
+select public.run_retention();                                                 -- run by hand (idempotent)
 ```
 
-**Manual run** (safe to repeat): `select public.analytics_purge();`
+The reproducible check is `bun run test:schedule`. It needs Docker. It starts
+a throwaway Postgres 16 with pg_cron, applies every migration, then checks
+that:
 
-## Withdrawal
+- exactly one job is scheduled;
+- re-applying the migration keeps one job;
+- pg_cron executes `run_retention()` with status `succeeded`;
+- the run is logged.
 
-- Analytics: `DELETE /api/analytics/consent` (Privacy settings dialog, no
-  account needed) → `analytics_withdraw()` deletes the browser row and, by
-  cascade, all its events, before the response clears the cookie. Aggregates
-  already incremented stay; they hold no identifiers.
-- Dietary note: `/ops/privacy` → `withdraw_dietary_note()` deletes the note in
-  the same transaction that records the withdrawal.
-- Marketing: `/ops/privacy` appends `withdrawn`.
-- Sponsor sharing: admin records `objected` (see rights-requests.md).
+## Monitoring missed runs
 
-## Reviewed cleanup of old dietary copies
+Every run writes `maintenance_runs` rows (`retention`, `analytics_purge`) with
+counts, and lists skipped categories.
 
-`supabase/manual/20261001_cleanup_dietary_copies.sql` removes the old free-text
-copies from `auth.users` metadata, `participants.dietary` and
-`registrations.dietary`. It is **not** a migration and is never applied by
-`db push`. It is a dry run (`ROLLBACK`) unless confirmed:
+- **Actionable alert:** the Worker cron trigger (`wrangler.jsonc` `triggers`,
+  daily 07:00 UTC) runs the Nitro task `privacy:retention-monitor`. If no
+  `retention` run happened in the last 26 hours, it emails
+  `NUXT_OPS_ALERT_EMAIL`, or every admin when that is unset. It also logs an
+  error to Workers logs. Only production sends, because staging uses the same
+  database.
+- **In the panel:** Admin → Sources also shows a warning when the last run is
+  older than 2 days.
+- **By hand:** test the monitor with
+  `bunx wrangler dev --test-scheduled` and then
+  `curl "http://localhost:8787/__scheduled?cron=0+7+*+*+*"`.
 
-```bash
-psql "$DATABASE_URL" -f supabase/manual/20261001_cleanup_dietary_copies.sql              # dry run, prints counts
-psql "$DATABASE_URL" -v confirm=yes -f supabase/manual/20261001_cleanup_dietary_copies.sql
-```
+## Withdrawal and erasure
 
-Run it only after migration 1 and the new code are deployed, and after a human
-review. It is tested against a throwaway database in `bun run test:db`.
+- **Analytics:** `DELETE /api/analytics/consent` (no account needed) calls
+  `analytics_withdraw()`.
+  - It deletes the browser row, and by cascade every event and its
+    attribution, then writes the ID to `deletion_ledger` and clears the
+    cookies.
+  - Live totals drop the browser at once. Finalised totals never contained a
+    browser that could still withdraw.
+  - An in-flight event waits on the row lock and is removed by the cascade,
+    or finds no row and writes nothing.
+- **Sponsor sharing:** a No in `/ops/privacy` records `withdrawn`. An admin
+  can record `objected` for a rights request. Both exclude the person from the
+  next export.
+- **Dietary note:** `withdraw_dietary_note()` deletes the note in the same
+  transaction.
+- **Marketing:** a No in `/ops/privacy` records `withdrawn`.
+- **Erasure of an account:** deleting `auth.users` cascades to participants,
+  registrations, catering and consent records, and a trigger writes the
+  participant ID to `deletion_ledger`. Append-only means records cannot be
+  *edited*; deleting them for erasure or a decided retention period still
+  works, and is tested.
 
-`legacy` rows in `registration_catering` were entered under the old notice
-without the new explicit consent. Decide whether to ask those participants to
-re-confirm, or to delete the notes:
+## Dietary data: staged cleanup
 
-```sql
-update public.registration_catering set note = null where legacy;  -- if deleting
-```
+1. **Stop old writes and reads:** this branch. Signup no longer writes dietary
+   data to auth metadata, and no code reads `registrations.dietary` or
+   `participants.dietary`.
+2. **Clean and verify:** `supabase/manual/20261001_cleanup_dietary_copies.sql`.
+   It empties `auth.users.raw_user_meta_data->'dietary'`,
+   `participants.dietary` and `registrations.dietary`. It is a dry run that
+   prints counts unless you pass `-v confirm=yes`.
+3. **Drop the columns:**
+   `supabase/manual/20261002_stage3_drop_legacy_dietary_columns.sql`. It
+   refuses to run unless stage 2 left nothing behind, and is also a dry run
+   unless confirmed. After it runs in production, copy its DDL into a numbered
+   migration so fresh environments match.
 
-## Exports, caches and backups
+Both scripts are tested on throwaway data in `bun run test:db`. Neither is run
+by `db push`.
 
-- **Exports** are generated on request, sent with `Cache-Control: no-store,
-  private`, and never stored by the app. The only server-side trace is
-  `export_audit` (ids and counts, not the file contents). Downloaded files are
-  the downloader's responsibility: store them only where needed, delete them
-  when the purpose is served, and never forward them outside the named
-  recipient.
-- **Caches:** personal data responses are not cacheable. Public cacheable
-  endpoints (`/api/editions/current`, `/api/announcements`) carry no personal
-  data.
-- **Backups:** Supabase keeps database backups for the plan's retention window
-  (daily backups, or point-in-time recovery if enabled). Deleted rows survive in
-  backups until those expire. The provider does not support deleting individual
-  rows from a backup, so **we do not promise immediate backup erasure**.
-  If a backup is ever restored:
-  1. Restore into a non-public environment first.
-  2. Re-run `select public.analytics_purge();`, which re-applies analytics
-     retention.
-  3. Re-apply erasures and withdrawals handled since the backup was taken.
-     Keep a list of erasure-request participant ids (not their data) for this,
-     separate from the database, for as long as backups can be restored.
-  4. Re-run the dietary cleanup script if the backup predates it.
-  5. Only then switch traffic.
-- **Logs:** Cloudflare and Supabase keep request and error logs (which can
-  include IP addresses) under their own retention. See
-  operations-checklist.md.
+`legacy` catering notes were copied without the explicit consent a note now
+needs. They are withheld from the catering export. Decide whether to ask those
+people to re-confirm, or delete them:
+`update public.registration_catering set note = null where legacy;`.
+
+## Backups
+
+Supabase keeps database backups for the plan's window. Deleted rows survive in
+backups until those expire, and backups cannot be edited row by row, so **we
+do not promise immediate erasure from backups**.
+
+To stop a restore from resurrecting deleted records indefinitely:
+
+1. Restore into a non-public environment first.
+2. Run `select public.reapply_deletion_ledger();`. It deletes every
+   participant (`auth.users`, which cascades) and every analytics browser
+   recorded in the ledger since the backup was taken.
+3. Run `select public.run_retention();` to re-apply time-based deletion.
+4. Re-run the dietary cleanup (stage 2) if the backup predates it.
+5. Then switch traffic.
+
+The ledger holds IDs only. Its retention (`deletion_ledger` policy) must be
+at least as long as the oldest backup that could be restored.
+
+## Rollout order
+
+**Staging and production use the same Supabase project**: the same
+`NUXT_PUBLIC_SUPABASE_URL` is set in both `wrangler.jsonc` environments. A
+`db push` for "staging" changes production data. Plan accordingly.
+
+1. Review this branch, including the migrations, which touch `registrations`
+   and RLS (CONTRIBUTING requires human review).
+2. **Migrations first, code second.** The currently deployed code keeps
+   working on the migrated database: every change is additive, and the old
+   `dietary` columns stay until stage 3. The new code needs the new database
+   functions. So apply the migrations before any environment runs the new
+   code, ideally while `ops_enabled` is off.
+   `bunx supabase db push` applies three migrations, all additive:
+   `20261001000100`, `20261001000200`, `20261002000100`. The last one enables
+   pg_cron and schedules the job. Check it with the queries above.
+3. `bunx supabase config push` enables TOTP MFA (`[auth.mfa.totp]`). Admins
+   enrol at `/ops/admin/mfa`.
+4. Set Worker variables per environment as needed (nothing new is a secret):
+   `NUXT_OPS_ALERT_EMAIL` (optional). **Leave** `NUXT_SPONSOR_EXPORTS_ENABLED`
+   and `NUXT_ANALYTICS_ACTIVATION_ALLOWED` **unset**.
+5. Merge to `dev` (staging) and then `main` (production). Confirm the cron trigger appears in the
+   Cloudflare dashboard and the next day's `maintenance_runs` row.
+6. Run dietary cleanup stage 2 (dry run, then confirm), then stage 3.
+7. Record decided retention periods as they are made.
+8. Only after the matching organisational facts in README.md are resolved:
+   - set `PRIVACY_NOTICE_FINAL = true`;
+   - add sponsor recipients, then set `NUXT_SPONSOR_EXPORTS_ENABLED=true`;
+   - set `NUXT_ANALYTICS_ACTIVATION_ALLOWED=true` and switch analytics on per
+     edition.

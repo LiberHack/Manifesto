@@ -1,4 +1,4 @@
-import { requireAdmin, resolveAdminEdition } from "#server/utils/adminAuth";
+import { requireAdminWithMfa, resolveAdminEdition } from "#server/utils/adminAuth";
 import { setExportHeaders, toCsv } from "#server/utils/csv";
 import { exportFilename, recordExport } from "#server/utils/exportAudit";
 
@@ -29,7 +29,7 @@ interface Row {
 }
 
 export default defineEventHandler(async (event) => {
-  const { user, supabase } = await requireAdmin(event);
+  const { user, supabase } = await requireAdminWithMfa(event);
   const edition = await resolveAdminEdition(event, supabase);
 
   const { data, error } = await supabase

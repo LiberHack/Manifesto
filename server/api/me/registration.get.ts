@@ -34,10 +34,11 @@ export default defineEventHandler(async (event) => {
       prefill: null,
       notice_version: PRIVACY_NOTICE_VERSION,
       sponsor_recipients: [],
+      dietary_notes_enabled: false,
     };
   }
 
-  const [{ data: current }, { data: prior }, { count }, recipients] = await Promise.all([
+  const [{ data: current }, { data: prior }, { count }, recipients, notes] = await Promise.all([
     supabase
       .from("registrations")
       .select("id")
@@ -57,6 +58,8 @@ export default defineEventHandler(async (event) => {
       .select("id", { count: "exact", head: true })
       .eq("edition_slug", edition.slug),
     listActiveRecipients(supabase, edition.slug),
+    // Free-text dietary notes only once a catering retention period is decided.
+    supabase.rpc("dietary_notes_enabled"),
   ]);
 
   const metadata = (user.user_metadata ?? {}) as Record<string, unknown>;
@@ -91,5 +94,6 @@ export default defineEventHandler(async (event) => {
     prefill,
     notice_version: PRIVACY_NOTICE_VERSION,
     sponsor_recipients: recipients,
+    dietary_notes_enabled: notes.data === true,
   };
 });

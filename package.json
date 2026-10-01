@@ -11,6 +11,7 @@
     "postinstall": "nuxt prepare",
     "test": "vitest run",
     "test:db": "bash scripts/test-migrations.sh",
+    "test:schedule": "bash scripts/test-retention-schedule.sh",
     "preview:cf": "wrangler dev",
     "deploy": "nuxt build && wrangler deploy"
   },

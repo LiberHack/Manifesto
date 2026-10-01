@@ -27,6 +27,7 @@ bun run preview:cf # run the built worker locally with wrangler dev (D1 + rate l
 bun run deploy     # nuxt build && wrangler deploy
 bun run test       # vitest (unit + e2e; also gates every Workers Builds deploy)
 bun run test:db    # apply supabase/migrations to a throwaway Postgres and assert schema behaviour
+bun run test:schedule # Docker: verify the pg_cron retention schedule in a throwaway container
 ```
 
 ## Package Manager
@@ -155,16 +156,24 @@ Read `docs/privacy/README.md` before touching registration, exports or tracking.
 
 - Registration writes one `consent_records` row per purpose via `register_with_consents()`;
   never infer one purpose from another, never backfill.
-- Sponsor data leaves only through `/api/admin/sponsors/:id/export`, which checks eligibility
-  in `sponsor_export_rows()` at download time and writes `export_audit` first. Every CSV export
-  uses `server/utils/csv.ts` (formula escaping, `no-store`).
+- Sponsor sharing is voluntary: an explicit Yes/No per named recipient (No never affects
+  participation). Data leaves only through `/api/admin/sponsors/:id/export`, which requires
+  admin + MFA (`aal2`) + `NUXT_SPONSOR_EXPORTS_ENABLED`, checks `sponsor_export_rows()` at
+  download time and writes `export_audit` first. Legacy `acknowledged` rows never qualify.
+- Every personal-data export uses `requireAdminWithMfa` and `server/utils/csv.ts`
+  (formula escaping, `no-store`).
 - Dietary data lives only in `registration_catering` (server-only). Never put it, or any consent,
   in auth `user_metadata`.
 - Analytics is consent-gated per browser (`analytics_browsers`, HttpOnly `lh_aid`, fixed 30 days)
-  and off per edition until an admin sets `editions.analytics_enabled`. No consent → no event,
-  no storage, no substitute identifier. `registration_completed` is recorded server-side only.
+  and off twice by default: `NUXT_ANALYTICS_ACTIVATION_ALLOWED` (server) and
+  `editions.analytics_enabled` (admin). No consent → no event, no storage, no substitute
+  identifier. `registration_completed` is written only by `analytics_complete_registration()`,
+  once per registration.
 - Source tags (`source_links`) are immutable and never reused; archive instead of deleting.
-- Retention: `analytics_purge()` (schedule via pg_cron, see `docs/privacy/retention-and-deletion.md`).
+- Retention: `run_retention()` scheduled by pg_cron (migration), missed runs alerted by the
+  `privacy:retention-monitor` Worker cron task. Undecided categories live in `retention_policies`
+  as absent rows — never invent periods. See `docs/privacy/retention-and-deletion.md`.
+- **Staging and production share one Supabase project.** `db push` affects production data.
 
 ## Testing
 

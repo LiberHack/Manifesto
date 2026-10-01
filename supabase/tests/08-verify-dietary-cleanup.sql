@@ -20,7 +20,9 @@ select assert(
 select assert(
   (select count(*) from public.registration_catering c
    join public.registrations r on r.id = c.registration_id
-   where r.edition_slug = '2027') = 2,
+   where r.participant_id in ('a0000000-0000-0000-0000-000000000001',
+                              'a0000000-0000-0000-0000-000000000005')) = 2
+  and exists (select 1 from public.registration_catering where note = 'halal'),
   'the restricted catering records are untouched');
 
 select 'DIETARY CLEANUP VERIFICATION COMPLETE' as result;

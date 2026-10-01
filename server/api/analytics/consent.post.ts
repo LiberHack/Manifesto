@@ -1,6 +1,11 @@
 import { useSupabaseAdmin } from "#server/utils/supabase";
 import { getCurrentEdition } from "#server/utils/registrationContext";
-import { readBrowserId, setDeniedCookies, setGrantedCookies } from "#server/utils/analytics";
+import {
+  analyticsActivationAllowed,
+  readBrowserId,
+  setDeniedCookies,
+  setGrantedCookies,
+} from "#server/utils/analytics";
 import { PRIVACY_NOTICE_VERSION } from "#shared/utils/privacy";
 
 /**
@@ -35,7 +40,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const edition = await getCurrentEdition(supabase);
-  if (!edition?.analytics_enabled) {
+  if (!analyticsActivationAllowed(useRuntimeConfig()) || !edition?.analytics_enabled) {
     throw createError({ statusCode: 409, message: "analytics_disabled" });
   }
 

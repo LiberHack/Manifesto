@@ -58,7 +58,9 @@ export function useMe() {
 
   return useAsyncData<Me | null>(
     "me",
-    () => (user.value ? (request("/api/me") as Promise<Me>) : Promise.resolve(null)),
+    // Explicit response type: inferring it from Nitro's route union exceeds the
+    // compiler's depth limit now that there are more API routes.
+    () => (user.value ? request<Me>("/api/me") : Promise.resolve(null)),
     { default: () => null, watch: [user] },
   );
 }

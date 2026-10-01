@@ -66,11 +66,18 @@ const editionParam = computed(() => props.editionQuery.edition ?? "");
   <section class="flex flex-col gap-4">
     <h2 class="text-2xl font-bold">Sponsor sharing</h2>
     <p class="text-sm opacity-70 max-w-3xl">
-      A sponsor export only contains people whose current acknowledgment names
-      that organisation, and only name, email, skills and experience. Someone who
-      registered before a sponsor was added is not included for it until they
-      confirm in their privacy settings. Recorded objections are excluded. Each
-      download is checked when it is generated and written to the export log.
+      A sponsor export contains only people whose current answer for that
+      organisation is Yes and who said they are 18 or older — never someone who
+      said No, withdrew, has an objection recorded, or only has an older
+      acknowledgment. A sponsor added later starts with nobody. Only name, email,
+      skills and experience are exported. Eligibility is checked when the file is
+      generated; nothing is stored or queued, so there is no stale link to
+      re-download. Every export is written to the log below.
+    </p>
+
+    <p class="text-sm">
+      Exports of participant data need a verified second factor in this session:
+      <NuxtLink to="/ops/admin/mfa" class="link font-bold">set up / verify MFA</NuxtLink>.
     </p>
 
     <div v-if="!exportsEnabled" role="note" class="alert alert-warning text-sm">

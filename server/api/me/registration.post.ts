@@ -2,7 +2,7 @@ import { serverSupabaseUser } from "#supabase/server";
 import { useSupabaseAdmin } from "#server/utils/supabase";
 import { getCurrentEdition } from "#server/utils/registrationContext";
 import { parseRegistrationInput } from "#server/utils/registrationInput";
-import { recordRegistrationCompleted } from "#server/utils/analytics";
+import { analyticsActivationAllowed, recordRegistrationCompleted } from "#server/utils/analytics";
 
 const MAX_NEW_SKILLS = 5;
 
@@ -49,7 +49,8 @@ export default defineEventHandler(async (event) => {
     p_experience: input.experience,
     p_public: input.public,
     p_notice_version: input.noticeVersion,
-    p_recipient_ids: input.sponsorRecipientIds,
+    p_sponsor_choices: input.sponsorChoices,
+    p_recruitment_adult: input.recruitmentAdult,
     p_marketing: input.marketingEmail,
     p_diet: input.diet,
     p_note: input.dietaryNote,
@@ -59,8 +60,15 @@ export default defineEventHandler(async (event) => {
     if (error.message?.includes("registration_closed")) {
       throw createError({ statusCode: 409, message: "registration_closed" });
     }
-    if (error.message?.includes("sponsor_recipients_changed")) {
-      throw createError({ statusCode: 409, message: "sponsor_recipients_changed" });
+    for (const code of [
+      "sponsor_recipients_changed",
+      "sponsor_choices_invalid",
+      "recruitment_age_required",
+      "dietary_note_disabled",
+    ]) {
+      if (error.message?.includes(code)) {
+        throw createError({ statusCode: code === "sponsor_recipients_changed" ? 409 : 400, message: code });
+      }
     }
     if (error.code === "23505") {
       // Not a completion: counting it would let anyone re-post an existing
@@ -77,7 +85,9 @@ export default defineEventHandler(async (event) => {
       .insert(newSkills.map((name) => ({ name, created_by: user.sub })));
   }
 
-  await recordRegistrationCompleted(event, supabase, edition.slug);
+  if (analyticsActivationAllowed(useRuntimeConfig())) {
+    await recordRegistrationCompleted(event, supabase, edition.slug, registrationId as string);
+  }
 
   return {
     id: registrationId as string,

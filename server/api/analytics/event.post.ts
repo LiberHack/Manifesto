@@ -1,6 +1,6 @@
 import { useSupabaseAdmin } from "#server/utils/supabase";
 import { getCurrentEdition } from "#server/utils/registrationContext";
-import { readBrowserId } from "#server/utils/analytics";
+import { analyticsActivationAllowed, readBrowserId } from "#server/utils/analytics";
 import { CLIENT_ANALYTICS_EVENTS, type ClientAnalyticsEvent } from "#shared/utils/privacy";
 import { categorizeReferrerHost, isValidLinkTag } from "#shared/utils/source";
 
@@ -35,7 +35,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const browserId = readBrowserId(event);
-  if (!browserId) return null;
+  if (!browserId || !analyticsActivationAllowed(useRuntimeConfig())) return null;
 
   const supabase = useSupabaseAdmin();
   const edition = await getCurrentEdition(supabase);

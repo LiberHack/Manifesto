@@ -14,7 +14,7 @@ const inviteTeam = ref<{ name: string } | null>(null);
 
 if (inviteCode) {
   try {
-    inviteTeam.value = await $fetch(`/api/invite/${inviteCode}`);
+    inviteTeam.value = await $fetch<{ name: string }>(`/api/invite/${inviteCode}`);
   } catch {
     // invalid invite — proceed without it
   }

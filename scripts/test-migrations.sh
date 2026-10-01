@@ -98,4 +98,13 @@ psql -d liberhack -v ON_ERROR_STOP=1 -f "$ROOT/supabase/tests/08-verify-dietary-
   | grep -E 'PASS|FAIL|VERIFICATION|ERROR' \
   | sed 's/^psql:.*NOTICE:  //'
 
+# ── Stage 3: drop the emptied columns, only after stage 2 ───────────────────────
+psql -d liberhack -q -v confirm=yes -f "$ROOT/supabase/manual/20261002_stage3_drop_legacy_dietary_columns.sql" >/dev/null
+if [[ "$(q "select count(*) from information_schema.columns where table_schema = 'public' and column_name = 'dietary'")" == 0 ]]; then
+  echo "PASS  stage 3 drops the legacy dietary columns after the cleanup"
+else
+  echo "FAIL  legacy dietary columns are still present"
+  failed=1
+fi
+
 exit "$failed"

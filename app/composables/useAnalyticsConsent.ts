@@ -4,7 +4,11 @@ import {
   type AnalyticsChoice,
   type ClientAnalyticsEvent,
 } from "#shared/utils/privacy";
-import { trackIfGranted, type LandingContext } from "~/utils/analyticsClient";
+import {
+  landingToRecordOnConsent,
+  trackIfGranted,
+  type LandingContext,
+} from "~/utils/analyticsClient";
 
 /**
  * Browser-level analytics consent, separate from any account. Shared state:
@@ -17,6 +21,8 @@ export function useAnalyticsConsent() {
   const choice = useState<AnalyticsChoice>("analytics-choice", () =>
     parseAnalyticsChoice(cookie.value),
   );
+  // Captured in setup: trackLanding also runs after an await.
+  const route = useRoute();
   const settingsOpen = useState("analytics-settings-open", () => false);
   const landing = useState<LandingContext | null>("analytics-landing", () => null);
   const landingSent = useState("analytics-landing-sent", () => false);
@@ -28,10 +34,15 @@ export function useAnalyticsConsent() {
     trackIfGranted(choice.value, event, send);
   }
 
-  /** The landing of this page load, once, and only after consent exists. */
+  /**
+   * The landing of this page load, once, and only after consent exists — and
+   * only while the visitor is still on the landing page.
+   */
   function trackLanding(): void {
-    if (landingSent.value || !landing.value) return;
-    if (trackIfGranted(choice.value, "landing_viewed", send, landing.value)) {
+    if (landingSent.value) return;
+    const current = landingToRecordOnConsent(landing.value, route.path);
+    if (!current) return;
+    if (trackIfGranted(choice.value, "landing_viewed", send, current)) {
       landingSent.value = true;
     }
   }
@@ -46,8 +57,8 @@ export function useAnalyticsConsent() {
         ? { state: "granted", expiresAt: Date.parse(res.expires_at!) }
         : { state: "denied" };
     settingsOpen.value = false;
-    // The page the visitor is on when they allow is the one landing recorded;
-    // nothing from before consent on earlier pages exists to send.
+    // Records the landing page only if the visitor is still on it, stamped
+    // with the consent time by the server (see landingToRecordOnConsent).
     if (res.state === "granted") trackLanding();
   }
 

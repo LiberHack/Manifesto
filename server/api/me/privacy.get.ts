@@ -9,13 +9,16 @@ interface ConsentRow {
   edition_slug: string | null;
   decision: string;
   recipient_ids: string[] | null;
-  recorded_at: string;
 }
+
+/** "yes" / "no" for a current choice, "unanswered" when only a legacy
+ * acknowledgment (or nothing) exists, "objected" for a recorded objection. */
+export type SponsorChoiceState = "yes" | "no" | "unanswered" | "objected";
 
 /**
  * The caller's current privacy choices, for /ops/privacy. Account-level
- * choices work without a registration; edition-level ones (sponsor
- * acknowledgment, dietary note) only exist once registered.
+ * choices work without a registration; edition-level ones (sponsor sharing,
+ * dietary note) only exist once registered.
  */
 export default defineEventHandler(async (event) => {
   const user = await serverSupabaseUser(event);
@@ -25,31 +28,28 @@ export default defineEventHandler(async (event) => {
   const supabase = useSupabaseAdmin();
   const edition = await getCurrentEdition(supabase);
 
+  // Ordered newest first, so the first match is the decision in force.
   const { data: rows, error } = await supabase
     .from("consent_records")
-    .select("purpose, edition_slug, decision, recipient_ids, recorded_at")
+    .select("purpose, edition_slug, decision, recipient_ids")
     .eq("participant_id", user.sub)
     .order("recorded_at", { ascending: false })
     .order("id", { ascending: false });
   if (error) throw createError({ statusCode: 500, message: "Internal server error" });
+  const records = (rows ?? []) as ConsentRow[];
 
-  const latest = (purpose: string, editionSlug: string | null) =>
-    ((rows ?? []) as ConsentRow[]).find(
-      (r) => r.purpose === purpose && r.edition_slug === editionSlug,
-    ) ?? null;
-
-  const marketing = latest("marketing_email", null);
+  const marketing = records.find((r) => r.purpose === "marketing_email" && r.edition_slug === null);
   const base = {
     notice_version: PRIVACY_NOTICE_VERSION,
     marketing_email: marketing?.decision === "granted",
-    marketing_answered: marketing !== null,
+    marketing_answered: marketing !== undefined,
   };
 
   if (!edition) return { ...base, edition: null, registration: null };
 
   const { data: registration } = await supabase
     .from("registrations")
-    .select("id, public, catering:registration_catering(diet, note)")
+    .select("id, public, recruitment_adult, catering:registration_catering(note)")
     .eq("participant_id", user.sub)
     .eq("edition_slug", edition.slug)
     .maybeSingle();
@@ -59,12 +59,29 @@ export default defineEventHandler(async (event) => {
   }
 
   const recipients = await listActiveRecipients(supabase, edition.slug);
-  const sponsor = latest("sponsor_sharing", edition.slug);
-  const acknowledged = sponsor?.decision === "acknowledged" ? (sponsor.recipient_ids ?? []) : [];
-  const catering = registration.catering as
-    | { diet: string; note: string | null }
-    | { diet: string; note: string | null }[]
-    | null;
+  const choiceFor = (recipientId: string): SponsorChoiceState => {
+    const current = records.find(
+      (r) =>
+        r.purpose === "sponsor_sharing" &&
+        r.edition_slug === edition.slug &&
+        r.recipient_ids !== null &&
+        (r.recipient_ids.includes(recipientId) || r.recipient_ids.length === 0),
+    );
+    switch (current?.decision) {
+      case "granted":
+        return "yes";
+      case "denied":
+      case "withdrawn":
+        return "no";
+      case "objected":
+        return "objected";
+      default:
+        // Includes legacy `acknowledged` rows: never treated as an answer.
+        return "unanswered";
+    }
+  };
+
+  const catering = registration.catering as { note: string | null } | { note: string | null }[] | null;
   const cateringRow = Array.isArray(catering) ? (catering[0] ?? null) : catering;
 
   return {
@@ -72,14 +89,9 @@ export default defineEventHandler(async (event) => {
     edition: { slug: edition.slug, name: edition.name },
     registration: {
       public: registration.public as boolean,
+      recruitment_adult: registration.recruitment_adult as boolean | null,
       has_dietary_note: Boolean(cateringRow?.note),
-      sponsor: {
-        recipients,
-        acknowledged_recipient_ids: acknowledged,
-        // A recipient added after the person acknowledged is not covered.
-        covers_current: recipients.every((r) => acknowledged.includes(r.id)),
-        objected: sponsor?.decision === "objected",
-      },
+      sponsors: recipients.map((r) => ({ ...r, choice: choiceFor(r.id) })),
     },
   };
 });

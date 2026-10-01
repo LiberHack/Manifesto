@@ -16,7 +16,10 @@ export interface FunnelRow {
 export interface SourceReport {
   model: AttributionModel;
   channel: string | null;
-  /** Registrations from consenting browsers (each counted once). */
+  /**
+   * Successful registrations made from a consenting browser, one per
+   * registration (two people on a shared browser are two).
+   */
   consenting_registrations: number;
   /** Every registration in the edition — context only, never a denominator. */
   all_registrations: number;
@@ -52,8 +55,9 @@ function sumFunnel(rows: FunnelRow[]): Omit<FunnelRow, "cohort_day" | "channel">
 }
 
 /**
- * Everything the Sources view shows, from aggregates only (attribution_daily,
- * funnel_cohort_daily) plus live cohorts still inside the retention window.
+ * Everything the Sources view shows. Days and cohorts in which a browser could
+ * still withdraw are computed live from individual events (so a withdrawal
+ * removes them at once); older ones come from the finalised aggregates.
  */
 export async function buildSourceReport(
   supabase: SupabaseClient,
@@ -61,23 +65,11 @@ export async function buildSourceReport(
   model: AttributionModel,
   channel: string | null,
 ): Promise<SourceReport> {
-  const [links, attribution, firstTouch, rolled, live, total, purge] = await Promise.all([
+  const [links, attribution, firstTouch, funnel, total, purge] = await Promise.all([
     supabase.from("source_links").select("tag, label, channel").eq("edition_slug", editionSlug),
-    supabase
-      .from("attribution_daily")
-      .select("day, source_key, registrations")
-      .eq("edition_slug", editionSlug)
-      .eq("model", model),
-    supabase
-      .from("attribution_daily")
-      .select("source_key, registrations")
-      .eq("edition_slug", editionSlug)
-      .eq("model", "first"),
-    supabase
-      .from("funnel_cohort_daily")
-      .select("cohort_day, channel, landed, cta, started, completed_7d")
-      .eq("edition_slug", editionSlug),
-    supabase.rpc("funnel_cohorts", { p_edition: editionSlug }),
+    supabase.rpc("attribution_report", { p_edition: editionSlug, p_model: model }),
+    supabase.rpc("attribution_report", { p_edition: editionSlug, p_model: "first" }),
+    supabase.rpc("funnel_report", { p_edition: editionSlug }),
     supabase
       .from("registrations")
       .select("id", { count: "exact", head: true })
@@ -85,12 +77,12 @@ export async function buildSourceReport(
     supabase
       .from("maintenance_runs")
       .select("ran_at")
-      .eq("job", "analytics_purge")
+      .eq("job", "retention")
       .order("ran_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
   ]);
-  for (const r of [links, attribution, firstTouch, rolled, live]) {
+  for (const r of [links, attribution, firstTouch, funnel]) {
     if (r.error) {
       console.error("[source-report] query failed:", r.error.message);
       throw createError({ statusCode: 500, message: "Internal server error" });
@@ -103,8 +95,9 @@ export async function buildSourceReport(
   const inChannel = (key: string) => channel === null || channelOf(key, linkChannels) === channel;
 
   const daily = ((attribution.data ?? []) as { day: string; source_key: string; registrations: number }[])
+    .map((r) => ({ ...r, registrations: Number(r.registrations) }))
     .filter((r) => inChannel(r.source_key))
-    .toSorted((a, b) => a.day.localeCompare(b.day));
+    .toSorted((a, b) => a.day.localeCompare(b.day) || a.source_key.localeCompare(b.source_key));
 
   const bySource = new Map<string, number>();
   for (const r of daily) bySource.set(r.source_key, (bySource.get(r.source_key) ?? 0) + r.registrations);
@@ -119,39 +112,23 @@ export async function buildSourceReport(
 
   const consenting = ((firstTouch.data ?? []) as { source_key: string; registrations: number }[])
     .filter((r) => inChannel(r.source_key))
-    .reduce((sum, r) => sum + r.registrations, 0);
+    .reduce((sum, r) => sum + Number(r.registrations), 0);
 
-  // Rolled-up cohorts are final; live rows only fill days not rolled up yet.
-  const rolledRows = ((rolled.data ?? []) as FunnelRow[]).map((r) => ({ ...r }));
-  const rolledKeys = new Set(rolledRows.map((r) => `${r.cohort_day}|${r.channel}`));
-  const liveRows = ((live.data ?? []) as (FunnelRow & { window_closed: boolean })[])
-    .filter((r) => !rolledKeys.has(`${r.cohort_day}|${r.channel}`))
+  const funnelRows = ((funnel.data ?? []) as (FunnelRow & { window_closed: boolean; final: boolean })[])
+    .filter((r) => channel === null || r.channel === channel)
     .map((r) => ({
-      ...r,
+      cohort_day: r.cohort_day,
+      channel: r.channel,
       landed: Number(r.landed),
       cta: Number(r.cta),
       started: Number(r.started),
       completed_7d: Number(r.completed_7d),
-    }));
-
-  const funnelChannel = (r: FunnelRow) => channel === null || r.channel === channel;
-  const strip = ({ cohort_day, channel: c, landed, cta, started, completed_7d }: FunnelRow) => ({
-    cohort_day,
-    channel: c,
-    landed,
-    cta,
-    started,
-    completed_7d,
-  });
-  const closed = [...rolledRows, ...liveRows.filter((r) => r.window_closed)]
-    .filter(funnelChannel)
-    .map(strip)
+      window_closed: r.window_closed,
+    }))
     .toSorted((a, b) => a.cohort_day.localeCompare(b.cohort_day));
-  const open = liveRows
-    .filter((r) => !r.window_closed)
-    .filter(funnelChannel)
-    .map(strip)
-    .toSorted((a, b) => a.cohort_day.localeCompare(b.cohort_day));
+  const strip = ({ window_closed: _, ...row }: FunnelRow & { window_closed: boolean }) => row;
+  const closed = funnelRows.filter((r) => r.window_closed).map(strip);
+  const open = funnelRows.filter((r) => !r.window_closed).map(strip);
 
   return {
     model,

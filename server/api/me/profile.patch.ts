@@ -109,6 +109,9 @@ export default defineEventHandler(async (event) => {
       p_diet: body.diet as Diet,
       p_note: note,
     });
+    if (error?.message?.includes("dietary_note_disabled")) {
+      throw createError({ statusCode: 400, message: "dietary_note_disabled" });
+    }
     if (error) throw createError({ statusCode: 500, message: "Internal server error" });
   } else if (body.diet !== undefined) {
     const { error } = await supabase.from("registration_catering").upsert(

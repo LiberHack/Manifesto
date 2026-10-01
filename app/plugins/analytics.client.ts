@@ -23,6 +23,7 @@ export default defineNuxtPlugin(() => {
   const { landing, trackLanding } = useAnalyticsConsent();
 
   landing.value = {
+    path: route.path,
     src: firstQueryValue(route.query.src),
     refHost: referrerHost(document.referrer),
   };
