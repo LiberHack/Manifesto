@@ -38,6 +38,11 @@ export default defineEventHandler(async (event) => {
     getHeader(event, "x-forwarded-for")?.split(",")[0]?.trim() ??
     "unknown";
 
+  // Key signed-in requests per user, not per IP: many attendees behind one
+  // venue NAT (and chat polling) would otherwise share a single bucket and 429.
+  const user = (event.context.user as { sub?: string } | null | undefined)?.sub;
+  const key = user ? `user:${user}` : `ip:${ip}`;
+
   const maxRequests = Number(useRuntimeConfig(event).rateLimitMax) || 60;
   const [, routeMax, bindingName] =
     ROUTE_LIMITS.find(([pattern]) => pattern.test(event.path)) ??
@@ -49,10 +54,10 @@ export default defineEventHandler(async (event) => {
 
   let retryAfter: number | null;
   if (limiter) {
-    const { success } = await limiter.limit({ key: ip });
+    const { success } = await limiter.limit({ key });
     retryAfter = success ? null : WINDOW_MS / 1000;
   } else {
-    retryAfter = localLimit(ip, routeMax);
+    retryAfter = localLimit(key, routeMax);
   }
 
   if (retryAfter !== null) {

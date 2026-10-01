@@ -50,7 +50,7 @@ app/middleware/   # auth.ts — client-side route guard (checks session + email_
 server/           # Nitro API routes, middleware, email utils
 server/api/       # REST API endpoints
 server/emails/    # MJML email templates — edit .mjml, run generate-ts.mjs to rebuild
-server/middleware/ # 00.noindex.ts (X-Robots-Tag off production), 01.auth.ts (attaches user to context), 02.rateLimit.ts (60 req/min/IP)
+server/middleware/ # 00.noindex.ts (X-Robots-Tag off production), 01.auth.ts (attaches user to context), 02.rateLimit.ts (60 req/min per user / IP)
 public/           # Static assets (tailwind.css lives here)
 nuxt.config.ts    # Nuxt configuration
 wrangler.jsonc    # Cloudflare Workers config (assets, D1, rate limits, public vars)
@@ -78,7 +78,7 @@ unset locally.
 
 - `/ops/*` pages are protected by the `auth` client middleware — redirects to `/` if the current edition's participant area is closed (`ops_enabled`), `/ops/login` if no session, `/ops/verify-email` if email not confirmed, `/ops/register-edition` if the account has no `registration` in the current edition (see Editions below)
 - Server-side: `01.auth.ts` attaches the Supabase user to `event.context.user`
-- Rate limiting: 60 req/min per IP on all `/api/*` routes (`02.rateLimit.ts`) via Workers Rate Limiting bindings (`RL_*` in `wrangler.jsonc`); falls back to an in-memory map in `nuxt dev`
+- Rate limiting: 60 req/min on all `/api/*` routes (`02.rateLimit.ts`) via Workers Rate Limiting bindings (`RL_*` in `wrangler.jsonc`); keyed per signed-in user and per IP for anonymous requests, so many attendees behind one NAT do not share a bucket; falls back to an in-memory map in `nuxt dev`
 - `/api/live/stream` is SSE: each connection polls Supabase every 5s and only emits on change (Workers isolates share no memory, so there is no server-side broadcast)
 - Admin role: set `role = 'admin'` in the `participants` table to expose `/ops/admin`. This is identity-level and carries across editions; it is unrelated to `registrations.role` (`participant` | `leader`), which is team leadership within one edition.
 - `emailRedirectTo` in `signUp` is `<current origin>/ops/confirm`, so every host the app is served from (production, staging, PR previews) must be in `additional_redirect_urls` in `supabase/config.toml`
