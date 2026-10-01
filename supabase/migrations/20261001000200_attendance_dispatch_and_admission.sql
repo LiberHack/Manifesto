@@ -83,6 +83,31 @@ create trigger advance_waitlist_after_delete
   for each row
   execute function public.advance_waitlist();
 
+-- Raising the cap frees seats. Offer each newly opened seat to the queue, or a
+-- raised capacity sits idle and a newcomer takes a seat ahead of the waitlist.
+create or replace function public.advance_waitlist_on_cap_raise()
+returns trigger
+language plpgsql
+as $$
+declare
+  i int;
+begin
+  if new.participant_cap > old.participant_cap then
+    for i in 1..(new.participant_cap - old.participant_cap) loop
+      if public.offer_next_seat(new.slug) is null then
+        exit;
+      end if;
+    end loop;
+  end if;
+  return null;
+end;
+$$;
+
+create trigger advance_waitlist_on_cap_raise
+  after update of participant_cap on public.editions
+  for each row
+  execute function public.advance_waitlist_on_cap_raise();
+
 -- ------------------------------------------------------------
 -- Notification jobs: claim due work for one dispatcher run. SKIP LOCKED lets
 -- concurrent runs split the queue; a job left in 'sending' past its lease
@@ -194,6 +219,7 @@ $$;
 
 revoke all on function public.admit_new_registration() from public, anon, authenticated;
 revoke all on function public.advance_waitlist() from public, anon, authenticated;
+revoke all on function public.advance_waitlist_on_cap_raise() from public, anon, authenticated;
 revoke all on function public.claim_notification_jobs(int) from public, anon, authenticated;
 revoke all on function public.snapshot_window_open(text, text) from public, anon, authenticated;
 revoke all on function public.capture_attendance_snapshot(text, text) from public, anon, authenticated;
