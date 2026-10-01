@@ -55,12 +55,15 @@ const filteredTeams = computed(() => {
     </div>
 
     <div class="space-y-3">
-      <input
-        v-model="nameFilter"
-        type="text"
-        placeholder="Search by team name…"
-        class="input input-bordered w-full"
-      />
+      <label class="form-control">
+        <span class="sr-only">Search teams by name</span>
+        <input
+          v-model="nameFilter"
+          type="text"
+          placeholder="Search by team name…"
+          class="input input-bordered w-full"
+        />
+      </label>
 
       <div v-if="allSkills.length" class="flex flex-wrap gap-1.5">
         <button
@@ -108,8 +111,9 @@ const filteredTeams = computed(() => {
               {{ skill }}
             </span>
           </div>
-          <p class="text-xs opacity-50 mt-2">
+          <p class="text-xs opacity-50 mt-2 flex items-center gap-1.5">
             {{ team.members.length }}/6 members
+            <span v-if="team.members.length >= 6" class="badge badge-error badge-xs">Full</span>
           </p>
         </div>
       </NuxtLink>

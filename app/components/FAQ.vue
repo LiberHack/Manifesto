@@ -1,7 +1,15 @@
+<script setup>
+const openIndex = ref(null);
+</script>
+
 <template>
   <ul class="list bg-base-100 rounded-box shadow-md w-full">
     <li
       tabindex="0"
+      role="button"
+      :aria-expanded="openIndex === 0"
+      @focus="openIndex = 0"
+      @blur="openIndex = null"
       class="collapse collapse-arrow bg-base-100 border-base-300 border"
     >
       <div class="collapse-title font-semibold">awards</div>
@@ -31,6 +39,10 @@
     </li>
     <li
       tabindex="0"
+      role="button"
+      :aria-expanded="openIndex === 1"
+      @focus="openIndex = 1"
+      @blur="openIndex = null"
       class="collapse collapse-arrow bg-base-100 border-base-300 border"
     >
       <div class="collapse-title font-semibold">team_size</div>
@@ -45,6 +57,10 @@
     </li>
     <li
       tabindex="0"
+      role="button"
+      :aria-expanded="openIndex === 2"
+      @focus="openIndex = 2"
+      @blur="openIndex = null"
       class="collapse collapse-arrow bg-base-100 border-base-300 border"
     >
       <div class="collapse-title font-semibold">age</div>
@@ -58,6 +74,10 @@
     </li>
     <li
       tabindex="0"
+      role="button"
+      :aria-expanded="openIndex === 3"
+      @focus="openIndex = 3"
+      @blur="openIndex = null"
       class="collapse collapse-arrow bg-base-100 border-base-300 border"
     >
       <div class="collapse-title font-semibold">register_time</div>
@@ -70,6 +90,10 @@
     </li>
     <li
       tabindex="0"
+      role="button"
+      :aria-expanded="openIndex === 4"
+      @focus="openIndex = 4"
+      @blur="openIndex = null"
       class="collapse collapse-arrow bg-base-100 border-base-300 border"
     >
       <div class="collapse-title font-semibold">is_alone</div>
@@ -83,6 +107,10 @@
     </li>
     <li
       tabindex="0"
+      role="button"
+      :aria-expanded="openIndex === 5"
+      @focus="openIndex = 5"
+      @blur="openIndex = null"
       class="collapse collapse-arrow bg-base-100 border-base-300 border"
     >
       <div class="collapse-title font-semibold">location</div>
@@ -96,6 +124,10 @@
     </li>
     <li
       tabindex="0"
+      role="button"
+      :aria-expanded="openIndex === 6"
+      @focus="openIndex = 6"
+      @blur="openIndex = null"
       class="collapse collapse-arrow bg-base-100 border-base-300 border"
     >
       <div class="collapse-title font-semibold">schedule</div>
@@ -111,6 +143,10 @@
     </li>
     <li
       tabindex="0"
+      role="button"
+      :aria-expanded="openIndex === 7"
+      @focus="openIndex = 7"
+      @blur="openIndex = null"
       class="collapse collapse-arrow bg-base-100 border-base-300 border"
     >
       <div class="collapse-title font-semibold">work_in_advance</div>
@@ -124,6 +160,10 @@
     </li>
     <li
       tabindex="0"
+      role="button"
+      :aria-expanded="openIndex === 8"
+      @focus="openIndex = 8"
+      @blur="openIndex = null"
       class="collapse collapse-arrow bg-base-100 border-base-300 border"
     >
       <div class="collapse-title font-semibold">tech_stack</div>
@@ -137,6 +177,10 @@
     </li>
     <li
       tabindex="0"
+      role="button"
+      :aria-expanded="openIndex === 9"
+      @focus="openIndex = 9"
+      @blur="openIndex = null"
       class="collapse collapse-arrow bg-base-100 border-base-300 border"
     >
       <div class="collapse-title font-semibold">judging</div>
@@ -151,6 +195,10 @@
     </li>
     <li
       tabindex="0"
+      role="button"
+      :aria-expanded="openIndex === 10"
+      @focus="openIndex = 10"
+      @blur="openIndex = null"
       class="collapse collapse-arrow bg-base-100 border-base-300 border"
     >
       <div class="collapse-title font-semibold">ip_ownership</div>
@@ -163,6 +211,10 @@
     </li>
     <li
       tabindex="0"
+      role="button"
+      :aria-expanded="openIndex === 11"
+      @focus="openIndex = 11"
+      @blur="openIndex = null"
       class="collapse collapse-arrow bg-base-100 border-base-300 border"
     >
       <div class="collapse-title font-semibold">food</div>
@@ -175,6 +227,10 @@
     </li>
     <li
       tabindex="0"
+      role="button"
+      :aria-expanded="openIndex === 12"
+      @focus="openIndex = 12"
+      @blur="openIndex = null"
       class="collapse collapse-arrow bg-base-100 border-base-300 border"
     >
       <div class="collapse-title font-semibold">from_home</div>
@@ -184,6 +240,10 @@
     </li>
     <li
       tabindex="0"
+      role="button"
+      :aria-expanded="openIndex === 13"
+      @focus="openIndex = 13"
+      @blur="openIndex = null"
       class="collapse collapse-arrow bg-base-100 border-base-300 border"
     >
       <div class="collapse-title font-semibold">mentors</div>
@@ -197,6 +257,10 @@
     </li>
     <li
       tabindex="0"
+      role="button"
+      :aria-expanded="openIndex === 14"
+      @focus="openIndex = 14"
+      @blur="openIndex = null"
       class="collapse collapse-arrow bg-base-100 border-base-300 border"
     >
       <div class="collapse-title font-semibold">more_questions</div>
