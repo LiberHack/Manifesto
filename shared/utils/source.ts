@@ -3,7 +3,7 @@
  *
  * Shared by the client (reading the landing URL) and the server (validating
  * and attributing). The database checks in
- * supabase/migrations/20261001000200_source_links_and_analytics.sql mirror
+ * supabase/migrations/20261002000200_source_links_and_analytics.sql mirror
  * these rules.
  */
 

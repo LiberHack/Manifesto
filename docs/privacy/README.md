@@ -35,7 +35,7 @@ the account (`analytics_browsers`).
 
 The following never count as consent: legacy `accepted_terms_at`, missing
 values, and the `acknowledged` sponsor rows written under the earlier,
-mandatory draft of this feature (migration `20261001000100`). Those rows are
+mandatory draft of this feature (migration `20261002000100`). Those rows are
 preserved unchanged and remain acknowledgments. Existing participants must
 give a fresh Yes in `/ops/privacy` before they can be exported. This is tested
 in `supabase/tests/06-verify-privacy.sql`.
