@@ -28,7 +28,8 @@ export default defineEventHandler(async (event) => {
   const { data: registration } = await supabase
     .from("registrations")
     .select(
-      "id, role, team_id, skills, dietary, experience, public, accepted_terms_at, registered_at, " +
+      "id, role, team_id, skills, experience, public, public_opted_in_at, accepted_terms_at, registered_at, " +
+        "catering:registration_catering(diet, note), " +
         "team:teams!registrations_team_id_fkey(id, name, skills_wanted, description, leader_id, invite_code, github_url)",
     )
     .eq("participant_id", user.sub)
@@ -39,18 +40,20 @@ export default defineEventHandler(async (event) => {
     return { ...participant, edition, registration: null, team: null };
   }
 
-  const { team, ...rest } = registration as Record<string, unknown> & {
+  const { team, catering, ...rest } = registration as unknown as Record<string, unknown> & {
     team: unknown;
+    catering: unknown;
   };
+  const cateringRow = (Array.isArray(catering) ? catering[0] : catering) ?? null;
 
   return {
     ...participant,
     edition,
-    registration: rest,
+    // Catering lives in its own restricted table; only the owner sees it here.
+    registration: { ...rest, catering: cateringRow },
     team: team ?? null,
     // Flattened per-edition fields, kept for template convenience.
     skills: rest.skills,
-    dietary: rest.dietary,
     experience: rest.experience,
   };
 });

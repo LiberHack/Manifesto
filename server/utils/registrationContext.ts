@@ -10,6 +10,8 @@ export interface Edition {
   participant_cap: number;
   /** Whether the participant area is open for this edition. Admin-controlled. */
   ops_enabled: boolean;
+  /** Consent banner + analytics collection; off until an admin enables it. */
+  analytics_enabled: boolean;
 }
 
 export interface Registration {
@@ -19,7 +21,6 @@ export interface Registration {
   role: "participant" | "leader";
   team_id: string | null;
   skills: string[];
-  dietary: string | null;
   experience: "beginner" | "intermediate" | "experienced" | null;
   public: boolean;
 }
@@ -45,7 +46,7 @@ export async function getCurrentEdition(
 ): Promise<Edition | null> {
   const { data } = await supabase
     .from("editions")
-    .select("slug, name, starts_at, ends_at, status, participant_cap, ops_enabled")
+    .select("slug, name, starts_at, ends_at, status, participant_cap, ops_enabled, analytics_enabled")
     .eq("is_current", true)
     .maybeSingle();
 
@@ -82,7 +83,7 @@ export async function resolveRegistrationContext(
   const { data: registration } = await supabase
     .from("registrations")
     .select(
-      "id, participant_id, edition_slug, role, team_id, skills, dietary, experience, public",
+      "id, participant_id, edition_slug, role, team_id, skills, experience, public",
     )
     .eq("participant_id", user.sub)
     .eq("edition_slug", edition.slug)

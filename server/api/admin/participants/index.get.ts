@@ -5,9 +5,10 @@ interface RegistrationRow {
   role: string;
   team_id: string | null;
   skills: string[];
-  dietary: string | null;
   experience: string | null;
   public: boolean;
+  public_opted_in_at: string | null;
+  catering: { diet: string; note: string | null } | { diet: string; note: string | null }[] | null;
   registered_at: string;
   accepted_terms_at: string;
   participant: {
@@ -26,7 +27,8 @@ export default defineEventHandler(async (event) => {
   const { data, error } = await supabase
     .from("registrations")
     .select(
-      "id, role, team_id, skills, dietary, experience, public, registered_at, accepted_terms_at, " +
+      "id, role, team_id, skills, experience, public, public_opted_in_at, registered_at, accepted_terms_at, " +
+        "catering:registration_catering(diet, note), " +
         "participant:participants(id, name, email, role, created_at)",
     )
     .eq("edition_slug", edition.slug)
@@ -47,9 +49,10 @@ export default defineEventHandler(async (event) => {
     team_role: r.role,
     team_id: r.team_id,
     skills: r.skills,
-    dietary: r.dietary,
+    // Admin-only; catering lives in its own restricted table.
+    catering: (Array.isArray(r.catering) ? r.catering[0] : r.catering) ?? null,
     experience: r.experience,
-    public: r.public,
+    public: r.public_opted_in_at !== null,
     registered_at: r.registered_at,
     accepted_terms_at: r.accepted_terms_at,
     created_at: r.participant?.created_at ?? r.registered_at,

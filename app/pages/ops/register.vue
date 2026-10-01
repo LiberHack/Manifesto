@@ -35,26 +35,29 @@ const form = reactive({
   email: "",
   password: "",
   skills: [] as string[],
-  dietary: "",
   experience: "" as "" | "beginner" | "intermediate" | "experienced",
-  coc: false,
 });
 const error = ref("");
 const emailTaken = ref(false);
 const loading = ref(false);
+
+const { track } = useAnalyticsConsent();
+onMounted(() => track("registration_started"));
 
 async function register() {
   error.value = "";
   emailTaken.value = false;
   loading.value = true;
 
-  const { skills, dietary, experience } = form;
+  const { skills, experience } = form;
 
   const { error: authError } = await supabase.auth.signUp({
     email: form.email,
     password: form.password,
     options: {
-      data: { name: form.name, skills, dietary, experience },
+      // Only what pre-fills the edition form. Dietary details and every
+      // consent are collected there, never in auth metadata.
+      data: { name: form.name, skills, experience },
       emailRedirectTo: inviteCode ? `${confirmUrl}?invite=${inviteCode}` : confirmUrl,
     },
   });
@@ -153,8 +156,9 @@ async function register() {
       <label class="form-control">
         <span class="label-text font-bold">Experience Level</span>
         <span class="label-text text-xs opacity-60 mb-1">
-          Helps us allocate mentors and workshops. May be shared with sponsors for recruitment purposes — see our
-          <NuxtLink to="/legal/privacy" target="_blank" class="link">Privacy Policy</NuxtLink>.
+          Helps us allocate mentors and workshops. Shared with the named sponsors for
+          recruitment — see the
+          <NuxtLink to="/legal/privacy" target="_blank" class="link">Privacy Notice</NuxtLink>.
         </span>
         <select v-model="form.experience" required class="select select-bordered w-full">
           <option value="" disabled>Select your level…</option>
@@ -164,30 +168,17 @@ async function register() {
         </select>
       </label>
 
-      <label class="form-control">
-        <span class="label-text font-bold">Dietary Requirements</span>
-        <input
-          v-model="form.dietary"
-          type="text"
-          placeholder="e.g. vegetarian, gluten-free, none"
-          class="input input-bordered w-full"
-        />
-      </label>
-
-      <label class="flex items-start gap-3 cursor-pointer">
-        <input v-model="form.coc" type="checkbox" required class="checkbox checkbox-primary mt-1 shrink-0" />
-        <span class="text-sm leading-snug">
-          I have read and agree to the
-          <NuxtLink to="/legal/coc" target="_blank" class="link font-bold">Code of Conduct</NuxtLink>,
-          <NuxtLink to="/legal/privacy" target="_blank" class="link font-bold">Privacy Policy</NuxtLink>,
-          and the
-          <NuxtLink to="/reglament" target="_blank" class="link font-bold">Регламент</NuxtLink>.
-        </span>
-      </label>
+      <p class="text-sm leading-snug opacity-80">
+        This creates your account (name, email, password). After you confirm your
+        email you will finish registering for the edition: the rules and Code of
+        Conduct, sponsor sharing, catering and email preferences are asked there.
+        How we use your data:
+        <NuxtLink to="/legal/privacy" target="_blank" class="link font-bold">Privacy Notice</NuxtLink>.
+      </p>
 
       <button
         type="submit"
-        :disabled="loading || !form.coc || registrationFull"
+        :disabled="loading || registrationFull"
         class="btn btn-primary w-full font-black uppercase"
       >
         {{ loading ? "Registering…" : "Register" }}

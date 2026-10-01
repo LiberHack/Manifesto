@@ -15,7 +15,7 @@ export default defineEventHandler(async (event) => {
   const supabase = useSupabaseAdmin();
   const edition = await getCurrentEdition(supabase);
 
-  if (!edition) return { edition: null, full: true, ops_open: false };
+  if (!edition) return { edition: null, full: true, ops_open: false, analytics_enabled: false };
 
   const { count } = await supabase
     .from("registrations")
@@ -32,5 +32,7 @@ export default defineEventHandler(async (event) => {
     full: (count ?? 0) >= edition.participant_cap,
     // An edition can be live and current while registration has not opened.
     ops_open: edition.ops_enabled,
+    // Whether to show the analytics consent banner at all.
+    analytics_enabled: edition.analytics_enabled,
   };
 });

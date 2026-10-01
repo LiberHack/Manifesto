@@ -117,7 +117,8 @@ Rules that follow:
   runs ahead of its migrations presents as "not open yet" rather than broken.
   That is the intended way to ship a breaking schema change: release the code,
   push the migrations, then open the edition.
-- Consent is re-accepted per edition (`registrations.accepted_terms_at`).
+- Consent is re-accepted per edition: every purpose is a row in `consent_records`
+  (see Privacy below); `registrations.accepted_terms_at` is legacy.
 - Admin views take `?edition=<slug>`, defaulting to the current edition. Archived
   editions are readable but not writable (`assertEditionWritable`).
 - "Go live" runs through the `promote_edition(slug)` DB function so archiving the
@@ -147,6 +148,23 @@ hardcoded — adding or retiring a banner is an admin-panel action, not a deploy
   fetching, so `AppBanners` never needs a second authenticated request.
 - Dismissal is per-id in `localStorage['dismissed_announcements']`. There is no
   server-side dismissal table, so editing a row's body does not un-dismiss it.
+
+## Privacy, consent & analytics
+
+Read `docs/privacy/README.md` before touching registration, exports or tracking.
+
+- Registration writes one `consent_records` row per purpose via `register_with_consents()`;
+  never infer one purpose from another, never backfill.
+- Sponsor data leaves only through `/api/admin/sponsors/:id/export`, which checks eligibility
+  in `sponsor_export_rows()` at download time and writes `export_audit` first. Every CSV export
+  uses `server/utils/csv.ts` (formula escaping, `no-store`).
+- Dietary data lives only in `registration_catering` (server-only). Never put it, or any consent,
+  in auth `user_metadata`.
+- Analytics is consent-gated per browser (`analytics_browsers`, HttpOnly `lh_aid`, fixed 30 days)
+  and off per edition until an admin sets `editions.analytics_enabled`. No consent → no event,
+  no storage, no substitute identifier. `registration_completed` is recorded server-side only.
+- Source tags (`source_links`) are immutable and never reused; archive instead of deleting.
+- Retention: `analytics_purge()` (schedule via pg_cron, see `docs/privacy/retention-and-deletion.md`).
 
 ## Testing
 
@@ -197,7 +215,7 @@ bunx mjml server/emails/<name>.mjml -o server/emails/dist/<name>.html
 node server/emails/generate-ts.mjs   # regenerates server/utils/email-templates.ts
 ```
 
-Auth emails (signup, magic link, password reset) are Supabase Auth templates declared in `supabase/config.toml` (`[auth.email.template.*]`), pointing at the compiled HTML in `server/emails/dist/`. Supabase renders Go template variables (`{{ .ConfirmationURL }}`, `{{ .Email }}`) and sends via the Postmark SMTP configured in `[auth.email.smtp]`.
+Auth emails (signup, magic link, password reset) are Supabase Auth templates declared in `supabase/config.toml` (`[auth.email.template.*]`), pointing at the compiled HTML in `server/emails/dist/`. Supabase renders Go template variables (`{{ .ConfirmationURL }}`, `{{ .Email }}`) and sends via the Resend SMTP configured in `[auth.email.smtp]`.
 
 - After editing MJML: recompile to `dist/`, then `bunx supabase config push` to upload the new template to the cloud project.
 - Subjects are set in `supabase/config.toml`.

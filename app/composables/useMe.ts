@@ -3,9 +3,12 @@ export interface MeRegistration {
   role: "participant" | "leader";
   team_id: string | null;
   skills: string[];
-  dietary: string | null;
   experience: "beginner" | "intermediate" | "experienced" | null;
+  /** Opted into the public archive. */
   public: boolean;
+  public_opted_in_at: string | null;
+  /** Restricted catering answer; null until the person has answered. */
+  catering: { diet: "none" | "vegetarian" | "vegan" | "other"; note: string | null } | null;
   accepted_terms_at: string;
   registered_at: string;
 }
@@ -39,7 +42,6 @@ export interface Me {
     github_url: string | null;
   } | null;
   skills?: string[];
-  dietary?: string | null;
   experience?: "beginner" | "intermediate" | "experienced" | null;
 }
 

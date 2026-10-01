@@ -99,6 +99,11 @@ export default defineNuxtConfig({
     resendApiKey: process.env.NUXT_RESEND_API_KEY ?? "",
     resendFromEmail: process.env.NUXT_RESEND_FROM_EMAIL ?? "",
     siteUrl: "https://liberhack.org",
+    // Smallest group shown in aggregate sponsor reports (NUXT_SPONSOR_REPORT_MIN_GROUP).
+    sponsorReportMinGroup: 5,
+    // Off until the legal basis for sponsor sharing is documented
+    // (docs/privacy/README.md). NUXT_SPONSOR_EXPORTS_ENABLED=true turns it on.
+    sponsorExportsEnabled: false,
     public: {
       // "production" | "staging" | "development" — anything but production is noindex.
       appEnv: process.env.NUXT_PUBLIC_APP_ENV ?? "development",

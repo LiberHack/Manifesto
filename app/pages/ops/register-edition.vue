@@ -1,5 +1,14 @@
 <script setup lang="ts">
+import { DIETS, MAX_DIETARY_NOTE_LENGTH, type Diet } from "#shared/utils/privacy";
+
 definePageMeta({ middleware: ["auth"] });
+
+interface SponsorRecipient {
+  id: string;
+  organisation: string;
+  purpose: string;
+  shared_fields: string[];
+}
 
 interface RegistrationState {
   edition: {
@@ -12,15 +21,30 @@ interface RegistrationState {
   full: boolean;
   prefill: {
     skills: string[];
-    dietary: string | null;
     experience: "" | "beginner" | "intermediate" | "experienced" | null;
-    public: boolean;
   } | null;
+  notice_version: string;
+  sponsor_recipients: SponsorRecipient[];
 }
+
+const DIET_LABELS: Record<Diet, string> = {
+  none: "No requirements",
+  vegetarian: "Vegetarian",
+  vegan: "Vegan",
+  other: "Something else — I'll add a short note",
+};
+const FIELD_LABELS: Record<string, string> = {
+  name: "name",
+  email: "email",
+  skills: "skills",
+  experience: "experience level",
+};
 
 const router = useRouter();
 const route = useRoute();
 const { refresh: refreshMe } = await useMe();
+const { track } = useAnalyticsConsent();
+onMounted(() => track("registration_started"));
 
 // Only ever an internal path, so a crafted ?next= cannot redirect off-site.
 const nextPath = computed(() => {
@@ -29,11 +53,11 @@ const nextPath = computed(() => {
     ? next
     : "/ops/dashboard";
 });
-const { data: state } = await useFetch<RegistrationState>("/api/me/registration");
+const { data: state, refresh: refreshState } =
+  await useFetch<RegistrationState>("/api/me/registration");
 
 const form = reactive({
   skills: [...(state.value?.prefill?.skills ?? [])],
-  dietary: state.value?.prefill?.dietary ?? "",
   // Pre-selected from the prior edition but still required, so the user
   // consciously re-answers it.
   experience: (state.value?.prefill?.experience ?? "") as
@@ -41,8 +65,15 @@ const form = reactive({
     | "beginner"
     | "intermediate"
     | "experienced",
-  public: state.value?.prefill?.public ?? true,
-  coc: false,
+  diet: "" as "" | Diet,
+  dietaryNote: "",
+  dietaryNoteConsent: false,
+  // Opt-in: nothing is published unless ticked.
+  public: false,
+  terms: false,
+  privacyNotice: false,
+  sponsorAcknowledged: false,
+  marketingEmail: false,
 });
 
 const error = ref("");
@@ -50,6 +81,17 @@ const loading = ref(false);
 
 const isFull = computed(() => state.value?.full ?? true);
 const editionName = computed(() => state.value?.edition?.name ?? "this edition");
+const recipients = computed(() => state.value?.sponsor_recipients ?? []);
+const hasNote = computed(() => form.diet === "other" && form.dietaryNote.trim() !== "");
+const canSubmit = computed(
+  () =>
+    form.terms &&
+    form.privacyNotice &&
+    form.sponsorAcknowledged &&
+    form.experience !== "" &&
+    form.diet !== "" &&
+    (!hasNote.value || form.dietaryNoteConsent),
+);
 
 async function submit() {
   error.value = "";
@@ -59,20 +101,36 @@ async function submit() {
       method: "POST",
       body: {
         skills: form.skills,
-        dietary: form.dietary,
         experience: form.experience,
         public: form.public,
-        accepted_terms: form.coc,
+        diet: form.diet,
+        dietary_note: hasNote.value ? form.dietaryNote : null,
+        dietary_note_consent: hasNote.value ? form.dietaryNoteConsent : false,
+        accepted_terms: form.terms,
+        privacy_notice_acknowledged: form.privacyNotice,
+        notice_version: state.value?.notice_version,
+        sponsor_acknowledged: form.sponsorAcknowledged,
+        sponsor_recipient_ids: recipients.value.map((r) => r.id),
+        marketing_email: form.marketingEmail,
       },
     });
     await refreshMe();
     await router.push(nextPath.value);
   } catch (e: unknown) {
     const message = (e as { data?: { message?: string } }).data?.message;
-    error.value =
-      message === "registration_closed"
-        ? `Registration for ${editionName.value} is full.`
-        : (message ?? "Something went wrong");
+    if (message === "sponsor_recipients_changed" || message === "notice_changed") {
+      // What the person is acknowledging changed while the form was open.
+      await refreshState();
+      form.sponsorAcknowledged = false;
+      form.privacyNotice = false;
+      error.value =
+        "The sponsor list or the Privacy Notice changed while you were filling this in. Please review it and confirm again.";
+    } else {
+      error.value =
+        message === "registration_closed"
+          ? `Registration for ${editionName.value} is full.`
+          : (message ?? "Something went wrong");
+    }
   }
   loading.value = false;
 }
@@ -80,7 +138,7 @@ async function submit() {
 
 <template>
   <main class="w-full min-h-screen flex items-center justify-center p-4 py-12">
-    <div class="w-full max-w-md bg-base-100 p-8 border-primary border-2 flex flex-col gap-3">
+    <div class="w-full max-w-lg bg-base-100 p-8 border-primary border-2 flex flex-col gap-3">
       <template v-if="!state?.edition">
         <h1 class="text-3xl font-black uppercase tracking-tight">Not open yet</h1>
         <p class="text-sm opacity-70">
@@ -106,7 +164,7 @@ async function submit() {
         </p>
       </template>
 
-      <form v-else class="flex flex-col gap-2" @submit.prevent="submit">
+      <form v-else class="flex flex-col gap-3" @submit.prevent="submit">
         <h1 class="text-3xl font-black uppercase tracking-tight">
           Register for {{ state.edition.name }}
         </h1>
@@ -120,9 +178,6 @@ async function submit() {
 
         <div class="form-control">
           <span class="label-text font-bold">Your Skills</span>
-          <span class="label-text text-xs opacity-60 mb-1">
-            Carried over from your last edition — edit as you like.
-          </span>
           <SkillPicker v-model="form.skills" allow-create />
         </div>
 
@@ -139,46 +194,122 @@ async function submit() {
           </select>
         </label>
 
-        <label class="form-control">
-          <span class="label-text font-bold">Dietary Requirements</span>
-          <input
-            v-model="form.dietary"
-            type="text"
-            maxlength="200"
-            placeholder="e.g. vegetarian, gluten-free, none"
-            class="input input-bordered w-full"
-          />
-        </label>
+        <!-- Catering: structured first, free text only with explicit consent. -->
+        <fieldset class="flex flex-col gap-2 border-2 border-base-content/20 p-3">
+          <legend class="font-bold px-1">Food</legend>
+          <label class="form-control">
+            <span class="label-text text-xs opacity-60 mb-1">
+              Only the organisers and the caterer see this. It is never shared with sponsors.
+            </span>
+            <select v-model="form.diet" required class="select select-bordered w-full">
+              <option value="" disabled>Choose one…</option>
+              <option v-for="diet in DIETS" :key="diet" :value="diet">{{ DIET_LABELS[diet] }}</option>
+            </select>
+          </label>
+          <label v-if="form.diet === 'other'" class="form-control">
+            <span class="label-text font-bold">Short note (optional)</span>
+            <span class="label-text text-xs opacity-60 mb-1">
+              Just what the kitchen needs, e.g. "no nuts" or "halal". Please don't
+              include medical details beyond that.
+            </span>
+            <input
+              v-model="form.dietaryNote"
+              type="text"
+              :maxlength="MAX_DIETARY_NOTE_LENGTH"
+              class="input input-bordered w-full"
+            />
+          </label>
+          <label v-if="form.diet === 'other' && hasNote" class="flex items-start gap-3 cursor-pointer">
+            <input
+              v-model="form.dietaryNoteConsent"
+              type="checkbox"
+              class="checkbox checkbox-primary mt-1 shrink-0"
+            />
+            <span class="text-sm leading-snug">
+              I explicitly consent to LiberHack storing this note to arrange my
+              food. It may reveal health or religious information. I can delete it
+              any time in my privacy settings.
+            </span>
+          </label>
+        </fieldset>
+
+        <!-- Sponsor sharing: a condition of taking part, acknowledged, not "consented". -->
+        <fieldset class="flex flex-col gap-2 border-2 border-primary p-3">
+          <legend class="font-bold px-1">Sponsor sharing</legend>
+          <template v-if="recipients.length">
+            <p class="text-sm leading-snug">
+              Taking part in {{ state.edition.name }} includes sharing your details
+              with these organisations for internships and jobs:
+            </p>
+            <ul class="text-sm list-disc pl-5">
+              <li v-for="r in recipients" :key="r.id">
+                <strong>{{ r.organisation }}</strong> — {{ r.purpose }}; receives your
+                {{ r.shared_fields.map((f) => FIELD_LABELS[f] ?? f).join(", ") }}.
+              </li>
+            </ul>
+          </template>
+          <p v-else class="text-sm leading-snug">
+            No sponsor organisation has been confirmed for {{ state.edition.name }}
+            yet. Nothing is shared until one is named, and we will ask you to
+            confirm the named organisations in your privacy settings first.
+          </p>
+          <p class="text-xs opacity-70 leading-snug">
+            Never shared with sponsors: food choices, analytics, password or
+            account data. Each sponsor uses the data independently under its own
+            privacy policy. Details and your rights are in the
+            <NuxtLink to="/legal/privacy" target="_blank" class="link">Privacy Notice</NuxtLink>.
+          </p>
+          <label class="flex items-start gap-3 cursor-pointer">
+            <input
+              v-model="form.sponsorAcknowledged"
+              type="checkbox"
+              required
+              class="checkbox checkbox-primary mt-1 shrink-0"
+            />
+            <span class="text-sm leading-snug font-bold">
+              I understand my details will be shared with the organisations listed above.
+            </span>
+          </label>
+        </fieldset>
 
         <label class="flex items-start gap-3 cursor-pointer">
-          <input
-            :checked="!form.public"
-            type="checkbox"
-            class="checkbox checkbox-primary mt-1 shrink-0"
-            @change="form.public = !($event.target as HTMLInputElement).checked"
-          />
+          <input v-model="form.public" type="checkbox" class="checkbox checkbox-primary mt-1 shrink-0" />
           <span class="text-sm leading-snug">
-            Hide my profile from the public archive.
-            <span class="opacity-60">
-              Your profile and team are shown in the public showcase by default.
-            </span>
+            Show my name and team in the public archive after the event.
+            <span class="opacity-60">Optional. Off unless you tick it.</span>
           </span>
         </label>
 
         <label class="flex items-start gap-3 cursor-pointer">
-          <input v-model="form.coc" type="checkbox" required class="checkbox checkbox-primary mt-1 shrink-0" />
+          <input v-model="form.marketingEmail" type="checkbox" class="checkbox checkbox-primary mt-1 shrink-0" />
           <span class="text-sm leading-snug">
-            I have read and agree to the
-            <NuxtLink to="/legal/coc" target="_blank" class="link font-bold">Code of Conduct</NuxtLink>,
-            <NuxtLink to="/legal/privacy" target="_blank" class="link font-bold">Privacy Policy</NuxtLink>,
+            Email me about future LiberHack events.
+            <span class="opacity-60">Optional. You can unsubscribe any time.</span>
+          </span>
+        </label>
+
+        <label class="flex items-start gap-3 cursor-pointer">
+          <input v-model="form.terms" type="checkbox" required class="checkbox checkbox-primary mt-1 shrink-0" />
+          <span class="text-sm leading-snug">
+            I agree to the
+            <NuxtLink to="/reglament" target="_blank" class="link font-bold">Регламент</NuxtLink>
             and the
-            <NuxtLink to="/reglament" target="_blank" class="link font-bold">Регламент</NuxtLink>.
+            <NuxtLink to="/legal/coc" target="_blank" class="link font-bold">Code of Conduct</NuxtLink>.
+          </span>
+        </label>
+
+        <label class="flex items-start gap-3 cursor-pointer">
+          <input v-model="form.privacyNotice" type="checkbox" required class="checkbox checkbox-primary mt-1 shrink-0" />
+          <span class="text-sm leading-snug">
+            I have read the
+            <NuxtLink to="/legal/privacy" target="_blank" class="link font-bold">Privacy Notice</NuxtLink>
+            (<NuxtLink to="/legal/privacy-bg" target="_blank" class="link">на български</NuxtLink>).
           </span>
         </label>
 
         <button
           type="submit"
-          :disabled="loading || !form.coc || !form.experience"
+          :disabled="loading || !canSubmit"
           class="btn btn-primary w-full font-black uppercase"
         >
           {{ loading ? "Registering…" : `Register for ${state.edition.name}` }}

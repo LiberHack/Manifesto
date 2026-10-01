@@ -1,28 +1,19 @@
 import { serverSupabaseUser } from "#supabase/server";
 import { useSupabaseAdmin } from "#server/utils/supabase";
 import { getCurrentEdition } from "#server/utils/registrationContext";
+import { parseRegistrationInput } from "#server/utils/registrationInput";
+import { recordRegistrationCompleted } from "#server/utils/analytics";
 
-const EXPERIENCE_VALUES = ["beginner", "intermediate", "experienced"] as const;
-type ExperienceLevel = (typeof EXPERIENCE_VALUES)[number];
-
-const MAX_DIETARY_LENGTH = 200;
-const MAX_SKILLS = 10;
-const MAX_SKILL_LENGTH = 30;
 const MAX_NEW_SKILLS = 5;
 
-interface Body {
-  skills?: unknown;
-  dietary?: unknown;
-  experience?: unknown;
-  public?: unknown;
-  accepted_terms?: unknown;
-}
-
 /**
- * Register the caller for the current edition.
+ * Register the caller for the current edition, with every decision the form
+ * asked for, in one transaction (`register_with_consents`).
  *
  * The per-edition participant cap is enforced by the `enforce_edition_cap`
- * trigger, surfaced here as 409 `registration_closed`.
+ * trigger, surfaced here as 409 `registration_closed`. Analytics completion is
+ * recorded only by the request that created the registration row, and only
+ * for a browser that consented; it can never fail the request.
  */
 export default defineEventHandler(async (event) => {
   const user = await serverSupabaseUser(event);
@@ -34,53 +25,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 503, message: "no_live_edition" });
   }
 
-  const body = await readBody<Body>(event);
-
-  if (body.accepted_terms !== true) {
-    throw createError({
-      statusCode: 400,
-      message: "You must accept the Code of Conduct and Privacy Policy",
-    });
-  }
-
-  if (!EXPERIENCE_VALUES.includes(body.experience as ExperienceLevel)) {
-    throw createError({
-      statusCode: 400,
-      message: `experience must be one of: ${EXPERIENCE_VALUES.join(", ")}`,
-    });
-  }
-
-  if (body.skills !== undefined && !Array.isArray(body.skills)) {
-    throw createError({ statusCode: 400, message: "skills must be an array" });
-  }
-  const skills = ((body.skills as unknown[]) ?? [])
-    .map((s) => (typeof s === "string" ? s.trim() : ""))
-    .filter((s) => s.length > 0);
-
-  if (skills.length > MAX_SKILLS) {
-    throw createError({
-      statusCode: 400,
-      message: `Maximum ${MAX_SKILLS} skills allowed`,
-    });
-  }
-  const invalidSkill = skills.find((s) => s.length > MAX_SKILL_LENGTH);
-  if (invalidSkill) {
-    throw createError({
-      statusCode: 400,
-      message: `Skill "${invalidSkill}" exceeds ${MAX_SKILL_LENGTH} characters`,
-    });
-  }
-
-  if (body.dietary !== undefined && body.dietary !== null && typeof body.dietary !== "string") {
-    throw createError({ statusCode: 400, message: "dietary must be a string" });
-  }
-  const dietary = typeof body.dietary === "string" ? body.dietary.trim() : "";
-  if (dietary.length > MAX_DIETARY_LENGTH) {
-    throw createError({
-      statusCode: 400,
-      message: `Dietary requirements must be ${MAX_DIETARY_LENGTH} characters or fewer`,
-    });
-  }
+  const input = parseRegistrationInput(await readBody(event));
 
   // Skills not yet in the catalogue are added on the caller's behalf, capped the
   // same way /api/skills caps them.
@@ -88,7 +33,7 @@ export default defineEventHandler(async (event) => {
   const knownNames = new Set(
     (known ?? []).map((s: { name: string }) => s.name.toLowerCase()),
   );
-  const newSkills = skills.filter((s) => !knownNames.has(s.toLowerCase()));
+  const newSkills = input.skills.filter((s) => !knownNames.has(s.toLowerCase()));
 
   if (newSkills.length > MAX_NEW_SKILLS) {
     throw createError({
@@ -97,28 +42,32 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  const { data: registration, error } = await supabase
-    .from("registrations")
-    .insert({
-      participant_id: user.sub,
-      edition_slug: edition.slug,
-      skills,
-      dietary: dietary === "" ? null : dietary,
-      experience: body.experience as ExperienceLevel,
-      public: body.public !== false,
-      accepted_terms_at: new Date().toISOString(),
-    })
-    .select("id, edition_slug, skills, dietary, experience, public")
-    .single();
+  const { data: registrationId, error } = await supabase.rpc("register_with_consents", {
+    p_participant: user.sub,
+    p_edition: edition.slug,
+    p_skills: input.skills,
+    p_experience: input.experience,
+    p_public: input.public,
+    p_notice_version: input.noticeVersion,
+    p_recipient_ids: input.sponsorRecipientIds,
+    p_marketing: input.marketingEmail,
+    p_diet: input.diet,
+    p_note: input.dietaryNote,
+  });
 
   if (error) {
     if (error.message?.includes("registration_closed")) {
       throw createError({ statusCode: 409, message: "registration_closed" });
     }
+    if (error.message?.includes("sponsor_recipients_changed")) {
+      throw createError({ statusCode: 409, message: "sponsor_recipients_changed" });
+    }
     if (error.code === "23505") {
+      // Not a completion: counting it would let anyone re-post an existing
+      // registration from fresh browser ids to inflate attribution.
       throw createError({ statusCode: 409, message: "Already registered" });
     }
-    console.error("[me/registration.post] insert failed:", error.message);
+    console.error("[me/registration.post] registration failed:", error.message);
     throw createError({ statusCode: 500, message: "Failed to register" });
   }
 
@@ -128,5 +77,13 @@ export default defineEventHandler(async (event) => {
       .insert(newSkills.map((name) => ({ name, created_by: user.sub })));
   }
 
-  return registration;
+  await recordRegistrationCompleted(event, supabase, edition.slug);
+
+  return {
+    id: registrationId as string,
+    edition_slug: edition.slug,
+    skills: input.skills,
+    experience: input.experience,
+    public: input.public,
+  };
 });

@@ -1,14 +1,20 @@
 import { requireAdmin, resolveAdminEdition } from "#server/utils/adminAuth";
+import { setExportHeaders, toCsv } from "#server/utils/csv";
+import { exportFilename, recordExport } from "#server/utils/exportAudit";
 
+/**
+ * Internal organiser export. Not for sponsors — they get
+ * /api/admin/sponsors/:id/export, which enforces eligibility and limits fields.
+ * Catering data has its own export.
+ */
 const COLUMNS = [
   "name",
   "email",
   "team_role",
   "experience",
-  "dietary",
   "skills",
   "team_id",
-  "public",
+  "public_archive",
   "registered_at",
 ] as const;
 
@@ -16,31 +22,21 @@ interface Row {
   role: string;
   team_id: string | null;
   skills: string[];
-  dietary: string | null;
   experience: string | null;
-  public: boolean;
+  public_opted_in_at: string | null;
   registered_at: string;
-  participant: { name: string; email: string } | null;
-}
-
-function escapeCsv(value: unknown): string {
-  if (value === null || value === undefined) return "";
-  const str = Array.isArray(value) ? value.join("; ") : String(value);
-  if (str.includes(",") || str.includes('"') || str.includes("\n")) {
-    return `"${str.replace(/"/g, '""')}"`;
-  }
-  return str;
+  participant: { id: string; name: string; email: string } | null;
 }
 
 export default defineEventHandler(async (event) => {
-  const { supabase } = await requireAdmin(event);
+  const { user, supabase } = await requireAdmin(event);
   const edition = await resolveAdminEdition(event, supabase);
 
   const { data, error } = await supabase
     .from("registrations")
     .select(
-      "role, team_id, skills, dietary, experience, public, registered_at, " +
-        "participant:participants(name, email)",
+      "role, team_id, skills, experience, public_opted_in_at, registered_at, " +
+        "participant:participants(id, name, email)",
     )
     .eq("edition_slug", edition.slug)
     .order("registered_at", { ascending: true });
@@ -49,27 +45,27 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 500, message: "Internal server error" });
   }
 
-  const rows = [
-    COLUMNS.join(","),
-    ...((data ?? []) as unknown as Row[]).map((r) =>
-      [
-        escapeCsv(r.participant?.name),
-        escapeCsv(r.participant?.email),
-        escapeCsv(r.role),
-        escapeCsv(r.experience),
-        escapeCsv(r.dietary),
-        escapeCsv(r.skills),
-        escapeCsv(r.team_id),
-        escapeCsv(r.public),
-        escapeCsv(r.registered_at),
-      ].join(","),
-    ),
-  ].join("\n");
-
-  setResponseHeaders(event, {
-    "Content-Type": "text/csv; charset=utf-8",
-    "Content-Disposition": `attachment; filename="participants-${edition.slug}-${new Date().toISOString().slice(0, 10)}.csv"`,
+  const rows = (data ?? []) as unknown as Row[];
+  await recordExport(supabase, {
+    exportedBy: user.sub,
+    kind: "participants",
+    editionSlug: edition.slug,
+    participantIds: rows.flatMap((r) => (r.participant ? [r.participant.id] : [])),
+    rowCount: rows.length,
   });
 
-  return rows;
+  setExportHeaders(event, exportFilename("participants", edition.slug));
+  return toCsv(
+    COLUMNS,
+    rows.map((r) => [
+      r.participant?.name,
+      r.participant?.email,
+      r.role,
+      r.experience,
+      r.skills,
+      r.team_id,
+      r.public_opted_in_at ? "yes" : "no",
+      r.registered_at,
+    ]),
+  );
 });

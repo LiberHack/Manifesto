@@ -20,7 +20,6 @@ const REGISTRATION = {
   role: "participant" as const,
   team_id: null,
   skills: ["Rust"],
-  dietary: null,
   experience: "beginner" as const,
   public: true,
 };
