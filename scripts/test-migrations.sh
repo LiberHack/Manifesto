@@ -51,6 +51,51 @@ echo
 psql -d liberhack -v ON_ERROR_STOP=1 \
   -f "$ROOT/supabase/tests/02-verify-editions.sql" \
   -f "$ROOT/supabase/tests/03-verify-announcements.sql" \
-  -f "$ROOT/supabase/tests/04-verify-ops-toggle.sql" 2>&1 \
-  | grep -E 'PASS|FAIL|VERIFICATION' \
+  -f "$ROOT/supabase/tests/04-verify-ops-toggle.sql" \
+  -f "$ROOT/supabase/tests/06-verify-privacy.sql" \
+  -f "$ROOT/supabase/tests/07-verify-analytics.sql" 2>&1 \
+  | grep -E 'PASS|FAIL|VERIFICATION|ERROR' \
   | sed 's/^psql:.*NOTICE:  //'
+
+# ── Withdrawal racing an in-flight event (two real sessions) ─────────────────
+# Session A records an event and holds its transaction open; session B
+# withdraws meanwhile. B must wait for A, then its cascade removes A's event.
+q() { psql -d liberhack -v ON_ERROR_STOP=1 -tAc "$1"; }
+failed=0
+race_browser="$(q "select public.analytics_grant('race')")"
+psql -d liberhack -v ON_ERROR_STOP=1 -q -c "begin;
+  select public.analytics_record('$race_browser', 'registration_cta_clicked', '2027', null, null);
+  select pg_sleep(1.5);
+  commit;" >/dev/null &
+session_a=$!
+sleep 0.5
+q "select public.analytics_withdraw('$race_browser')" >/dev/null
+wait "$session_a"
+if [[ "$(q "select count(*) from public.analytics_events where browser_id = '$race_browser'")" == 0 \
+   && "$(q "select count(*) from public.analytics_browsers where id = '$race_browser'")" == 0 ]]; then
+  echo "PASS  withdrawal during an in-flight event leaves no event and no id"
+else
+  echo "FAIL  an in-flight event survived withdrawal"
+  failed=1
+fi
+if [[ "$(q "select public.analytics_record('$race_browser', 'landing_viewed', '2027', null, 'direct')")" == f ]]; then
+  echo "PASS  a late event after withdrawal records nothing"
+else
+  echo "FAIL  a late event recreated history"
+  failed=1
+fi
+
+# ── Reviewed dietary cleanup: dry run changes nothing, confirm applies ─────────
+psql -d liberhack -q -f "$ROOT/supabase/manual/20261001_cleanup_dietary_copies.sql" >/dev/null
+if [[ "$(q "select count(*) from public.participants where dietary is not null")" != 0 ]]; then
+  echo "PASS  the cleanup script is a dry run unless confirmed"
+else
+  echo "FAIL  the cleanup script changed data without confirm=yes"
+  failed=1
+fi
+psql -d liberhack -q -v confirm=yes -f "$ROOT/supabase/manual/20261001_cleanup_dietary_copies.sql" >/dev/null
+psql -d liberhack -v ON_ERROR_STOP=1 -f "$ROOT/supabase/tests/08-verify-dietary-cleanup.sql" 2>&1 \
+  | grep -E 'PASS|FAIL|VERIFICATION|ERROR' \
+  | sed 's/^psql:.*NOTICE:  //'
+
+exit "$failed"
