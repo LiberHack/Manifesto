@@ -168,11 +168,11 @@ async function submit() {
         <label class="flex items-start gap-3 cursor-pointer">
           <input v-model="form.coc" type="checkbox" required class="checkbox checkbox-primary mt-1 shrink-0" />
           <span class="text-sm leading-snug">
-            I have read and agree to the
-            <NuxtLink to="/legal/coc" target="_blank" class="link font-bold">Code of Conduct</NuxtLink>,
-            <NuxtLink to="/legal/privacy" target="_blank" class="link font-bold">Privacy Policy</NuxtLink>,
-            and the
-            <NuxtLink to="/reglament" target="_blank" class="link font-bold">Регламент</NuxtLink>.
+            Прочетох и приемам
+            <NuxtLink to="/legal/coc" target="_blank" class="link font-bold">Етичния кодекс</NuxtLink>,
+            <NuxtLink to="/legal/privacy" target="_blank" class="link font-bold">Политиката за поверителност</NuxtLink>
+            и
+            <NuxtLink to="/reglament" target="_blank" class="link font-bold">Регламента</NuxtLink>.
           </span>
         </label>
 

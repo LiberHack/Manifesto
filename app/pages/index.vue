@@ -19,7 +19,14 @@
         <p
           class="text-lg font-bold text-center text-shadow-lg/80 text-shadow-4"
         >
-          <span class="block">June 5–7</span>Social impact & Civic tech
+          <span class="block opacity-70 text-sm tracking-widest uppercase"
+            >Edition 2</span
+          >
+          <span class="block">November 27–29, 2026</span>
+          <span class="block text-base opacity-80"
+            >Международен конгресен център · Бургас</span
+          >
+          Технологии в полза на хората
           <span class="block underline">but make it punk</span>
         </p>
       </div>
@@ -29,7 +36,7 @@
       class="w-full flex flex-row justify-center align-middle items-center gap-8 p-8"
     >
       <div class="flex flex-col items-center gap-4">
-        <ViewProgramme />
+        <RegisterNow />
         <NuxtLink
           to="/reglament"
           class="text-sm underline opacity-60 hover:opacity-100"
@@ -88,7 +95,7 @@
               </span>
               <p class="font-bold text-4xl">2nd</p>
             </div>
-            <p class="font-bold text-4xl text-center">300 EURO</p>
+            <p class="font-bold text-4xl text-center">TBA</p>
           </div>
         </div>
 
@@ -102,7 +109,7 @@
               </span>
               <p class="font-bold text-4xl">1st</p>
             </div>
-            <p class="font-bold text-4xl text-center">500 EURO</p>
+            <p class="font-bold text-4xl text-center">TBA</p>
           </div>
         </div>
 
@@ -116,14 +123,17 @@
               </span>
               <p class="font-bold text-4xl">3rd</p>
             </div>
-            <p class="font-bold text-4xl text-center">100 EURO</p>
+            <p class="font-bold text-4xl text-center">TBA</p>
           </div>
         </div>
       </div>
 
       <div class="w-fit">
         <p class="text-xl text-center px-2">
-          + Best projects in each category receive an €100 prize.
+          + Всяко партньорско направление има своя собствена награда.
+        </p>
+        <p class="text-base text-center px-2 opacity-70">
+          Наградният фонд за Edition 2 се обявява преди събитието.
         </p>
       </div>
     </div>
@@ -135,88 +145,18 @@
         Ass0c1at3s
       </p>
 
-      <!-- Platinum -->
-      <div class="w-full flex flex-col gap-6 items-center">
-        <div class="flex items-center gap-4 w-full max-w-4xl px-4">
-          <div class="h-px flex-1 bg-slate-300/60" />
-          <p class="text-slate-300 font-bold text-xl tracking-widest uppercase">Platinum</p>
-          <div class="h-px flex-1 bg-slate-300/60" />
-        </div>
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center w-full max-w-2xl px-4">
-          <div class="flex flex-col items-center gap-2">
-            <NuxtImg preload src="/burgas.jpg" class="bg-base-100/90 border-slate-300 border-4 w-full h-36 md:h-auto object-contain" />
-            <p class="font-bold text-xl md:text-2xl bg-base-100/80 border-slate-300 border-2 p-2 text-center w-full">Burgas Municipality</p>
-          </div>
-          <div class="flex flex-col items-center gap-2">
-            <NuxtImg preload src="/zonta.png" class="bg-white border-slate-300 border-4 w-full h-36 md:h-auto object-contain p-4" />
-            <p class="font-bold text-xl md:text-2xl bg-base-100/80 border-slate-300 border-2 p-2 text-center w-full">Zonta</p>
-          </div>
-          <div class="flex flex-col items-center gap-2">
-            <NuxtImg preload src="/telerik.png" class="bg-white border-slate-300 border-4 w-full h-36 md:h-auto object-contain" />
-            <p class="font-bold text-xl md:text-2xl bg-base-100/80 border-slate-300 border-2 p-2 text-center w-full">Telerik</p>
-          </div>
-          <div class="flex flex-col items-center gap-2">
-            <NuxtImg preload src="/flora-bar-and-grill.jpg" class="border-slate-300 border-4 w-full h-36 md:h-auto object-contain" />
-            <p class="font-bold text-xl md:text-2xl bg-base-100/80 border-slate-300 border-2 p-2 text-center w-full">FLORA Bar&amp;Grill</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Golden -->
-      <div class="w-full flex flex-col gap-6 items-center">
-        <div class="flex items-center gap-4 w-full max-w-4xl px-4">
-          <div class="h-px flex-1 bg-yellow-500/60" />
-          <p class="text-yellow-500 font-bold text-xl tracking-widest uppercase">Golden</p>
-          <div class="h-px flex-1 bg-yellow-500/60" />
-        </div>
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center w-full max-w-2xl px-4">
-          <div class="flex flex-col items-center gap-2">
-            <NuxtImg preload src="/hell.webp" class="bg-base-100/90 border-primary border-4 w-full h-36 md:h-auto object-contain p-2" />
-            <p class="font-bold text-xl md:text-2xl bg-base-100/80 border-primary border-2 p-2 text-center w-full">Hell</p>
-          </div>
-          <div class="flex flex-col items-center gap-2">
-            <NuxtImg preload src="/scarabey.jpg" class="bg-white border-primary border-4 w-full h-36 md:h-auto object-contain p-6" />
-            <p class="font-bold text-xl md:text-2xl bg-base-100/80 border-primary border-2 p-2 text-center w-full">Scarabey</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Silver -->
-      <div class="w-full flex flex-col gap-6 items-center">
-        <div class="flex items-center gap-4 w-full max-w-4xl px-4">
-          <div class="h-px flex-1 bg-base-content/30" />
-          <p class="text-base-content/60 font-bold text-xl tracking-widest uppercase">Silver</p>
-          <div class="h-px flex-1 bg-base-content/30" />
-        </div>
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center w-full max-w-2xl px-4">
-          <div class="flex flex-col items-center gap-2">
-            <NuxtImg preload src="/vladan.jpg" class="bg-base-100/90 border-primary border-4 w-full h-36 md:h-auto object-contain" />
-            <p class="font-bold text-xl md:text-2xl bg-base-100/80 border-primary border-2 p-2 text-center w-full">VLADAN OOD</p>
-          </div>
-          <div class="flex flex-col items-center gap-2">
-            <NuxtImg preload src="/advance-bg.png" class="bg-base-100/90 border-primary border-4 h-24 md:h-42 w-full" />
-            <p class="font-bold text-xl md:text-2xl bg-base-100/80 border-primary border-2 p-2 text-center w-full">Advance</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Partners -->
-      <div class="w-full flex flex-col gap-6 items-center">
-        <div class="flex items-center gap-4 w-full max-w-4xl px-4">
-          <div class="h-px flex-1 bg-base-content/20" />
-          <p class="text-base-content/40 font-bold text-xl tracking-widest uppercase">Partners</p>
-          <div class="h-px flex-1 bg-base-content/20" />
-        </div>
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center w-full max-w-2xl px-4">
-          <div class="flex flex-col items-center gap-2">
-            <NuxtImg preload src="/burgaslab.png" class="bg-base-100/90 border-primary border-4 w-full h-36 md:h-auto object-contain" />
-            <p class="font-bold text-xl md:text-2xl bg-base-100/80 border-primary border-2 p-2 text-center w-full">BurgasLab</p>
-          </div>
-          <div class="flex flex-col items-center gap-2">
-            <NuxtImg preload src="/ppmg.jpg" class="bg-base-100/90 border-primary border-4 h-24 md:h-42 w-full object-contain" />
-            <p class="font-bold text-xl md:text-2xl bg-base-100/80 border-primary border-2 p-2 text-center w-full">PPMG</p>
-          </div>
-        </div>
+      <div
+        class="w-full max-w-2xl flex flex-col gap-4 items-center bg-base-100/80 border-primary border-4 p-8 mx-4"
+      >
+        <p class="text-3xl md:text-4xl font-black tracking-widest">TBA</p>
+        <p class="text-center text-base md:text-lg opacity-80">
+          Партньорите за Edition 2 се обявяват преди събитието.
+        </p>
+        <a
+          href="mailto:partnership@liberhack.org"
+          class="underline font-bold text-lg"
+          >partnership@liberhack.org</a
+        >
       </div>
     </div>
 

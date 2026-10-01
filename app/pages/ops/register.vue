@@ -153,8 +153,8 @@ async function register() {
       <label class="form-control">
         <span class="label-text font-bold">Experience Level</span>
         <span class="label-text text-xs opacity-60 mb-1">
-          Helps us allocate mentors and workshops. May be shared with sponsors for recruitment purposes — see our
-          <NuxtLink to="/legal/privacy" target="_blank" class="link">Privacy Policy</NuxtLink>.
+          Помага ни да разпределим ментори и уъркшопи. Може да бъде споделено с партньори за целите на подбор на кадри — виж
+          <NuxtLink to="/legal/privacy" target="_blank" class="link">Политиката за поверителност</NuxtLink>.
         </span>
         <select v-model="form.experience" required class="select select-bordered w-full">
           <option value="" disabled>Select your level…</option>
@@ -177,11 +177,11 @@ async function register() {
       <label class="flex items-start gap-3 cursor-pointer">
         <input v-model="form.coc" type="checkbox" required class="checkbox checkbox-primary mt-1 shrink-0" />
         <span class="text-sm leading-snug">
-          I have read and agree to the
-          <NuxtLink to="/legal/coc" target="_blank" class="link font-bold">Code of Conduct</NuxtLink>,
-          <NuxtLink to="/legal/privacy" target="_blank" class="link font-bold">Privacy Policy</NuxtLink>,
-          and the
-          <NuxtLink to="/reglament" target="_blank" class="link font-bold">Регламент</NuxtLink>.
+          Прочетох и приемам
+          <NuxtLink to="/legal/coc" target="_blank" class="link font-bold">Етичния кодекс</NuxtLink>,
+          <NuxtLink to="/legal/privacy" target="_blank" class="link font-bold">Политиката за поверителност</NuxtLink>
+          и
+          <NuxtLink to="/reglament" target="_blank" class="link font-bold">Регламента</NuxtLink>.
         </span>
       </label>
 
