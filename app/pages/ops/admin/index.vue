@@ -89,6 +89,29 @@ async function setOpsEnabled(edition: Edition, opsEnabled: boolean) {
   }
 }
 
+/**
+ * Change an edition's participant cap. Raising it offers the new seats to the
+ * waitlist; lowering it below the accepted and offered seats is refused (409).
+ */
+async function setCap(edition: Edition, cap: number) {
+  if (!Number.isInteger(cap) || cap < 1 || cap === edition.participant_cap) return
+
+  editionBusy.value = true
+  editionError.value = ''
+  try {
+    await $fetch(`/api/admin/editions/${edition.slug}`, {
+      method: 'PATCH',
+      body: { participant_cap: cap },
+    })
+  } catch (e: unknown) {
+    editionError.value =
+      (e as { data?: { message?: string } }).data?.message ?? 'Failed to update edition'
+  } finally {
+    await refreshEditions()
+    editionBusy.value = false
+  }
+}
+
 async function goLive(slug: string) {
   if (
     !confirm(
@@ -519,7 +542,18 @@ async function addAnnouncement() {
                         {{ e.is_current ? 'live (current)' : e.status }}
                       </span>
                     </td>
-                    <td>{{ e.participant_cap }}</td>
+                    <td>
+                      <input
+                        :key="`${e.slug}-${e.participant_cap}`"
+                        type="number"
+                        min="1"
+                        class="input input-bordered input-xs w-20"
+                        :aria-label="`Participant cap for ${e.slug}`"
+                        :value="e.participant_cap"
+                        :disabled="editionBusy || e.status === 'archived'"
+                        @change="setCap(e, Number(($event.target as HTMLInputElement).value))"
+                      />
+                    </td>
                     <td>
                       <label class="flex items-center gap-2 cursor-pointer">
                         <input

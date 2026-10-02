@@ -144,4 +144,39 @@ select assert(raises($$select public.change_seat('00000000-0000-0000-0000-000000
  '00000000-0000-0000-0000-000000000111', 'cancel')$$, 'permission denied for function change_seat'),
  'seat mutation is server-only');
 reset role;
+-- A sole waiter is re-offered once, not forever.
+insert into public.editions (slug, name, status, is_current, participant_cap)
+ values ('reoffer', 'Reoffer', 'draft', false, 1);
+insert into auth.users (id, email) values
+ ('00000000-0000-0000-0000-000000000191', 'reoffer-holder@example.com'),
+ ('00000000-0000-0000-0000-000000000192', 'reoffer-waiter@example.com');
+insert into public.registrations (id, participant_id, edition_slug) values
+ ('00000000-0000-0000-0000-000000000291', '00000000-0000-0000-0000-000000000191', 'reoffer');
+insert into public.registrations (id, participant_id, edition_slug) values
+ ('00000000-0000-0000-0000-000000000292', '00000000-0000-0000-0000-000000000192', 'reoffer');
+select public.change_seat('00000000-0000-0000-0000-000000000291',
+ '00000000-0000-0000-0000-000000000191', 'cancel');
+update public.registrations set offer_expires_at = now() - interval '1 minute'
+ where id = '00000000-0000-0000-0000-000000000292';
+select public.expire_seat_offers('reoffer');
+select assert((select seat_state = 'offered' and offer_attempts = 2 from public.registrations
+ where id = '00000000-0000-0000-0000-000000000292'), 'a sole waiter is re-offered once');
+update public.registrations set offer_expires_at = now() - interval '1 minute'
+ where id = '00000000-0000-0000-0000-000000000292';
+select public.expire_seat_offers('reoffer');
+select assert((select seat_state = 'waitlisted' and offer_attempts = 2 from public.registrations
+ where id = '00000000-0000-0000-0000-000000000292')
+ and (select count(*) = 2 from public.notification_jobs
+      where registration_id = '00000000-0000-0000-0000-000000000292' and kind = 'seat_offer'),
+ 'after two unanswered offers the waiter is not offered (or emailed) again');
+
+-- Erasure: outreach about a deleted registration, request or team goes with it.
+insert into public.organizer_outreach (edition_slug, queue, subject_id, status, outcome)
+ values ('reoffer', 'uncertain', '00000000-0000-0000-0000-000000000292', 'contacted',
+         'Said they may not afford the train');
+delete from public.registrations where id = '00000000-0000-0000-0000-000000000292';
+select assert(not exists (select 1 from public.organizer_outreach
+ where subject_id = '00000000-0000-0000-0000-000000000292'),
+ 'deleting a registration deletes outreach notes about it');
+
 select 'ATTENDANCE VERIFICATION COMPLETE' as result;

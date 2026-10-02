@@ -34,6 +34,33 @@ interface EmailOptions {
   text: string;
 }
 
+/**
+ * Local development only: deliver into Mailpit (bundled with `supabase start`)
+ * through its HTTP send API, so transactional mail can be read at
+ * http://127.0.0.1:54324 instead of going to Resend. Enabled by
+ * NUXT_MAILPIT_URL and refused in production.
+ */
+async function sendToMailpit(baseUrl: string, options: EmailOptions): Promise<boolean> {
+  const config = useRuntimeConfig();
+  if (config.public.appEnv === "production") {
+    console.error("[email] NUXT_MAILPIT_URL is ignored in production");
+    return false;
+  }
+  const res = await fetch(`${baseUrl.replace(/\/$/, "")}/api/v1/send`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      From: { Email: (config.resendFromEmail as string) || "noreply@localhost" },
+      To: [{ Email: options.to }],
+      Subject: options.subject,
+      HTML: options.html,
+      Text: options.text,
+    }),
+  });
+  if (!res.ok) console.error("[email] mailpit send failed with status", res.status);
+  return res.ok;
+}
+
 // Plain HTTP call instead of the resend SDK: the SDK drags in an optional
 // @react-email/render peer that cannot be bundled for Cloudflare Workers.
 /**
@@ -43,6 +70,7 @@ interface EmailOptions {
  */
 async function sendEmail(options: EmailOptions): Promise<boolean> {
   const config = useRuntimeConfig();
+  if (config.mailpitUrl) return sendToMailpit(config.mailpitUrl as string, options);
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {

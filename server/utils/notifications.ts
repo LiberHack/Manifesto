@@ -27,6 +27,7 @@ interface Recipient {
   team_id: string | null;
   seat_state: string;
   offer_expires_at: string | null;
+  offer_attempts: number;
   intention_at: string | null;
   participant: { name: string; email: string } | null;
   edition: {
@@ -47,6 +48,23 @@ type Handler = (
 ) => Promise<Outcome> | Outcome;
 
 const MAX_ATTEMPTS = 5;
+
+/**
+ * Whether a seat_offer job is about the offer the registration holds now.
+ *
+ * Each offer queues its own job, keyed `seat_offer:<edition>:<registration>:<attempt>`.
+ * A job from an earlier, expired offer that is still pending or retrying must
+ * not announce the current one, or the person gets two emails for it.
+ */
+export function isCurrentSeatOffer(
+  job: Pick<NotificationJob, "dedup_key">,
+  r: Pick<Recipient, "seat_state" | "offer_expires_at" | "offer_attempts">,
+  now = Date.now(),
+): boolean {
+  if (r.seat_state !== "offered" || !r.offer_expires_at) return false;
+  if (Date.parse(r.offer_expires_at) <= now) return false;
+  return job.dedup_key.split(":").at(-1) === String(r.offer_attempts);
+}
 
 function when(iso: string | null): string {
   return iso
@@ -69,9 +87,8 @@ const HANDLERS: Record<string, Handler> = {
     linkLabel: "Open your dashboard",
   }),
 
-  seat_offer: (_job, r) => {
-    if (r.seat_state !== "offered" || !r.offer_expires_at) return "skip";
-    if (Date.parse(r.offer_expires_at) <= Date.now()) return "skip";
+  seat_offer: (job, r) => {
+    if (!isCurrentSeatOffer(job, r)) return "skip";
     return {
       subject: `A seat opened for you at ${r.edition?.name ?? "LiberHack"}`,
       body: `A place opened up and it's yours if you want it. Accept it before ${when(r.offer_expires_at)} (Sofia time); after that it goes to the next person on the waitlist.`,
@@ -136,6 +153,25 @@ export function registerNotificationHandler(kind: string, handler: Handler): voi
   HANDLERS[kind] = handler;
 }
 
+/**
+ * Record a failed attempt with exponential backoff; after MAX_ATTEMPTS the job
+ * stays failed and surfaces in the organizers' contact-failure queue.
+ */
+async function markFailed(
+  supabase: SupabaseClient,
+  job: NotificationJob,
+  reason: string,
+): Promise<void> {
+  await supabase
+    .from("notification_jobs")
+    .update({
+      status: "failed",
+      last_error: reason,
+      next_attempt_at: new Date(Date.now() + 2 ** job.attempts * 60_000).toISOString(),
+    })
+    .eq("id", job.id);
+}
+
 export interface DispatchResult {
   sent: number;
   skipped: number;
@@ -160,14 +196,26 @@ export async function dispatchDueJobs(
   const claimed = (jobs ?? []) as NotificationJob[];
   if (claimed.length === 0) return result;
 
-  const { data: rows } = await supabase
+  // The edition embed names its foreign key: attendance_snapshots is a second
+  // registrations <-> editions path, and an unqualified embed is ambiguous
+  // (PostgREST 300, PGRST201).
+  const { data: rows, error: lookupError } = await supabase
     .from("registrations")
     .select(
-      "id, team_id, seat_state, offer_expires_at, intention_at, " +
+      "id, team_id, seat_state, offer_expires_at, offer_attempts, intention_at, " +
         "participant:participants(name, email), " +
-        "edition:editions(name, starts_at, arrival_host, team_formation_slot)",
+        "edition:editions!registrations_edition_slug_fkey(name, starts_at, arrival_host, team_formation_slot)",
     )
     .in("id", [...new Set(claimed.map((j) => j.registration_id))]);
+
+  // A failed lookup says nothing about relevance: retry the jobs later rather
+  // than cancelling them as if every recipient had gone.
+  if (lookupError) {
+    console.error("[notifications] recipient lookup failed:", lookupError.message);
+    for (const job of claimed) await markFailed(supabase, job, "recipient lookup failed");
+    result.failed += claimed.length;
+    return result;
+  }
   const recipients = new Map(
     ((rows ?? []) as unknown as Recipient[]).map((r) => [r.id, r]),
   );
@@ -204,16 +252,7 @@ export async function dispatchDueJobs(
         .eq("id", job.id);
       result.sent++;
     } else {
-      // Exponential backoff; after MAX_ATTEMPTS the job stays failed and
-      // surfaces in the organizers' contact-failure queue.
-      await supabase
-        .from("notification_jobs")
-        .update({
-          status: "failed",
-          last_error: "delivery failed",
-          next_attempt_at: new Date(Date.now() + 2 ** job.attempts * 60_000).toISOString(),
-        })
-        .eq("id", job.id);
+      await markFailed(supabase, job, "delivery failed");
       result.failed++;
     }
   }

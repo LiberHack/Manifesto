@@ -68,6 +68,7 @@ NUXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=      # Supabase publishable key (sb_publis
 NUXT_RESEND_API_KEY=                # Resend API key (transactional email)
 NUXT_RESEND_FROM_EMAIL=             # Sender address on a domain verified in Resend
 NUXT_SITE_URL=                      # Full app URL, used in email links (e.g. http://localhost:3000)
+NUXT_MAILPIT_URL=                   # Local only: deliver mail to Mailpit instead of Resend (http://127.0.0.1:54324 with `supabase start`)
 ```
 
 `NUXT_PUBLIC_APP_ENV` (`production` | `staging` | `development`, default `development`) is set per
