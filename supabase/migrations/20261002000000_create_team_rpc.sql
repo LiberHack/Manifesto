@@ -6,6 +6,11 @@
 -- lost a race. The delete's error was ignored, so a failure there left an
 -- orphan team whose leader was not a member. Doing all three in one function
 -- makes the team and the leader's membership commit or roll back together.
+--
+-- The other two writers of registrations.team_id -- invite acceptance and
+-- join-request approval -- must not overwrite a membership set after they
+-- read it, or the new team is orphaned all the same. Approval now only fills
+-- an empty team_id (the invite route conditions its own update).
 -- ============================================================
 
 create or replace function public.create_team(
@@ -46,9 +51,45 @@ begin
   set team_id = created.id, role = 'leader'
   where id = reg.id;
 
+  -- A leader cannot also be waiting to join another team.
+  update public.join_requests
+  set status = 'rejected'
+  where participant_id = reg.participant_id
+    and edition_slug = reg.edition_slug
+    and status = 'pending';
+
   return created;
 end;
 $$;
 
 revoke all on function public.create_team(uuid, text, text[], text)
   from public, anon, authenticated;
+
+create or replace function public.handle_request_approved()
+returns trigger
+language plpgsql
+security definer
+as $$
+begin
+  if new.status = 'approved' and old.status = 'pending' then
+    update public.registrations
+    set team_id = new.team_id
+    where participant_id = new.participant_id
+      and edition_slug = new.edition_slug
+      and team_id is null;
+
+    if not found then
+      raise exception 'already_in_team'
+        using hint = 'The requester has joined or created a team since asking';
+    end if;
+
+    update public.join_requests
+    set status = 'rejected'
+    where participant_id = new.participant_id
+      and edition_slug = new.edition_slug
+      and id != new.id
+      and status = 'pending';
+  end if;
+  return new;
+end;
+$$;

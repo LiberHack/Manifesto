@@ -41,10 +41,20 @@ export default defineEventHandler(async (event) => {
     await releaseTeamLeadership(supabase, registration.id, registration.team_id);
   }
 
-  const { error } = await supabase
+  // Conditional on the membership read above, so a team created or joined in
+  // the meantime is not silently overwritten (which would orphan a new team).
+  const update = supabase
     .from("registrations")
     .update({ team_id: team.id, role: "participant" })
     .eq("id", registration.id);
+  const { data: moved, error } = await (registration.team_id
+    ? update.eq("team_id", registration.team_id)
+    : update.is("team_id", null)
+  ).select("id");
+
+  if (!error && !moved?.length) {
+    throw createError({ statusCode: 409, message: "already_in_team" });
+  }
 
   if (error) {
     if (error.message?.includes("team_full")) {

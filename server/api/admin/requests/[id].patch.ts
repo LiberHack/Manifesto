@@ -21,6 +21,15 @@ export default defineEventHandler(async (event) => {
     .single();
 
   if (error) {
+    if (error.message?.includes("already_in_team")) {
+      throw createError({
+        statusCode: 409,
+        message: "The requester is already in a team",
+      });
+    }
+    if (error.message?.includes("team_full")) {
+      throw createError({ statusCode: 409, message: "Team is already full" });
+    }
     console.error("[admin/requests.patch] update failed:", error.message);
     throw createError({ statusCode: 500, message: "Failed to update request" });
   }

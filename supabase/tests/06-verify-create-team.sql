@@ -50,6 +50,55 @@ select assert(
    from public.registrations where id = '66666666-1111-0000-0000-000000000002'),
   'a failed create_team leaves the caller''s registration untouched');
 
+-- Copycat asks to join Atomic, then founds their own team: the pending request
+-- must not survive, or approving it would move a leader out of their team.
+insert into public.join_requests (id, participant_id, team_id, edition_slug)
+select '66666666-2222-0000-0000-000000000001',
+       '66666666-0000-0000-0000-000000000002', id, '2027'
+from public.teams where name = 'Atomic' and edition_slug = '2027';
+
+select public.create_team(
+  '66666666-1111-0000-0000-000000000002', 'Copycat', '{}', null);
+
+select assert(
+  (select status = 'rejected' from public.join_requests
+   where id = '66666666-2222-0000-0000-000000000001'),
+  'create_team rejects the new leader''s pending join requests');
+
+-- A third account asks to join Atomic, then joins Copycat some other way
+-- (an invite) before the request is approved.
+insert into auth.users (id, email) values
+  ('66666666-0000-0000-0000-000000000003', 'drifter@example.com');
+insert into public.registrations (id, participant_id, edition_slug) values
+  ('66666666-1111-0000-0000-000000000003', '66666666-0000-0000-0000-000000000003', '2027');
+
+insert into public.join_requests (id, participant_id, team_id, edition_slug)
+select '66666666-2222-0000-0000-000000000002',
+       '66666666-0000-0000-0000-000000000003', id, '2027'
+from public.teams where name = 'Atomic' and edition_slug = '2027';
+
+update public.registrations
+set team_id = (select id from public.teams where name = 'Copycat' and edition_slug = '2027')
+where id = '66666666-1111-0000-0000-000000000003';
+
+do $$
+begin
+  update public.join_requests set status = 'approved'
+  where id = '66666666-2222-0000-0000-000000000002';
+  raise exception 'FAIL  approval overwrote an existing membership';
+exception when others then
+  if sqlerrm not like '%already_in_team%' then raise; end if;
+end;
+$$;
+
+select assert(
+  (select t.name = 'Copycat'
+   from public.registrations r join public.teams t on t.id = r.team_id
+   where r.id = '66666666-1111-0000-0000-000000000003')
+  and (select status = 'pending' from public.join_requests
+       where id = '66666666-2222-0000-0000-000000000002'),
+  'approving a request never overwrites a membership set since it was made');
+
 set request.jwt.claim.sub = '66666666-0000-0000-0000-000000000002';
 set role authenticated;
 
