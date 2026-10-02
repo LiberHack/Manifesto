@@ -188,7 +188,8 @@ Phase 1 of `docs/superpowers/plans/2026-09-29-team-formation-and-attendance.md`.
   every read re-checks access and no client ever holds a Supabase channel:
   every 3s in an open thread, 10s in the inbox, 15s for the dashboard badge,
   all paused while the tab is hidden (`useVisiblePolling`). An open thread is
-  ~20 requests/minute, inside the 60/minute per-IP API limit.
+  ~20 requests/minute, inside the 60/minute API limit, which is per user
+  for signed-in requests (per IP only for anonymous ones).
   Sends are limited to 10/minute and 200/day per person, 2000 characters,
   rendered as text with only http(s) links (`shared/linkify.ts`).
 - Retention and deletion: messages belong to the author's registration and are
