@@ -154,6 +154,13 @@ insert into public.join_requests (id, participant_id, team_id, edition_slug, mes
    'Changed my mind, would like to join after all.', now() - interval '1 minute');
 
 select assert(
+  raises($$select public.decide_join_request('00000000-0000-0000-0000-000000000306',
+           '00000000-0000-0000-0000-000000000203', 'approve')$$, 'not_team_leader')
+  and (select status = 'pending' from public.join_requests
+       where id = '00000000-0000-0000-0000-000000000306'),
+  'an unauthorized decision on an expired request raises and leaves it pending');
+
+select assert(
   (select (public.decide_join_request('00000000-0000-0000-0000-000000000306',
      '00000000-0000-0000-0000-000000000201', 'approve')).status = 'expired'),
   'an expired request cannot be approved and is closed as expired');

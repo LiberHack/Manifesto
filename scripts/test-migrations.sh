@@ -57,3 +57,6 @@ psql -d liberhack -v ON_ERROR_STOP=1 \
   -f "$ROOT/supabase/tests/08-verify-attendance.sql" 2>&1 \
   | grep -E 'PASS|FAIL|VERIFICATION|ERROR' \
   | sed 's/^psql:.*NOTICE:  //'
+
+# Two-session lock-order checks; run last because they switch the current edition.
+bash "$ROOT/supabase/tests/race-formation-locks.sh"
