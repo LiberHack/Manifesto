@@ -121,6 +121,9 @@ export default defineNuxtConfig({
     // Per-IP /api limit for the in-memory fallback (runtimes without Workers
     // rate-limit bindings). Production uses the RL_* bindings instead.
     rateLimitMax: 60,
+    // "user:password" gating staging and its PR previews (NUXT_STAGING_BASIC_AUTH,
+    // a Worker secret). Empty disables it; production ignores it.
+    stagingBasicAuth: "",
     public: {
       // "production" | "staging" | "development" — anything but production is noindex.
       appEnv: process.env.NUXT_PUBLIC_APP_ENV ?? "development",
