@@ -129,9 +129,9 @@
       // Secrets for this env: `wrangler secret put <NAME> --env staging`.
       "vars": {
         "NUXT_PUBLIC_APP_ENV": "staging",
-        "NUXT_PUBLIC_SUPABASE_URL": "https://apfhieizmthicvwvezrg.supabase.co",
-        "NUXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_7UffLfznfdm8gMJEF7hfag_sx_UAEis",
-        "NUXT_PUBLIC_SUPABASE_KEY": "sb_publishable_7UffLfznfdm8gMJEF7hfag_sx_UAEis",
+        "NUXT_PUBLIC_SUPABASE_URL": "https://nazsevofugndmwthnvtm.supabase.co",
+        "NUXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_5OAvE6HibaK1uN-MMUedhg_1q_U5n6B",
+        "NUXT_PUBLIC_SUPABASE_KEY": "sb_publishable_5OAvE6HibaK1uN-MMUedhg_1q_U5n6B",
         "NUXT_RESEND_FROM_EMAIL": "LiberHack (staging) <noreply@liberhack.org>",
         "NUXT_SITE_URL": "https://staging.liberhack.org",
       },
