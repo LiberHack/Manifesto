@@ -85,7 +85,6 @@ update public.registrations set seat_state = 'accepted', offer_expires_at = null
  where id = '00000000-0000-0000-0000-000000000211';
 insert into auth.users (id, email, raw_user_meta_data) values
  ('00000000-0000-0000-0000-000000000112', 'attendance12@example.com', '{"name":"Attendance 12"}');
-update public.registrations set offer_attempts = 0 where id = (select id from queue_head);
 delete from public.registrations where id = '00000000-0000-0000-0000-000000000211';
 select assert((select seat_state = 'offered' from public.registrations
  where id = (select id from queue_head)), 'deleting a reserved registration offers its seat');
@@ -93,6 +92,9 @@ insert into public.registrations (id, participant_id, edition_slug)
  values ('00000000-0000-0000-0000-000000000212','00000000-0000-0000-0000-000000000112','2027');
 select assert((select seat_state = 'waitlisted' from public.registrations
  where id = '00000000-0000-0000-0000-000000000212'), 'a newcomer never takes a seat ahead of the queue');
+update public.editions set participant_cap = participant_cap + 1 where slug = '2027';
+select assert((select seat_state = 'offered' from public.registrations
+ where id = '00000000-0000-0000-0000-000000000212'), 'raising the cap offers the freed seat to the waitlist');
 select assert((select count(*) <= participant_cap from public.registrations r
  join public.editions e on e.slug = r.edition_slug
  where e.slug = '2027' and r.seat_state in ('accepted','offered') group by participant_cap),
