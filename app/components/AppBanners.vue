@@ -62,10 +62,10 @@ function dismiss(id: string) {
   <div
     v-for="announcement in visible"
     :key="announcement.id"
-    class="flex justify-between items-start gap-3 border-b-2 bg-base-100 text-sm font-bold py-2 px-4"
+    class="flex justify-between items-start gap-3 min-w-0 border-b-2 bg-base-100 text-sm font-bold py-2 px-4"
     :class="announcement.variant === 'warning' ? 'border-warning' : 'border-primary'"
   >
-    <span>
+    <span class="min-w-0 [overflow-wrap:anywhere]">
       {{ announcement.body }}
       <NuxtLink v-if="announcement.href" :to="announcement.href" class="underline">
         →

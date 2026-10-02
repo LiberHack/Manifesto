@@ -68,12 +68,12 @@ async function sendRequest() {
 
 <template>
   <main
-    class="max-w-2xl mx-auto p-6 space-y-6 bg-base-100 border-2 border-primary my-8"
+    class="w-full max-w-2xl min-w-0 mx-auto p-4 sm:p-6 space-y-6 bg-base-100 border-2 border-primary my-8"
   >
     <NuxtLink to="/ops/teams" class="btn btn-ghost btn-sm">← Back</NuxtLink>
 
     <template v-if="team">
-      <h1 class="text-xl md:text-4xl font-black uppercase">{{ team.name }}</h1>
+      <h1 class="text-xl md:text-4xl font-black uppercase break-words">{{ team.name }}</h1>
       <p v-if="team.description" class="opacity-70">{{ team.description }}</p>
 
       <div class="flex flex-wrap gap-2">

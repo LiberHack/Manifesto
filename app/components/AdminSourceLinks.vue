@@ -85,7 +85,7 @@ const shownQr = ref<string | null>(null);
 </script>
 
 <template>
-  <div class="flex flex-col gap-3">
+  <div class="min-w-0 flex flex-col gap-3 [overflow-wrap:anywhere]">
     <h3 class="font-black text-lg uppercase">Links</h3>
     <p class="text-sm opacity-70 max-w-3xl">
       Only links created here are counted. Tags are permanent: they cannot be
@@ -94,30 +94,30 @@ const shownQr = ref<string | null>(null);
       for good. History is kept either way.
     </p>
 
-    <form v-if="!readOnly" class="flex flex-wrap items-end gap-2" @submit.prevent="create">
-      <label class="form-control">
+    <form v-if="!readOnly" class="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-2" @submit.prevent="create">
+      <label class="form-control w-full sm:w-auto min-w-0">
         <span class="label-text font-bold">Tag</span>
-        <input v-model="form.tag" required pattern="[a-z0-9][a-z0-9\-]{1,47}" placeholder="poster-fmi" class="input input-bordered input-sm w-40 font-mono" />
+        <input v-model="form.tag" required pattern="[a-z0-9][a-z0-9\-]{1,47}" placeholder="poster-fmi" class="input input-bordered input-sm w-full sm:w-40 max-w-full font-mono" />
       </label>
-      <label class="form-control">
+      <label class="form-control w-full sm:w-auto min-w-0">
         <span class="label-text font-bold">Label</span>
-        <input v-model="form.label" required maxlength="80" placeholder="FMI poster, 2nd floor" class="input input-bordered input-sm w-56" />
+        <input v-model="form.label" required maxlength="80" placeholder="FMI poster, 2nd floor" class="input input-bordered input-sm w-full sm:w-56 max-w-full" />
       </label>
-      <label class="form-control">
+      <label class="form-control w-full sm:w-auto min-w-0">
         <span class="label-text font-bold">Channel</span>
-        <select v-model="form.channel" class="select select-bordered select-sm">
+        <select v-model="form.channel" class="select select-bordered select-sm w-full sm:w-auto max-w-full">
           <option v-for="c in SOURCE_CHANNELS" :key="c" :value="c">{{ c }}</option>
         </select>
       </label>
-      <label class="form-control">
+      <label class="form-control w-full sm:w-auto min-w-0">
         <span class="label-text font-bold">Note</span>
-        <input v-model="form.note" maxlength="300" class="input input-bordered input-sm w-56" />
+        <input v-model="form.note" maxlength="300" class="input input-bordered input-sm w-full sm:w-56 max-w-full" />
       </label>
       <button type="submit" class="btn btn-primary btn-sm">Create link</button>
       <span v-if="error" role="alert" class="text-error text-sm">{{ error }}</span>
     </form>
 
-    <div class="overflow-x-auto">
+    <div class="min-w-0 max-w-full overflow-x-auto">
       <table class="table table-sm">
         <thead>
           <tr><th>Tag</th><th>Label</th><th>Channel</th><th>Links</th><th>QR</th><th>Status</th></tr>

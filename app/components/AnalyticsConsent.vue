@@ -48,9 +48,9 @@ async function run(action: () => Promise<void>) {
     v-if="showBanner || settingsOpen"
     role="region"
     aria-labelledby="analytics-consent-title"
-    class="fixed bottom-0 inset-x-0 z-50 p-3 sm:p-4"
+    class="fixed bottom-0 inset-x-0 z-50 max-h-[100dvh] overflow-y-auto p-3 sm:p-4"
   >
-    <div class="mx-auto max-w-2xl bg-base-100 border-2 border-primary p-4 flex flex-col gap-3 shadow-lg">
+    <div class="mx-auto max-w-2xl min-w-0 bg-base-100 border-2 border-primary p-4 flex flex-col gap-3 shadow-lg">
       <h2 id="analytics-consent-title" class="font-black uppercase tracking-tight text-lg">
         {{ settingsOpen ? "Privacy settings" : "Can we count where you came from?" }}
       </h2>
@@ -86,20 +86,20 @@ async function run(action: () => Promise<void>) {
         <template v-if="settingsOpen && choice.state === 'granted'">
           <button
             type="button"
-            class="btn btn-primary font-black uppercase"
+            class="btn btn-primary h-auto min-h-12 whitespace-normal font-black uppercase"
             :disabled="busy"
             @click="run(withdraw)"
           >
             Withdraw and delete my analytics
           </button>
-          <button type="button" class="btn btn-outline font-black uppercase" @click="settingsOpen = false">
+          <button type="button" class="btn btn-outline h-auto min-h-12 whitespace-normal font-black uppercase" @click="settingsOpen = false">
             Keep and close
           </button>
         </template>
         <template v-else>
           <button
             type="button"
-            class="btn btn-primary font-black uppercase"
+            class="btn btn-primary h-auto min-h-12 whitespace-normal font-black uppercase"
             :disabled="busy || !edition.analytics_enabled"
             @click="run(() => decide('granted'))"
           >
@@ -107,7 +107,7 @@ async function run(action: () => Promise<void>) {
           </button>
           <button
             type="button"
-            class="btn btn-primary font-black uppercase"
+            class="btn btn-primary h-auto min-h-12 whitespace-normal font-black uppercase"
             :disabled="busy"
             @click="run(() => decide('denied'))"
           >

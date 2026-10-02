@@ -1,6 +1,6 @@
 <template>
   <div
-    class="w-full flex flex-col gap-16 py-8 font-cygrotesk md:px-32 overflow-x-hidden"
+    class="w-full min-w-0 flex flex-col gap-16 py-8 font-cygrotesk md:px-32 [overflow-wrap:anywhere]"
   >
     <div
       class="w-full flex flex-col md:flex-row items-center justify-center gap-5"
@@ -9,7 +9,7 @@
         preload
         src="/favicon.webp"
         alt="LiberHack"
-        class="bg-base-100/90 border-primary border-4 w-xs lg:w-md"
+        class="bg-base-100/90 border-primary border-4 w-xs max-w-full lg:w-md"
       />
       <div class="lg:w-lg flex flex-col gap-5 bg-base-100/70">
         <h1
@@ -49,7 +49,7 @@
         preload
         src="/eyes.webp"
         alt="Glitched eyes staring back"
-        class="bg-base-100/90 border-primary border-4 w-xs hidden md:block lg:w-md"
+        class="bg-base-100/90 border-primary border-4 w-xs max-w-full hidden md:block lg:w-md"
       />
     </div>
 
@@ -60,9 +60,9 @@
         preload
         src="/holy.webp"
         alt="Stained-glass saint, glitched"
-        class="bg-base-100/90 border-primary border-4 w-xs lg:w-md"
+        class="bg-base-100/90 border-primary border-4 w-xs max-w-full lg:w-md"
       />
-      <div class="flex flex-col gap-4 w-sm md:w-lg bg-base-100/70 p-4">
+      <div class="flex flex-col gap-4 w-full max-w-sm md:w-lg bg-base-100/70 p-4">
         <h2 class="text-lg lg:text-4xl text-center flex flex-col gap-2">
           <span class="text-2xl lg:text-4xl">Build, pitch, and ship.</span>
           <span class="block text-xl"
@@ -149,7 +149,7 @@
       </h2>
 
       <div
-        class="w-full max-w-2xl flex flex-col gap-4 items-center bg-base-100/80 border-primary border-4 p-8 mx-4"
+        class="w-full max-w-2xl min-w-0 flex flex-col gap-4 items-center bg-base-100/80 border-primary border-4 p-4 sm:p-8"
       >
         <p class="text-3xl md:text-4xl font-black tracking-widest">TBA</p>
         <p class="text-center text-base md:text-lg opacity-80">
@@ -171,13 +171,13 @@
       >
         Fr3qu3nt!y A5k3d Qu3st10n5
       </h2>
-      <div class="flex flex-col lg:flex-row w-full p-8 gap-8 md:gap-24">
+      <div class="flex flex-col lg:flex-row w-full min-w-0 p-4 sm:p-8 gap-8 md:gap-24">
         <div class="flex items-center justify-center">
           <NuxtImg
             preload
             src="/pc.webp"
             alt="Retro CRT monitor"
-            class="bg-base-100/90 border-primary border-4 rendering-pixelated w-lg"
+            class="bg-base-100/90 border-primary border-4 rendering-pixelated w-lg max-w-full"
           />
         </div>
 

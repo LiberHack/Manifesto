@@ -49,25 +49,27 @@ async function queueReminders() {
 }
 </script>
 <template>
-  <main class="max-w-5xl mx-auto p-4 md:p-8 space-y-8 bg-base-100">
+  <main class="w-full max-w-5xl min-w-0 mx-auto p-4 md:p-8 space-y-8 bg-base-100 [overflow-wrap:anywhere]">
     <div class="flex flex-wrap justify-between gap-3"><h1 class="text-3xl font-black uppercase">Attendance desk</h1><NuxtLink to="/ops/admin" class="btn btn-outline">← Admin</NuxtLink></div>
     <p v-if="message" role="status" class="alert alert-info">{{ message }}</p>
     <section v-if="timing" class="border-2 border-base-content p-4 space-y-3">
       <h2 class="text-xl font-black uppercase">Schedule and outreach</h2>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 [&_label]:min-w-0 [&_input]:w-full [&_input]:min-w-0">
         <label v-for="field in ['reminder_mixer_days','reminder_reconfirm_days','reminder_arrival_hours','unanswered_request_hours','seat_offer_hours']" :key="field" class="form-control"><span class="label-text">{{ field.replaceAll('_', ' ') }}</span><input v-model.number="timing[field]" type="number" min="0" class="input input-bordered"></label>
         <label class="form-control"><span class="label-text">Arrival host</span><input v-model="timing.arrival_host" class="input input-bordered" maxlength="120"></label>
         <label class="form-control"><span class="label-text">Team formation slot</span><input v-model="formationSlot" type="datetime-local" class="input input-bordered"><span class="label-text-alt">Sofia time · clear to remove</span></label>
       </div>
-      <button class="btn btn-primary" @click="saveTiming">Save timing</button>
-      <button class="btn btn-outline ml-2" @click="queueReminders">Queue due reminders</button>
-      <button class="btn btn-secondary ml-2" @click="runOperations">Run operations now</button>
+      <div class="flex flex-wrap gap-2">
+        <button class="btn btn-primary" @click="saveTiming">Save timing</button>
+        <button class="btn btn-outline" @click="queueReminders">Queue due reminders</button>
+        <button class="btn btn-secondary" @click="runOperations">Run operations now</button>
+      </div>
       <p class="text-xs opacity-70">Runs offer expiry, due snapshots, reminder queueing and email delivery. Until a schedule is configured, run it at least daily in the weeks before the event.</p>
       <div class="flex flex-wrap gap-2"><button v-for="cutoff in ['14_days','7_days','1_day']" :key="cutoff" class="btn btn-outline btn-sm" @click="snapshot(cutoff)">Capture {{ cutoff }} snapshot</button></div>
     </section>
     <section v-if="data" class="border-2 border-base-content p-4 space-y-3">
       <h2 class="text-xl font-black uppercase">{{ data.edition }} / metrics</h2>
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 [&_.stat]:min-w-0">
         <div class="stat bg-base-200"><div class="stat-title">Registered</div><div class="stat-value">{{ data.metrics.registered }}</div></div>
         <div class="stat bg-base-200"><div class="stat-title">Valid seats</div><div class="stat-value">{{ data.metrics.valid_registrations }}</div></div>
         <div class="stat bg-base-200"><div class="stat-title">Checked in</div><div class="stat-value">{{ data.metrics.checked_in }}</div></div>
@@ -81,7 +83,7 @@ async function queueReminders() {
     </section>
     <section v-if="data" class="space-y-3">
       <h2 class="text-xl font-black uppercase">Follow-up queue</h2>
-      <label class="form-control max-w-sm"><span class="label-text">Check-in / correction reason</span><input v-model="reason" class="input input-bordered" maxlength="500"></label>
+      <label class="form-control max-w-sm"><span class="label-text">Check-in / correction reason</span><input v-model="reason" class="input input-bordered w-full" maxlength="500"></label>
       <div v-for="item in data.queue" :key="`${item.queue}:${item.subject_id}`" class="border border-base-content p-3 flex flex-wrap items-center gap-2">
         <div class="min-w-0 flex-1"><strong>{{ item.queue.replaceAll('_', ' ') }}</strong> · {{ item.name }} <span class="text-sm break-all">{{ item.email }}</span><p class="text-xs">{{ item.status }} <span v-if="item.owner_id">· owner {{ item.owner_id.slice(0, 8) }}</span></p></div>
         <input v-model="item.outcome" maxlength="500" class="input input-bordered input-sm w-full sm:w-48" placeholder="Outreach outcome">

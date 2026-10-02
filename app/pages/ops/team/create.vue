@@ -45,13 +45,13 @@ const createTeam = handleSubmit(async (values) => {
 </script>
 
 <template>
-  <main class="w-full flex flex-col items-center justify-center p-8">
+  <main class="w-full min-w-0 flex flex-col items-center justify-center p-4 sm:p-8">
     <form
-      class="max-w-xl flex flex-col gap-2 bg-base-100 border-primary border-2 p-8"
+      class="w-full max-w-xl min-w-0 flex flex-col gap-2 bg-base-100 border-primary border-2 p-4 sm:p-8"
       @submit.prevent="createTeam"
     >
-      <div class="flex justify-between gap-2">
-        <h1 class="text-4xl font-black uppercase tracking-tight">
+      <div class="flex flex-wrap justify-between gap-2">
+        <h1 class="text-2xl sm:text-4xl font-black uppercase tracking-tight">
           Form a Team
         </h1>
         <NuxtLink to="/ops/teams" class="btn btn-outline font-black uppercase"

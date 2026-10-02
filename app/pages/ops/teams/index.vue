@@ -38,7 +38,7 @@ const filteredTeams = computed(() => {
 
 <template>
   <main
-    class="max-w-4xl mx-auto p-6 space-y-8 bg-base-100 my-8 border-primary border-2"
+    class="w-full max-w-4xl min-w-0 mx-auto p-4 sm:p-6 space-y-8 bg-base-100 my-8 border-primary border-2"
   >
     <PendingRequestsBanner />
 
@@ -103,10 +103,10 @@ const filteredTeams = computed(() => {
         v-for="team in filteredTeams"
         :key="team.id"
         :to="`/ops/teams/${team.id}`"
-        class="card bg-base-200 border border-base-content/20 hover:border-primary transition-colors"
+        class="card min-w-0 bg-base-200 border border-base-content/20 hover:border-primary transition-colors"
       >
-        <div class="card-body">
-          <h2 class="card-title font-black">{{ team.name }}</h2>
+        <div class="card-body min-w-0">
+          <h2 class="card-title min-w-0 font-black break-words">{{ team.name }}</h2>
           <p v-if="team.description" class="text-sm opacity-70">
             {{ team.description }}
           </p>

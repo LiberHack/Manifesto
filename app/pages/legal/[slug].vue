@@ -13,7 +13,7 @@ useSeoMeta({ title: page.value.title });
 
 <template>
   <div class="w-full flex justify-center py-12 px-4">
-    <article class="w-full max-w-2xl bg-base-100/90 border-2 border-primary p-8">
+    <article class="w-full max-w-2xl min-w-0 bg-base-100/90 border-2 border-primary p-4 sm:p-8 overflow-x-auto [overflow-wrap:anywhere]">
       <ContentRenderer
         v-if="page"
         :value="page"

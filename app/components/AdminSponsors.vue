@@ -63,7 +63,7 @@ const editionParam = computed(() => props.editionQuery.edition ?? "");
 </script>
 
 <template>
-  <section class="flex flex-col gap-4">
+  <section class="min-w-0 flex flex-col gap-4 [overflow-wrap:anywhere]">
     <h2 class="text-2xl font-bold">Sponsor sharing</h2>
     <p class="text-sm opacity-70 max-w-3xl">
       A sponsor export contains only people whose current answer for that
@@ -86,7 +86,7 @@ const editionParam = computed(() => props.editionQuery.edition ?? "");
       NUXT_SPONSOR_EXPORTS_ENABLED=true.
     </div>
 
-    <div class="overflow-x-auto">
+    <div class="min-w-0 max-w-full overflow-x-auto">
       <table class="table table-sm">
         <thead>
           <tr><th>Organisation</th><th>Purpose</th><th>Fields</th><th class="text-right">Eligible now</th><th /></tr>
@@ -113,42 +113,44 @@ const editionParam = computed(() => props.editionQuery.edition ?? "");
       </table>
     </div>
 
-    <form v-if="!readOnly" class="flex flex-wrap items-end gap-2" @submit.prevent="addRecipient">
-      <label class="form-control">
+    <form v-if="!readOnly" class="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-2" @submit.prevent="addRecipient">
+      <label class="form-control w-full sm:w-auto min-w-0">
         <span class="label-text font-bold">Organisation (legal name)</span>
-        <input v-model="form.organisation" required maxlength="120" class="input input-bordered input-sm w-64" />
+        <input v-model="form.organisation" required maxlength="120" class="input input-bordered input-sm w-full sm:w-64 max-w-full" />
       </label>
-      <label class="form-control">
+      <label class="form-control w-full sm:w-auto min-w-0">
         <span class="label-text font-bold">Purpose</span>
-        <input v-model="form.purpose" maxlength="300" placeholder="Internship and job recruitment" class="input input-bordered input-sm w-72" />
+        <input v-model="form.purpose" maxlength="300" placeholder="Internship and job recruitment" class="input input-bordered input-sm w-full sm:w-72 max-w-full" />
       </label>
       <button type="submit" class="btn btn-primary btn-sm">Add sponsor</button>
       <span v-if="error" role="alert" class="text-error text-sm">{{ error }}</span>
     </form>
 
     <div class="flex flex-wrap gap-2">
-      <a :href="`/api/admin/sponsors/report?edition=${editionParam}`" download class="btn btn-outline btn-sm">
+      <a :href="`/api/admin/sponsors/report?edition=${editionParam}`" download class="btn btn-outline btn-sm h-auto min-h-8 whitespace-normal text-left">
         ↓ Aggregate sponsor report (small groups suppressed)
       </a>
-      <a :href="`/api/admin/catering/export?edition=${editionParam}`" download class="btn btn-outline btn-sm">
+      <a :href="`/api/admin/catering/export?edition=${editionParam}`" download class="btn btn-outline btn-sm h-auto min-h-8 whitespace-normal text-left">
         ↓ Catering list (organisers only)
       </a>
     </div>
 
-    <details>
+    <details class="min-w-0">
       <summary class="cursor-pointer font-bold">Export log ({{ audit?.length ?? 0 }})</summary>
-      <table class="table table-xs mt-2">
-        <thead><tr><th>When</th><th>Who</th><th>Kind</th><th>Recipient</th><th class="text-right">Rows</th></tr></thead>
-        <tbody>
-          <tr v-for="a in audit" :key="a.id">
-            <td>{{ new Date(a.exported_at).toLocaleString("en-GB", { timeZone: "Europe/Sofia" }) }}</td>
-            <td>{{ a.exporter?.name ?? "—" }}</td>
-            <td>{{ a.export_kind }}</td>
-            <td>{{ a.recipient?.organisation ?? "—" }}</td>
-            <td class="text-right tabular-nums">{{ a.row_count }}</td>
-          </tr>
-        </tbody>
-      </table>
+      <div class="min-w-0 max-w-full overflow-x-auto">
+        <table class="table table-xs mt-2">
+          <thead><tr><th>When</th><th>Who</th><th>Kind</th><th>Recipient</th><th class="text-right">Rows</th></tr></thead>
+          <tbody>
+            <tr v-for="a in audit" :key="a.id">
+              <td>{{ new Date(a.exported_at).toLocaleString("en-GB", { timeZone: "Europe/Sofia" }) }}</td>
+              <td>{{ a.exporter?.name ?? "—" }}</td>
+              <td>{{ a.export_kind }}</td>
+              <td>{{ a.recipient?.organisation ?? "—" }}</td>
+              <td class="text-right tabular-nums">{{ a.row_count }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </details>
   </section>
 </template>

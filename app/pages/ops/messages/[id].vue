@@ -159,7 +159,7 @@ function time(iso: string) {
 </script>
 
 <template>
-  <main class="max-w-2xl mx-auto p-4 md:p-6 my-8 flex flex-col gap-4 bg-base-100 border-2 border-primary">
+  <main class="w-full max-w-2xl min-w-0 mx-auto p-4 md:p-6 my-8 flex flex-col gap-4 bg-base-100 border-2 border-primary">
     <NuxtLink to="/ops/messages" class="btn btn-ghost btn-sm self-start">← Messages</NuxtLink>
 
     <p v-if="loadError" role="alert" class="alert alert-warning">
@@ -191,7 +191,7 @@ function time(iso: string) {
         <li
           v-for="m in messages"
           :key="m.id"
-          class="flex flex-col max-w-[85%]"
+          class="flex flex-col min-w-0 max-w-[85%]"
           :class="m.mine ? 'self-end items-end' : 'self-start items-start'"
         >
           <span class="text-xs opacity-60">{{ m.mine ? "You" : m.author.name }} · {{ time(m.created_at) }}</span>
@@ -228,7 +228,7 @@ function time(iso: string) {
           placeholder="Write a message…"
           @keydown.enter.exact.prevent="send"
         />
-        <div class="flex items-center justify-between gap-2">
+        <div class="flex flex-wrap items-center justify-between gap-2">
           <button type="button" class="link text-xs opacity-60" @click="reporting = 'conversation'">
             Report this conversation
           </button>

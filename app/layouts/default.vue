@@ -19,11 +19,11 @@ const instagram = appConfig.socials.instagram;
   </ClientOnly>
 
   <div
-    class="shader-container w-full min-h-screen bg-[url('/index.webp')] bg-repeat bg-auto font-cygrotesk"
+    class="shader-container w-full min-w-0 min-h-screen bg-[url('/index.webp')] bg-repeat bg-auto font-cygrotesk"
   >
     <div class="flex flex-col min-h-screen">
       <div
-        class="navbar bg-base-100 shadow-sm border-b-2 border-primary gap-2 px-4"
+        class="navbar min-w-0 flex-wrap bg-base-100 shadow-sm border-b-2 border-primary gap-2 px-4"
       >
         <div class="flex flex-row flex-wrap">
           <div class="">
@@ -109,7 +109,7 @@ const instagram = appConfig.socials.instagram;
       </div>
 
       <AppBanners />
-      <div class="flex flex-col flex-1 w-full">
+      <div class="flex flex-col flex-1 w-full min-w-0 [overflow-wrap:anywhere]">
         <slot />
       </div>
       <nav

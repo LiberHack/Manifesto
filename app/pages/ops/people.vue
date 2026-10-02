@@ -53,7 +53,7 @@ async function dismiss(candidateId: string) {
 </script>
 
 <template>
-  <main class="max-w-3xl mx-auto p-6 my-8 space-y-6 bg-base-100 border-2 border-primary">
+  <main class="w-full max-w-3xl min-w-0 mx-auto p-4 sm:p-6 my-8 space-y-6 bg-base-100 border-2 border-primary">
     <div class="flex items-center justify-between gap-4 flex-wrap">
       <h1 class="text-xl md:text-4xl font-black uppercase">People looking for a team</h1>
       <NuxtLink to="/ops/dashboard" class="btn btn-outline btn-sm font-black uppercase">> Dashboard</NuxtLink>
@@ -97,7 +97,7 @@ async function dismiss(candidateId: string) {
             @sent="onSent(s.profile.name)"
             @cancel="inviting = null"
           />
-          <div v-else class="flex gap-2">
+          <div v-else class="flex flex-wrap gap-2">
             <button class="btn btn-outline btn-sm font-black uppercase" @click="inviting = `s:${s.profile.registration_id}`">
               Invite
             </button>

@@ -106,7 +106,7 @@ async function resolve(hideMessage: boolean) {
 </script>
 
 <template>
-  <main class="max-w-5xl mx-auto p-6 my-8 space-y-10 bg-base-100 border-2 border-primary">
+  <main class="w-full max-w-5xl min-w-0 mx-auto p-4 sm:p-6 my-8 space-y-10 bg-base-100 border-2 border-primary [overflow-wrap:anywhere]">
     <div class="flex items-center justify-between gap-4 flex-wrap">
       <h1 class="text-xl md:text-4xl font-black uppercase">Matching &amp; reports</h1>
       <NuxtLink to="/ops/admin" class="btn btn-outline btn-sm font-black uppercase">> Admin</NuxtLink>
@@ -165,7 +165,7 @@ async function resolve(hideMessage: boolean) {
       <p v-if="!proposals.length" class="opacity-60 text-sm">None yet.</p>
       <ul class="flex flex-col gap-2">
         <li v-for="p in proposals" :key="p.id" class="p-3 border border-base-content/20 flex flex-col gap-1">
-          <div class="flex items-center justify-between gap-2">
+          <div class="flex flex-wrap items-center justify-between gap-2">
             <span class="font-bold">{{ p.name }} <span class="badge badge-sm">{{ p.status }}</span></span>
             <button v-if="p.status === 'open'" class="btn btn-ghost btn-xs" @click="cancelProposal(p.id)">Withdraw</button>
           </div>
@@ -185,7 +185,7 @@ async function resolve(hideMessage: boolean) {
       </p>
       <p v-if="!reports.length" class="opacity-60 text-sm">No reports.</p>
       <ul class="flex flex-col gap-2">
-        <li v-for="r in reports" :key="r.id" class="p-3 border border-base-content/20 flex items-center justify-between gap-2">
+        <li v-for="r in reports" :key="r.id" class="p-3 border border-base-content/20 flex flex-wrap items-center justify-between gap-2">
           <span class="text-sm">
             <span class="badge badge-sm" :class="r.status === 'open' ? 'badge-warning' : ''">{{ r.status }}</span>
             {{ r.conversation?.team?.name }} ({{ r.conversation?.kind }}) — reported by
@@ -197,7 +197,7 @@ async function resolve(hideMessage: boolean) {
     </section>
 
     <dialog v-if="openReport" class="modal modal-open" @click.self="openReport = null">
-      <div class="modal-box max-w-2xl">
+      <div class="modal-box max-w-2xl [overflow-wrap:anywhere]">
         <h3 class="font-black text-lg mb-2">Report</h3>
         <p class="text-sm mb-4">“{{ openReport.report.reason }}”</p>
         <ol class="flex flex-col gap-2 max-h-96 overflow-y-auto">
