@@ -106,7 +106,7 @@ async function resolve(hideMessage: boolean) {
 </script>
 
 <template>
-  <main class="w-full max-w-5xl min-w-0 mx-auto p-4 sm:p-6 my-8 space-y-10 bg-base-100 border-2 border-primary [overflow-wrap:anywhere]">
+  <main class="w-full max-w-5xl min-w-0 mx-auto p-4 sm:p-6 my-8 space-y-10 bg-base-100 border-2 border-primary [overflow-wrap:break-word]">
     <div class="flex items-center justify-between gap-4 flex-wrap">
       <h1 class="text-xl md:text-4xl font-black uppercase">Matching &amp; reports</h1>
       <NuxtLink to="/ops/admin" class="btn btn-outline btn-sm font-black uppercase">> Admin</NuxtLink>
@@ -197,7 +197,7 @@ async function resolve(hideMessage: boolean) {
     </section>
 
     <dialog v-if="openReport" class="modal modal-open" @click.self="openReport = null">
-      <div class="modal-box max-w-2xl [overflow-wrap:anywhere]">
+      <div class="modal-box max-w-2xl [overflow-wrap:break-word]">
         <h3 class="font-black text-lg mb-2">Report</h3>
         <p class="text-sm mb-4">“{{ openReport.report.reason }}”</p>
         <ol class="flex flex-col gap-2 max-h-96 overflow-y-auto">

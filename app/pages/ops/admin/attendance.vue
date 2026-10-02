@@ -49,7 +49,7 @@ async function queueReminders() {
 }
 </script>
 <template>
-  <main class="w-full max-w-5xl min-w-0 mx-auto p-4 md:p-8 space-y-8 bg-base-100 [overflow-wrap:anywhere]">
+  <main class="w-full max-w-5xl min-w-0 mx-auto p-4 md:p-8 space-y-8 bg-base-100 [overflow-wrap:break-word]">
     <div class="flex flex-wrap justify-between gap-3"><h1 class="text-3xl font-black uppercase">Attendance desk</h1><NuxtLink to="/ops/admin" class="btn btn-outline">← Admin</NuxtLink></div>
     <p v-if="message" role="status" class="alert alert-info">{{ message }}</p>
     <section v-if="timing" class="border-2 border-base-content p-4 space-y-3">

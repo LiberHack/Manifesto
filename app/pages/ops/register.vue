@@ -88,7 +88,7 @@ async function register() {
   <main class="w-full min-h-screen flex items-center justify-center p-4 py-12">
     <div
       v-if="opsClosed"
-      class="w-full max-w-md min-w-0 flex flex-col gap-4 bg-base-100 p-4 sm:p-8 border-primary border-2 [overflow-wrap:anywhere]"
+      class="w-full max-w-md min-w-0 flex flex-col gap-4 bg-base-100 p-4 sm:p-8 border-primary border-2 [overflow-wrap:break-word]"
     >
       <h1 class="text-2xl sm:text-4xl font-black uppercase tracking-tight">
         Registration is not open yet
@@ -104,7 +104,7 @@ async function register() {
 
     <form
       v-else
-      class="w-full max-w-md min-w-0 flex flex-col gap-2 bg-base-100 p-4 sm:p-8 border-primary border-2 [overflow-wrap:anywhere]"
+      class="w-full max-w-md min-w-0 flex flex-col gap-2 bg-base-100 p-4 sm:p-8 border-primary border-2 [overflow-wrap:break-word]"
       @submit.prevent="register"
     >
       <h1 class="text-4xl font-black uppercase tracking-tight">Register</h1>

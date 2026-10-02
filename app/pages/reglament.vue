@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import ProseTable from "~/components/ProseTable.vue";
 import { labelContentTableCells } from "~/utils/contentTables";
 
 const { data: page } = await useAsyncData("reglament", () =>
@@ -35,7 +34,7 @@ useSeoMeta({ title: "Регламент — LiberHack" });
       </p>
     </div>
 
-    <ContentRenderer v-if="page" :value="page" :components="{ table: ProseTable }" class="min-w-0 flex flex-col gap-12" />
+    <ContentRenderer v-if="page" :value="page" class="min-w-0 flex flex-col gap-12" />
 
     <p v-if="page?.updated" class="text-xs opacity-40 text-right">
       Последна актуализация: {{ page.updated }}

@@ -65,7 +65,7 @@ function dismiss(id: string) {
     class="flex justify-between items-start gap-3 min-w-0 border-b-2 bg-base-100 text-sm font-bold py-2 px-4"
     :class="announcement.variant === 'warning' ? 'border-warning' : 'border-primary'"
   >
-    <span class="min-w-0 [overflow-wrap:anywhere]">
+    <span class="min-w-0 [overflow-wrap:break-word]">
       {{ announcement.body }}
       <NuxtLink v-if="announcement.href" :to="announcement.href" class="underline">
         →

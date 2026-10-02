@@ -88,7 +88,7 @@ const purgeStale = computed(() => {
 </script>
 
 <template>
-  <div v-if="report" class="min-w-0 flex flex-col gap-4 [overflow-wrap:anywhere]">
+  <div v-if="report" class="min-w-0 flex flex-col gap-4 [overflow-wrap:break-word]">
     <h3 class="font-black text-lg uppercase">Where registrations come from</h3>
     <p class="text-sm opacity-70 max-w-3xl">
       Only browsers whose visitor clicked "Allow analytics" are counted, and only

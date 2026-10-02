@@ -530,7 +530,7 @@ async function addAnnouncement() {
 </script>
 
 <template>
-  <main class="w-full max-w-5xl min-w-0 mx-auto p-4 sm:p-6 space-y-12 bg-base-100 [overflow-wrap:anywhere]">
+  <main class="w-full max-w-5xl min-w-0 mx-auto p-4 sm:p-6 space-y-12 bg-base-100 [overflow-wrap:break-word]">
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
       <h1 class="text-4xl font-black uppercase">Admin</h1>
       <div class="flex flex-wrap items-center gap-3 min-w-0">
@@ -1174,7 +1174,7 @@ async function addAnnouncement() {
 
   <!-- Participant detail modal -->
   <dialog v-if="selected" class="modal modal-open" @click.self="selected = null">
-    <div class="modal-box max-w-lg min-w-0 [overflow-wrap:anywhere]">
+    <div class="modal-box max-w-lg min-w-0 [overflow-wrap:break-word]">
       <button
         class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
         @click="selected = null"

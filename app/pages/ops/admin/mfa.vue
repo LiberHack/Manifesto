@@ -64,7 +64,7 @@ onMounted(load);
 
 <template>
   <main class="w-full min-h-screen flex justify-center p-4 py-12">
-    <div class="w-full max-w-md min-w-0 bg-base-100 p-4 sm:p-8 border-primary border-2 flex flex-col gap-4 [overflow-wrap:anywhere]">
+    <div class="w-full max-w-md min-w-0 bg-base-100 p-4 sm:p-8 border-primary border-2 flex flex-col gap-4 [overflow-wrap:break-word]">
       <h1 class="text-3xl font-black uppercase tracking-tight">Admin second factor</h1>
       <p class="text-sm opacity-70">
         Exports of participant data need a verified second factor in this

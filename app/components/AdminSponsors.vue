@@ -63,7 +63,7 @@ const editionParam = computed(() => props.editionQuery.edition ?? "");
 </script>
 
 <template>
-  <section class="min-w-0 flex flex-col gap-4 [overflow-wrap:anywhere]">
+  <section class="min-w-0 flex flex-col gap-4 [overflow-wrap:break-word]">
     <h2 class="text-2xl font-bold">Sponsor sharing</h2>
     <p class="text-sm opacity-70 max-w-3xl">
       A sponsor export contains only people whose current answer for that

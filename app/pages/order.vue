@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import ProseTable from "~/components/ProseTable.vue";
 import { labelContentTableCells } from "~/utils/contentTables";
 
 const { data: page } = await useAsyncData("order", () =>
@@ -36,7 +35,7 @@ useSeoMeta({ title: "Ред на презентациите — LiberHack" });
       <ContentRenderer
         v-if="page"
         :value="page"
-        :components="{ table: ProseTable }"
+       
         class="prose prose-invert max-w-none prose-headings:font-black prose-headings:uppercase prose-headings:tracking-tight prose-h2:text-primary prose-h2:border-b-2 prose-h2:border-primary prose-h2:pb-2 prose-h2:mt-10 prose-table:border-collapse prose-table:w-full prose-table:min-w-[32rem] prose-th:border prose-th:border-primary/60 prose-th:p-3 prose-th:bg-primary/20 prose-th:text-left prose-td:border prose-td:border-primary/30 prose-td:p-3 prose-tr:even:bg-base-100/60 prose-strong:text-primary prose-a:text-primary prose-a:no-underline hover:prose-a:underline"
       />
     </div>

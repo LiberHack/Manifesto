@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import ProseTable from "~/components/ProseTable.vue";
 import { labelContentTableCells } from "~/utils/contentTables";
 
 const route = useRoute();
@@ -22,7 +21,7 @@ useSeoMeta({ title: page.value.title });
       <ContentRenderer
         v-if="page"
         :value="page"
-        :components="{ table: ProseTable }"
+       
         class="prose prose-invert max-w-none
                prose-headings:font-black prose-headings:uppercase prose-headings:tracking-tight
                prose-h1:text-2xl sm:prose-h1:text-4xl prose-h2:text-xl sm:prose-h2:text-2xl

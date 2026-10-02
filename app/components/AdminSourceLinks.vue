@@ -85,7 +85,7 @@ const shownQr = ref<string | null>(null);
 </script>
 
 <template>
-  <div class="min-w-0 flex flex-col gap-3 [overflow-wrap:anywhere]">
+  <div class="min-w-0 flex flex-col gap-3 [overflow-wrap:break-word]">
     <h3 class="font-black text-lg uppercase">Links</h3>
     <p class="text-sm opacity-70 max-w-3xl">
       Only links created here are counted. Tags are permanent: they cannot be
