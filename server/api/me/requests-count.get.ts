@@ -36,7 +36,10 @@ export default defineEventHandler(async (event) => {
     .select("id", { count: "exact", head: true })
     .eq("team_id", team.id)
     .eq("edition_slug", edition.slug)
-    .eq("status", "pending");
+    .eq("status", "pending")
+    // Expiry is applied lazily when a request is decided, so exclude requests
+    // that are already past their expiry instead of counting them forever.
+    .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`);
 
   return { count: count ?? 0 };
 });

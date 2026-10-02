@@ -252,8 +252,9 @@ $$;
 -- Put a registration into a team of the current edition, within the team's
 -- declared size (never more than six). With p_allow_switch the registration
 -- first leaves its current team, in the same transaction, so a failed join
--- never leaves anyone teamless. Team rows are locked in id order so two
--- opposite switches cannot deadlock.
+-- never leaves anyone teamless. The registration row is locked before any team
+-- row (the same order leave_team uses), and team rows in id order, so a
+-- concurrent leave or an opposite switch cannot deadlock.
 create or replace function public.join_team(
   p_registration uuid,
   p_team uuid,
@@ -271,7 +272,15 @@ declare
   members int;
   capacity int;
 begin
-  select team_id into current_team from public.registrations where id = p_registration;
+  -- Lock the registration before any team row: leave_team, create_team and
+  -- decide_join_request all take the registration lock first, so this order is
+  -- consistent and cannot deadlock against a concurrent leave.
+  select id, participant_id, edition_slug, team_id into r
+  from public.registrations where id = p_registration for update;
+  if not found then
+    raise exception 'registration_not_found';
+  end if;
+  current_team := r.team_id;
 
   perform 1 from public.teams
   where id in (p_team, current_team)
@@ -288,23 +297,14 @@ begin
     raise exception 'edition_not_writable';
   end if;
 
-  select id, participant_id, edition_slug, team_id into r
-  from public.registrations where id = p_registration for update;
-  if not found then
-    raise exception 'registration_not_found';
-  end if;
-
   if r.edition_slug <> t.edition_slug then
     raise exception 'edition_mismatch';
   end if;
   if r.team_id is not distinct from p_team then
     raise exception 'already_in_team';
   end if;
-  if r.team_id is not null then
-    -- A concurrent change moved them after the unlocked read above.
-    if not p_allow_switch or r.team_id is distinct from current_team then
-      raise exception 'already_in_team';
-    end if;
+  if r.team_id is not null and not p_allow_switch then
+    raise exception 'already_in_team';
   end if;
 
   capacity := least(t.desired_size, 6);
@@ -425,17 +425,12 @@ begin
     raise exception 'edition_not_writable';
   end if;
 
-  if req.expires_at is not null and req.expires_at <= now() then
-    update public.join_requests
-    set status = 'expired', close_reason = 'expired', decided_at = now()
-    where id = p_request
-    returning * into req;
-    return req;
-  end if;
-
-  select leader_id into leader from public.teams where id = req.team_id for update;
+  -- Lock the target registration before the team row, matching join_team and
+  -- leave_team, so this cannot deadlock against a concurrent leave.
   select id into target from public.registrations
-  where participant_id = req.participant_id and edition_slug = req.edition_slug;
+  where participant_id = req.participant_id and edition_slug = req.edition_slug
+  for update;
+  select leader_id into leader from public.teams where id = req.team_id for update;
 
   if p_action = 'approve' or p_action = 'reject' then
     if req.kind <> 'application' then
@@ -458,6 +453,16 @@ begin
     end if;
   else
     raise exception 'unknown_action';
+  end if;
+
+  -- Expiry is evaluated only after the caller is authorized, so an
+  -- unauthorized caller cannot force an expired request to be closed.
+  if req.expires_at is not null and req.expires_at <= now() then
+    update public.join_requests
+    set status = 'expired', close_reason = 'expired', decided_at = now()
+    where id = p_request
+    returning * into req;
+    return req;
   end if;
 
   if p_action in ('approve', 'accept') then
