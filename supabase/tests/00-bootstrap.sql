@@ -12,5 +12,19 @@ create table auth.users (
   created_at timestamptz not null default now()
 );
 
+-- Like Supabase: the caller's id comes from the JWT `sub` claim.
 create or replace function auth.uid() returns uuid
-language sql stable as $$ select null::uuid $$;
+language sql stable as $$
+  select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
+$$;
+
+-- Like Supabase: API roles get table and function privileges by default, so
+-- RLS policies and explicit revokes are what actually restrict them.
+grant usage on schema public to anon, authenticated, service_role;
+grant usage on schema auth to anon, authenticated, service_role;
+alter default privileges in schema public
+  grant all on tables to anon, authenticated, service_role;
+alter default privileges in schema public
+  grant all on sequences to anon, authenticated, service_role;
+alter default privileges in schema public
+  grant execute on functions to anon, authenticated, service_role;

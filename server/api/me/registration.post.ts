@@ -1,6 +1,7 @@
 import { serverSupabaseUser } from "#supabase/server";
 import { useSupabaseAdmin } from "#server/utils/supabase";
-import { getCurrentEdition } from "#server/utils/registrationContext";
+import { requireOpenEdition } from "#server/utils/registrationContext";
+import { requireConfirmedEmail } from "#server/utils/requireConfirmedEmail";
 
 const EXPERIENCE_VALUES = ["beginner", "intermediate", "experienced"] as const;
 type ExperienceLevel = (typeof EXPERIENCE_VALUES)[number];
@@ -21,6 +22,8 @@ interface Body {
 /**
  * Register the caller for the current edition.
  *
+ * Refused with 403 `ops_closed` until the edition's participant area opens,
+ * and with 403 `email_unverified` until the account's email is confirmed.
  * The per-edition participant cap is enforced by the `enforce_edition_cap`
  * trigger, surfaced here as 409 `registration_closed`.
  */
@@ -29,10 +32,8 @@ export default defineEventHandler(async (event) => {
   if (!user) throw createError({ statusCode: 401, message: "Unauthorized" });
 
   const supabase = useSupabaseAdmin();
-  const edition = await getCurrentEdition(supabase);
-  if (!edition) {
-    throw createError({ statusCode: 503, message: "no_live_edition" });
-  }
+  const edition = await requireOpenEdition(supabase);
+  await requireConfirmedEmail(supabase, user.sub);
 
   const body = await readBody<Body>(event);
 

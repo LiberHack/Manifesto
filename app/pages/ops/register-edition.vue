@@ -69,6 +69,11 @@ async function submit() {
     await router.push(nextPath.value);
   } catch (e: unknown) {
     const message = (e as { data?: { message?: string } }).data?.message;
+    if (message === "email_unverified") {
+      loading.value = false;
+      await router.push("/ops/verify-email");
+      return;
+    }
     error.value =
       message === "registration_closed"
         ? `Registration for ${editionName.value} is full.`

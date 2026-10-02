@@ -4,9 +4,25 @@ import {
   decisionRejectedHtml,
 } from "./email-templates";
 
-function fill(template: string, vars: Record<string, string>): string {
+const HTML_ESCAPES: Record<string, string> = {
+  "&": "&amp;",
+  "<": "&lt;",
+  ">": "&gt;",
+  '"': "&quot;",
+  "'": "&#39;",
+};
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (c) => HTML_ESCAPES[c]!);
+}
+
+/**
+ * Substitute `{{KEY}}` placeholders in an HTML template. Values are escaped,
+ * since names and team names are participant-controlled.
+ */
+export function fill(template: string, vars: Record<string, string>): string {
   return Object.entries(vars).reduce(
-    (html, [key, value]) => html.replaceAll(`{{${key}}}`, value),
+    (html, [key, value]) => html.replaceAll(`{{${key}}}`, escapeHtml(value)),
     template,
   );
 }

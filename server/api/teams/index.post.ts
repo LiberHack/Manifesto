@@ -78,10 +78,24 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 500, message: "Failed to create team" });
   }
 
-  await supabase
+  // Conditional on team_id still being null, so a concurrent create (or join)
+  // that got there first wins and this team is rolled back rather than left
+  // with a leader who is not a member.
+  const { data: joined, error: joinError } = await supabase
     .from("registrations")
     .update({ team_id: team.id, role: "leader" })
-    .eq("id", registration.id);
+    .eq("id", registration.id)
+    .is("team_id", null)
+    .select("id");
+
+  if (joinError || !joined?.length) {
+    await supabase.from("teams").delete().eq("id", team.id);
+    if (joinError) {
+      console.error("[teams.post] leader update failed:", joinError.message);
+      throw createError({ statusCode: 500, message: "Failed to create team" });
+    }
+    throw createError({ statusCode: 409, message: "Already in a team" });
+  }
 
   return team;
 });
