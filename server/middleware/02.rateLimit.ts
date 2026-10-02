@@ -1,3 +1,5 @@
+import { rateLimitKey } from "#server/utils/rateLimitKey";
+
 const WINDOW_MS = 60_000; // 1 minute
 
 // Tighter limits for unauthenticated/expensive endpoints.
@@ -16,12 +18,12 @@ const store = new Map<string, { count: number; resetAt: number }>();
 
 const API_PATTERN = /^\/api\//;
 
-function localLimit(ip: string, max: number): number | null {
+function localLimit(key: string, max: number): number | null {
   const now = Date.now();
-  const entry = store.get(ip);
+  const entry = store.get(key);
 
   if (!entry || now >= entry.resetAt) {
-    store.set(ip, { count: 1, resetAt: now + WINDOW_MS });
+    store.set(key, { count: 1, resetAt: now + WINDOW_MS });
     return null;
   }
 
@@ -32,16 +34,13 @@ function localLimit(ip: string, max: number): number | null {
 export default defineEventHandler(async (event) => {
   if (!API_PATTERN.test(event.path)) return;
 
-  // cf-connecting-ip is set by Cloudflare from the actual TCP connection and cannot be spoofed
-  const ip =
-    getHeader(event, "cf-connecting-ip") ??
-    getHeader(event, "x-forwarded-for")?.split(",")[0]?.trim() ??
-    "unknown";
-
-  // Key signed-in requests per user, not per IP: many attendees behind one
-  // venue NAT (and chat polling) would otherwise share a single bucket and 429.
-  const user = (event.context.user as { sub?: string } | null | undefined)?.sub;
-  const key = user ? `user:${user}` : `ip:${ip}`;
+  const key = rateLimitKey(
+    (event.context.user as { sub?: string } | null | undefined)?.sub,
+    {
+      cfConnectingIp: getHeader(event, "cf-connecting-ip"),
+      forwardedFor: getHeader(event, "x-forwarded-for"),
+    },
+  );
 
   const maxRequests = Number(useRuntimeConfig(event).rateLimitMax) || 60;
   const [, routeMax, bindingName] =
@@ -57,7 +56,9 @@ export default defineEventHandler(async (event) => {
     const { success } = await limiter.limit({ key });
     retryAfter = success ? null : WINDOW_MS / 1000;
   } else {
-    retryAfter = localLimit(key, routeMax);
+    // One counter per limit, like the per-binding Workers limiters: a shared
+    // counter would charge every /api call against the tighter route limits.
+    retryAfter = localLimit(`${bindingName}:${key}`, routeMax);
   }
 
   if (retryAfter !== null) {
