@@ -42,22 +42,10 @@ export default defineEventHandler(async (event) => {
     .from("join_requests")
     .update({ status: body.status })
     .eq("id", requestId!)
-    .eq("status", "pending")
     .select()
     .single();
 
   if (error) {
-    // No row: the request stopped being pending since it was read (e.g. the
-    // requester created a team, which rejects their pending requests).
-    if (error.code === "PGRST116") {
-      throw createError({ statusCode: 409, message: "Request is not pending" });
-    }
-    if (error.message?.includes("already_in_team")) {
-      throw createError({
-        statusCode: 409,
-        message: "The requester is already in a team",
-      });
-    }
     if (error.message?.includes("team_full")) {
       throw createError({ statusCode: 409, message: "Team is already full" });
     }
