@@ -24,6 +24,15 @@ jwt_expiry = 3600
 enable_signup = true
 enable_anonymous_sign_ins = false
 
+# Second factor for admins: personal-data exports require an aal2 session
+# (server/utils/adminAuth.ts requireAdminWithMfa). Push with `supabase config push`.
+[auth.mfa]
+max_enrolled_factors = 10
+
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
+
 [auth.rate_limit]
 email_sent = 3
 

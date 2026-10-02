@@ -68,7 +68,7 @@ async function sendToMailpit(baseUrl: string, options: EmailOptions): Promise<bo
  * logged by status only: never the address or the provider's response body,
  * which can echo it.
  */
-async function sendEmail(options: EmailOptions): Promise<boolean> {
+export async function sendEmail(options: EmailOptions): Promise<boolean> {
   const config = useRuntimeConfig();
   if (config.mailpitUrl) return sendToMailpit(config.mailpitUrl as string, options);
   const res = await fetch("https://api.resend.com/emails", {
@@ -86,6 +86,7 @@ async function sendEmail(options: EmailOptions): Promise<boolean> {
     }),
   });
   if (!res.ok) {
+    // No recipient address or response body in logs: both can carry personal data.
     console.error("[email] send failed with status", res.status);
   }
   return res.ok;

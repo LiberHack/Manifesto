@@ -30,7 +30,7 @@ const PREDICATES: Record<
   leaders: (registration) => registration.role === "leader",
   no_team: (registration) => registration.team_id === null,
   missing_profile: (registration) =>
-    registration.dietary == null || registration.experience == null,
+    registration.catering == null || registration.experience == null,
 };
 
 /**

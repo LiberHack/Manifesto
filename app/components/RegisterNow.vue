@@ -25,7 +25,11 @@ const substitutions = {
   " ": "_",
 };
 
-const navigateRegister = () => router.push("/ops/register");
+const { track } = useAnalyticsConsent();
+const navigateRegister = () => {
+  track("registration_cta_clicked");
+  router.push("/ops/register");
+};
 
 const getGlitchVersion = (text) => {
   return text

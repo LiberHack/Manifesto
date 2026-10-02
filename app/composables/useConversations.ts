@@ -14,7 +14,9 @@ export async function useConversations() {
   const request = useRequestFetch();
   const result = await useAsyncData<ConversationSummary[]>(
     "conversations",
-    () => request("/api/me/conversations") as Promise<ConversationSummary[]>,
+    // Explicit response type: inferring it from the route union of every
+    // /api route exceeds TypeScript's instantiation depth.
+    () => request<ConversationSummary[]>("/api/me/conversations" as string),
     { default: () => [] },
   );
   const unreadTotal = computed(() =>

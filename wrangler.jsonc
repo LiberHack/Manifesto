@@ -31,7 +31,11 @@
       "database_id": "30db1462-be8c-4114-983c-63133fabe7bc",
     },
   ],
-  // Per-IP limits for /api/* — consumed by server/middleware/02.rateLimit.ts.
+  // Daily privacy checks (server/tasks/privacy/retention-monitor.ts).
+  "triggers": {
+    "crons": ["0 7 * * *"],
+  },
+  // Per-IP limits for /api/* and /go/* — consumed by server/middleware/02.rateLimit.ts.
   // Counters live per Cloudflare location; namespace_id must be unique per binding.
   "ratelimits": [
     {
@@ -92,6 +96,10 @@
           "database_id": "ef7112fd-4373-4e22-b8fc-664fcaa8fc66",
         },
       ],
+      // Same schedule; the monitor only emails from production (shared database).
+      "triggers": {
+        "crons": ["0 7 * * *"],
+      },
       "ratelimits": [
         {
           "name": "RL_API",

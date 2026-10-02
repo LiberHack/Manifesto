@@ -44,6 +44,8 @@ describe("GET /api/editions/current", () => {
       edition: null,
       full: true,
       ops_open: false,
+      // No readable edition also means no analytics banner.
+      analytics_enabled: false,
     });
   });
 });

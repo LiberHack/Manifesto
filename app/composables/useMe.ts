@@ -9,9 +9,12 @@ export interface MeRegistration {
   role: "participant" | "leader";
   team_id: string | null;
   skills: string[];
-  dietary: string | null;
   experience: "beginner" | "intermediate" | "experienced" | null;
+  /** Opted into the public archive. */
   public: boolean;
+  public_opted_in_at: string | null;
+  /** Restricted catering answer; null until the person has answered. */
+  catering: { diet: "none" | "vegetarian" | "vegan" | "other"; note: string | null } | null;
   accepted_terms_at: string;
   registered_at: string;
   matching_status: MatchingStatus | null;
@@ -65,7 +68,6 @@ export interface Me {
     languages: string[];
   } | null;
   skills?: string[];
-  dietary?: string | null;
   experience?: "beginner" | "intermediate" | "experienced" | null;
 }
 
@@ -82,7 +84,9 @@ export function useMe() {
 
   return useAsyncData<Me | null>(
     "me",
-    () => (user.value ? (request("/api/me") as Promise<Me>) : Promise.resolve(null)),
+    // Explicit response type: inferring it from Nitro's route union exceeds the
+    // compiler's depth limit now that there are more API routes.
+    () => (user.value ? request<Me>("/api/me") : Promise.resolve(null)),
     { default: () => null, watch: [user] },
   );
 }

@@ -27,6 +27,7 @@ bun run preview:cf # run the built worker locally with wrangler dev (D1 + rate l
 bun run deploy     # nuxt build && wrangler deploy
 bun run test       # vitest (unit + e2e; also gates every Workers Builds deploy)
 bun run test:db    # apply supabase/migrations to a throwaway Postgres and assert schema behaviour
+bun run test:schedule # Docker: verify the pg_cron retention schedule in a throwaway container
 ```
 
 ## Package Manager
@@ -119,7 +120,8 @@ Rules that follow:
   runs ahead of its migrations presents as "not open yet" rather than broken.
   That is the intended way to ship a breaking schema change: release the code,
   push the migrations, then open the edition.
-- Consent is re-accepted per edition (`registrations.accepted_terms_at`).
+- Consent is re-accepted per edition: every purpose is a row in `consent_records`
+  (see Privacy below); `registrations.accepted_terms_at` is legacy.
 - Admin views take `?edition=<slug>`, defaulting to the current edition. Archived
   editions are readable but not writable (`assertEditionWritable`).
 - "Go live" runs through the `promote_edition(slug)` DB function so archiving the
@@ -255,6 +257,31 @@ hardcoded — adding or retiring a banner is an admin-panel action, not a deploy
 - Dismissal is per-id in `localStorage['dismissed_announcements']`. There is no
   server-side dismissal table, so editing a row's body does not un-dismiss it.
 
+## Privacy, consent & analytics
+
+Read `docs/privacy/README.md` before touching registration, exports or tracking.
+
+- Registration writes one `consent_records` row per purpose via `register_with_consents()`;
+  never infer one purpose from another, never backfill.
+- Sponsor sharing is voluntary: an explicit Yes/No per named recipient (No never affects
+  participation). Data leaves only through `/api/admin/sponsors/:id/export`, which requires
+  admin + MFA (`aal2`) + `NUXT_SPONSOR_EXPORTS_ENABLED`, checks `sponsor_export_rows()` at
+  download time and writes `export_audit` first. Legacy `acknowledged` rows never qualify.
+- Every personal-data export uses `requireAdminWithMfa` and `server/utils/csv.ts`
+  (formula escaping, `no-store`).
+- Dietary data lives only in `registration_catering` (server-only). Never put it, or any consent,
+  in auth `user_metadata`.
+- Analytics is consent-gated per browser (`analytics_browsers`, HttpOnly `lh_aid`, fixed 30 days)
+  and off twice by default: `NUXT_ANALYTICS_ACTIVATION_ALLOWED` (server) and
+  `editions.analytics_enabled` (admin). No consent → no event, no storage, no substitute
+  identifier. `registration_completed` is written only by `analytics_complete_registration()`,
+  once per registration.
+- Source tags (`source_links`) are immutable and never reused; archive instead of deleting.
+- Retention: `run_retention()` scheduled by pg_cron (migration), missed runs alerted by the
+  `privacy:retention-monitor` Worker cron task. Undecided categories live in `retention_policies`
+  as absent rows — never invent periods. See `docs/privacy/retention-and-deletion.md`.
+- **Staging and production share one Supabase project.** `db push` affects production data.
+
 ## Testing
 
 `bun run test` runs vitest. Tests live in `tests/server/` and are e2e against one shared server:
@@ -306,7 +333,7 @@ bunx mjml server/emails/<name>.mjml -o server/emails/dist/<name>.html
 node server/emails/generate-ts.mjs   # regenerates server/utils/email-templates.ts
 ```
 
-Auth emails (signup, magic link, password reset) are Supabase Auth templates declared in `supabase/config.toml` (`[auth.email.template.*]`), pointing at the compiled HTML in `server/emails/dist/`. Supabase renders Go template variables (`{{ .ConfirmationURL }}`, `{{ .Email }}`) and sends via the Postmark SMTP configured in `[auth.email.smtp]`.
+Auth emails (signup, magic link, password reset) are Supabase Auth templates declared in `supabase/config.toml` (`[auth.email.template.*]`), pointing at the compiled HTML in `server/emails/dist/`. Supabase renders Go template variables (`{{ .ConfirmationURL }}`, `{{ .Email }}`) and sends via the Resend SMTP configured in `[auth.email.smtp]`.
 
 - After editing MJML: recompile to `dist/`, then `bunx supabase config push` to upload the new template to the cloud project.
 - Subjects are set in `supabase/config.toml`.

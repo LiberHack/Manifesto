@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { PRIVACY_NOTICE_FINAL, PRIVACY_NOTICE_VERSION } from '#shared/utils/privacy'
 import { VueDraggable } from 'vue-draggable-plus'
 import { fromSofiaLocal, toSofiaLocal } from '~/utils/sofiaTime'
 
@@ -14,6 +15,7 @@ interface Edition {
   is_current: boolean
   participant_cap: number
   ops_enabled: boolean
+  analytics_enabled: boolean
 }
 
 const { data: editions, refresh: refreshEditions } = await useFetch<Edition[]>("/api/admin/editions")
@@ -65,6 +67,16 @@ async function createEdition() {
  * also the switch to throw while a schema change is rolling out.
  */
 async function setOpsEnabled(edition: Edition, opsEnabled: boolean) {
+  // Every registration records the notice version it was made under; opening
+  // against a draft notice creates evidence pointing at an unfinished text.
+  if (
+    opsEnabled &&
+    !PRIVACY_NOTICE_FINAL &&
+    !confirm(
+      `The Privacy Notice (${PRIVACY_NOTICE_VERSION}) is not final: launch facts in docs/privacy/README.md are unresolved. Every registration records the notice version it was made under. Open "${edition.slug}" anyway?`,
+    )
+  )
+    return
   if (
     !opsEnabled &&
     !confirm(
@@ -79,6 +91,32 @@ async function setOpsEnabled(edition: Edition, opsEnabled: boolean) {
     await $fetch(`/api/admin/editions/${edition.slug}`, {
       method: 'PATCH',
       body: { ops_enabled: opsEnabled },
+    })
+    await refreshEditions()
+  } catch (e: unknown) {
+    editionError.value =
+      (e as { data?: { message?: string } }).data?.message ?? 'Failed to update edition'
+  } finally {
+    editionBusy.value = false
+  }
+}
+
+// Shows the consent banner and starts accepting events from browsers that
+// allow analytics. Gated on the launch blockers in docs/privacy/README.md.
+async function setAnalyticsEnabled(edition: Edition, enabled: boolean) {
+  if (
+    enabled &&
+    !confirm(
+      `Turn on analytics for "${edition.slug}"? Visitors will see the consent banner. Only do this once the launch blockers in docs/privacy/README.md are resolved.`,
+    )
+  )
+    return
+  editionBusy.value = true
+  editionError.value = ''
+  try {
+    await $fetch(`/api/admin/editions/${edition.slug}`, {
+      method: 'PATCH',
+      body: { analytics_enabled: enabled },
     })
     await refreshEditions()
   } catch (e: unknown) {
@@ -149,6 +187,14 @@ async function deleteParticipant(id: string) {
   await $fetch(`/api/admin/participants/${id}`, { method: "DELETE" });
   selected.value = null;
   await refreshParticipants();
+}
+
+// A rights request received by email: excludes the person from every later
+// sponsor export without touching their registration.
+async function recordSponsorObjection(id: string) {
+  if (!confirm("Record that this participant objects to sponsor sharing? They will be left out of all future sponsor exports.")) return;
+  await $fetch(`/api/admin/participants/${id}/sponsor-objection`, { method: "POST", query: editionQuery.value });
+  alert("Recorded. Check the export audit for sponsors who already received their data.");
 }
 
 /** Record that an organizer reached this person on their preferred channel. */
@@ -523,7 +569,7 @@ async function addAnnouncement() {
               <table class="table table-sm">
                 <thead>
                   <tr>
-                    <th>Slug</th><th>Name</th><th>Status</th><th>Cap</th><th>Participant area</th><th />
+                    <th>Slug</th><th>Name</th><th>Status</th><th>Cap</th><th>Participant area</th><th>Analytics</th><th />
                   </tr>
                 </thead>
                 <tbody>
@@ -565,6 +611,20 @@ async function addAnnouncement() {
                         />
                         <span class="text-xs uppercase font-bold opacity-70">
                           {{ e.ops_enabled ? 'open' : 'closed' }}
+                        </span>
+                      </label>
+                    </td>
+                    <td>
+                      <label class="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          class="toggle toggle-sm toggle-warning"
+                          :checked="e.analytics_enabled"
+                          :disabled="editionBusy || e.status === 'archived'"
+                          @change="setAnalyticsEnabled(e, ($event.target as HTMLInputElement).checked)"
+                        />
+                        <span class="text-xs uppercase font-bold opacity-70">
+                          {{ e.analytics_enabled ? 'on' : 'off' }}
                         </span>
                       </label>
                     </td>
@@ -1001,6 +1061,9 @@ async function addAnnouncement() {
       </div>
     </section>
 
+    <!-- ── Sources & sponsors ─────────────────────────────────────────────── -->
+    <AdminSources :edition-query="editionQuery" :read-only="editionReadOnly" />
+    <AdminSponsors :edition-query="editionQuery" :read-only="editionReadOnly" />
     <NuxtLink to="/ops/admin/matching" class="btn btn-outline btn-sm font-black uppercase">
       > Matching queue, proposals &amp; reports
     </NuxtLink>
@@ -1136,13 +1199,13 @@ async function addAnnouncement() {
           <span>{{ selected.experience ?? '—' }}</span>
 
           <span class="opacity-50 font-semibold">Dietary</span>
-          <span>{{ selected.dietary || '—' }}</span>
+          <span>{{ selected.catering ? selected.catering.diet + (selected.catering.note ? ' — ' + selected.catering.note : '') : '—' }}</span>
 
           <span class="opacity-50 font-semibold">Registered</span>
           <span>{{ new Date(selected.registered_at).toLocaleString() }}</span>
 
           <span class="opacity-50 font-semibold">Public</span>
-          <span>{{ selected.public ? 'yes' : 'opted out' }}</span>
+          <span>{{ selected.public ? 'opted in' : 'no' }}</span>
 
           <span class="opacity-50 font-semibold">Matching</span>
           <span>{{ selected.matching_status ?? 'not answered' }}</span>
@@ -1187,6 +1250,11 @@ async function addAnnouncement() {
       </div>
 
       <div class="modal-action">
+        <button
+          class="btn btn-warning btn-sm"
+          :disabled="editionReadOnly"
+          @click="recordSponsorObjection(selected.id)"
+        >Record sponsor objection</button>
         <button
           class="btn btn-error btn-sm"
           :disabled="editionReadOnly"

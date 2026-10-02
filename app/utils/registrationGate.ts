@@ -4,6 +4,8 @@
  */
 export const REGISTRATION_EXEMPT_PATHS = [
   "/ops/register-edition",
+  // Privacy choices must stay reachable whatever the registration state.
+  "/ops/privacy",
   "/ops/verify-email",
   "/ops/login",
   "/ops/confirm",
@@ -22,6 +24,7 @@ export function isRegistrationExempt(path: string): boolean {
  */
 export const OPS_CLOSED_EXEMPT_PATHS = [
   "/ops/admin",
+  "/ops/privacy",
   "/ops/login",
   "/ops/logout",
   "/ops/confirm",

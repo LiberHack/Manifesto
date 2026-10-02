@@ -37,9 +37,10 @@ function viewer(registration: Partial<NonNullable<Me["registration"]>> | null): 
           role: "participant",
           team_id: null,
           skills: [],
-          dietary: "none",
+          catering: { diet: "none", note: null },
           experience: "beginner",
-          public: true,
+          public: false,
+          public_opted_in_at: null,
           accepted_terms_at: "2026-01-01T00:00:00.000Z",
           registered_at: "2026-01-01T00:00:00.000Z",
           ...registration,
@@ -81,12 +82,12 @@ describe("shouldShowAnnouncement", () => {
     expect(shouldShowAnnouncement(row, viewer({ team_id: "t1" }), true)).toBe(false);
   });
 
-  it("shows audience 'missing_profile' when dietary or experience is unset", () => {
+  it("shows audience 'missing_profile' when catering or experience is unset", () => {
     const row = announcement({ audience: "missing_profile" });
-    expect(shouldShowAnnouncement(row, viewer({ dietary: null }), true)).toBe(true);
+    expect(shouldShowAnnouncement(row, viewer({ catering: null }), true)).toBe(true);
     expect(shouldShowAnnouncement(row, viewer({ experience: null }), true)).toBe(true);
     expect(
-      shouldShowAnnouncement(row, viewer({ dietary: "none", experience: "beginner" }), true),
+      shouldShowAnnouncement(row, viewer({ catering: { diet: "none", note: null }, experience: "beginner" }), true),
     ).toBe(false);
   });
 

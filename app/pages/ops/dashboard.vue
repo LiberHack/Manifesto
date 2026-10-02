@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { Diet } from "#shared/utils/privacy";
 import {
   CONTACT_METHOD_LABELS,
   contactFormFrom,
@@ -55,14 +56,19 @@ const isLeader = computed(
 
 // ── Profile edit ──────────────────────────────────────────────────────────────
 const profileForm = reactive({
-  dietary: me.value?.registration?.dietary ?? "",
+  diet: (me.value?.registration?.catering?.diet ?? "") as "" | Diet,
+  dietaryNote: me.value?.registration?.catering?.note ?? "",
+  dietaryNoteConsent: Boolean(me.value?.registration?.catering?.note),
   experience: (me.value?.registration?.experience ?? "") as
     | ""
     | "beginner"
     | "intermediate"
     | "experienced",
-  public: me.value?.registration?.public ?? true,
+  public: Boolean(me.value?.registration?.public_opted_in_at),
 });
+const profileHasNote = computed(
+  () => profileForm.diet === "other" && profileForm.dietaryNote.trim() !== "",
+);
 const profileSkills = ref<string[]>([...(me.value?.registration?.skills ?? [])]);
 const matchingProfile = ref<ProfileForm>(profileFormFrom(me.value?.registration));
 const profileSaving = ref(false);
@@ -75,9 +81,12 @@ async function saveProfile() {
     await $fetch("/api/me/profile", {
       method: "PATCH",
       body: {
-        dietary: profileForm.dietary,
         experience: profileForm.experience || null,
         public: profileForm.public,
+        ...(profileForm.diet ? { diet: profileForm.diet } : {}),
+        // An empty note deletes any stored note and withdraws its consent.
+        dietary_note: profileHasNote.value ? profileForm.dietaryNote : null,
+        dietary_note_consent: profileHasNote.value && profileForm.dietaryNoteConsent,
         skills: profileSkills.value,
         ...matchingProfile.value,
       },
@@ -149,7 +158,7 @@ async function saveTeam() {
   teamSaving.value = true;
   teamMessage.value = "";
   try {
-    await $fetch(`/api/teams/${me.value.team.id}`, {
+    await $fetch(`/api/teams/${me.value!.team!.id}`, {
       method: "PATCH",
       body: {
         skills_wanted: skillsWanted.value,
@@ -183,7 +192,7 @@ watch(showLeaveConfirm, async (open) => {
   if (!open) return;
   if (me.value?.team?.id && teamMemberCount.value === null) {
     try {
-      const team = await $fetch<{ members: unknown[] }>(`/api/teams/${me.value.team.id}`);
+      const team = await $fetch<{ members: unknown[] }>(`/api/teams/${me.value!.team!.id}`);
       teamMemberCount.value = team.members.length;
     } catch {
       teamMemberCount.value = 1;
@@ -225,7 +234,7 @@ async function saveRepo() {
   repoSaving.value = true;
   repoMessage.value = "";
   try {
-    await $fetch(`/api/teams/${me.value.team.id}/github-url`, {
+    await $fetch(`/api/teams/${me.value!.team!.id}/github-url`, {
       method: "PATCH",
       body: { github_url: repoUrl.value || null },
     });
@@ -264,7 +273,7 @@ async function rotateInviteLink() {
   rotatingInvite.value = true;
   inviteCopyMessage.value = "";
   try {
-    await $fetch(`/api/teams/${me.value.team.id}/rotate-invite`, { method: "POST" });
+    await $fetch(`/api/teams/${me.value!.team!.id}/rotate-invite`, { method: "POST" });
     await refreshMe();
     inviteCopyMessage.value = "Link rotated.";
   } catch (e: any) {
@@ -361,26 +370,52 @@ async function logout() {
           </label>
 
           <label class="form-control">
-            <span class="label-text font-bold">Dietary Requirements</span>
+            <span class="label-text font-bold">Food</span>
+            <span class="label-text text-xs opacity-60 mb-1">
+              Seen only by the organisers and the caterer.
+            </span>
+            <select v-model="profileForm.diet" class="select select-bordered w-full">
+              <option value="" disabled>Choose one…</option>
+              <option value="none">No requirements</option>
+              <option value="vegetarian">Vegetarian</option>
+              <option value="vegan">Vegan</option>
+              <option value="other">Something else — short note</option>
+            </select>
+          </label>
+
+          <label v-if="profileForm.diet === 'other'" class="form-control">
+            <span class="label-text font-bold">Short note (optional)</span>
+            <span class="label-text text-xs opacity-60 mb-1">
+              Just what the kitchen needs. No medical details beyond that, please.
+            </span>
             <input
-              v-model="profileForm.dietary"
+              v-model="profileForm.dietaryNote"
               type="text"
               maxlength="200"
-              placeholder="e.g. vegetarian, gluten-free, none"
               class="input input-bordered w-full"
             />
           </label>
 
-          <label class="flex items-start gap-3 cursor-pointer">
+          <label v-if="profileHasNote" class="flex items-start gap-3 cursor-pointer">
             <input
-              :checked="!profileForm.public"
+              v-model="profileForm.dietaryNoteConsent"
               type="checkbox"
               class="checkbox checkbox-primary mt-1 shrink-0"
-              @change="profileForm.public = !($event.target as HTMLInputElement).checked"
             />
-            <span class="text-sm leading-snug">Hide my profile from the public archive.</span>
+            <span class="text-sm leading-snug">
+              I explicitly consent to LiberHack storing this note to arrange my food.
+              It may reveal health or religious information.
+            </span>
           </label>
 
+          <label class="flex items-start gap-3 cursor-pointer">
+            <input v-model="profileForm.public" type="checkbox" class="checkbox checkbox-primary mt-1 shrink-0" />
+            <span class="text-sm leading-snug">
+              Show my name and team in the public archive after the event.
+            </span>
+          </label>
+
+          <NuxtLink to="/ops/privacy" class="link text-sm">More privacy choices →</NuxtLink>
           <div class="divider my-1" />
           <ProfileFields v-model="matchingProfile" />
 
