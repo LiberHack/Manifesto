@@ -313,14 +313,28 @@ select assert(
 -- Evidence: not rewritable, but erasable
 -- ------------------------------------------------------------
 
--- The admin who recorded P4's objection (P3) deletes their account.
+-- The admin who recorded P4's objection (P3) deletes their account. Deleted
+-- as GoTrue does it (auth.admin.deleteUser), so every cascade trigger must work
+-- without privileges in `public`.
+set role supabase_auth_admin;
 delete from auth.users where id = 'a0000000-0000-0000-0000-000000000003';
+reset role;
 
 select assert(
   (select recorded_by is null and decision = 'objected'
    from public.consent_records
    where participant_id = 'a0000000-0000-0000-0000-000000000004' and decision = 'objected'),
   'an admin who recorded a decision can still delete their account; the record stays');
+
+-- Postgres 18 (local) runs cascade-fired AFTER triggers as the queuing role, so
+-- the delete above passes here even when it fails on Supabase's Postgres 17,
+-- where they run as supabase_auth_admin. Pin the property that makes it work.
+select assert(
+  (select bool_and(prosecdef) from pg_proc
+   where oid in ('public.ledger_participant_deletion'::regproc,
+                 'public.advance_waitlist'::regproc,
+                 'public.record_membership_change'::regproc)),
+  'AFTER triggers on the account-deletion cascade run as their owner, not as supabase_auth_admin');
 
 select assert(
   exists (select 1 from public.deletion_ledger
