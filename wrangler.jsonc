@@ -134,6 +134,9 @@
         "NUXT_PUBLIC_SUPABASE_KEY": "sb_publishable_5OAvE6HibaK1uN-MMUedhg_1q_U5n6B",
         "NUXT_RESEND_FROM_EMAIL": "LiberHack (staging) <noreply@liberhack.org>",
         "NUXT_SITE_URL": "https://staging.liberhack.org",
+        // Privacy gates (docs/privacy/README.md §3). Staging only until production is cleared.
+        "NUXT_SPONSOR_EXPORTS_ENABLED": "true",
+        "NUXT_ANALYTICS_ACTIVATION_ALLOWED": "true",
       },
     },
   },

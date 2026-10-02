@@ -182,8 +182,9 @@ at least as long as the oldest backup that could be restored.
 3. `bunx supabase config push` enables TOTP MFA (`[auth.mfa.totp]`). Admins
    enrol at `/ops/admin/mfa`.
 4. Set Worker variables per environment as needed (nothing new is a secret):
-   `NUXT_OPS_ALERT_EMAIL` (optional). **Leave** `NUXT_SPONSOR_EXPORTS_ENABLED`
-   and `NUXT_ANALYTICS_ACTIVATION_ALLOWED` **unset**.
+   `NUXT_OPS_ALERT_EMAIL` (optional). Production: **leave**
+   `NUXT_SPONSOR_EXPORTS_ENABLED` and `NUXT_ANALYTICS_ACTIVATION_ALLOWED`
+   **unset** until step 8. Staging has both set since 2026-10-02.
 5. Merge to `dev` (staging) and then `main` (production). Confirm the cron trigger appears in the
    Cloudflare dashboard and the next day's `maintenance_runs` row.
 6. Run dietary cleanup stage 2 (dry run, then confirm), then stage 3.

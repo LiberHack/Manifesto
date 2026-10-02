@@ -47,13 +47,14 @@ and who checked it.
 
 - [ ] Recipients entered with legal names; agreement with each on the opt-in, adults-only scope.
 - [ ] Legal/organisational rows for sponsor sharing in README.md resolved.
-- [ ] `NUXT_SPONSOR_EXPORTS_ENABLED=true` set for that environment only.
+- [x] `NUXT_SPONSOR_EXPORTS_ENABLED=true` set for that environment only: staging, 2026-10-02. Production not yet.
 
 ## Before turning on analytics
 
 - [ ] Age/parental-consent approach decided and implemented; DPIA screening done.
 - [ ] `select jobname from cron.job` shows `liberhack-retention`, and a `retention` row in `maintenance_runs` from the last day.
-- [ ] `NUXT_ANALYTICS_ACTIVATION_ALLOWED=true`, then the edition toggle in Admin → Editions.
+- [x] `NUXT_ANALYTICS_ACTIVATION_ALLOWED=true`: staging, 2026-10-02. Production not yet.
+- [ ] Edition toggle switched on in Admin → Editions (per environment).
 - [ ] On staging: Reject sets no `lh_aid` cookie, Allow sets an HttpOnly one, Withdraw removes it and the browser's events.
 
 ## Shared database

@@ -780,6 +780,9 @@ async function addAnnouncement() {
                   handle=".drag-handle"
                   @end="onScheduleDragEnd"
                 >
+                  <tr v-if="!scheduleItems.length" key="empty">
+                    <td colspan="5" class="text-center text-xs opacity-50 py-4">No schedule items yet.</td>
+                  </tr>
                   <tr v-for="item in scheduleItems" :key="item.id">
                     <td>
                       <span class="drag-handle cursor-grab select-none text-base opacity-40 hover:opacity-80">⠿</span>
@@ -826,7 +829,7 @@ async function addAnnouncement() {
             </div>
 
             <!-- Add row -->
-            <div class="flex flex-col sm:flex-row gap-2 items-end border-t border-base-content/10 pt-3">
+            <div class="flex flex-col sm:flex-row gap-2 sm:items-end border-t border-base-content/10 pt-3">
               <div class="flex flex-col gap-1 flex-1">
                 <label class="text-xs opacity-60">Label</label>
                 <input
@@ -841,7 +844,7 @@ async function addAnnouncement() {
                 <input
                   v-model="scheduleNewForm.starts_at"
                   type="datetime-local"
-                  class="input input-bordered input-sm"
+                  class="input input-bordered input-sm w-full"
                 />
               </div>
               <div class="flex flex-col gap-1">
@@ -849,7 +852,7 @@ async function addAnnouncement() {
                 <input
                   v-model="scheduleNewForm.ends_at"
                   type="datetime-local"
-                  class="input input-bordered input-sm"
+                  class="input input-bordered input-sm w-full"
                 />
               </div>
               <button

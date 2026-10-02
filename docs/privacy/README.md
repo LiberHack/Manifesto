@@ -99,8 +99,8 @@ in `supabase/tests/10-verify-privacy.sql`.
   or execute the functions. This is tested, including a signed-in user calling
   `sponsor_export_rows`.
 
-**Organisational follow-up, not done:** agreeing with each sponsor that the
-database they receive is opt-in only. It is smaller than "all participants",
+**Organisational follow-up, resolved 2026-10-02 (organisers):** agreeing with
+each sponsor that the database they receive is opt-in only. It is smaller than "all participants",
 contains adults only, and changes as people say No. Do not tell sponsors
 otherwise until this is agreed.
 
@@ -116,8 +116,9 @@ Two gates, both off by default:
    - the consent and event endpoints and registration completion record
      nothing.
 
-   It stays off until the age/parental-consent approach (below) is decided
-   *and implemented*.
+   The age/parental-consent approach (below) was reported resolved on
+   2026-10-02. The gate is on in **staging only**; production stays off
+   until it is cleared there (see the gate status in §3).
 2. **Per edition:** `editions.analytics_enabled`, an admin toggle.
 
 When both are on, analytics works as follows.
@@ -368,6 +369,13 @@ completion row, and with it the attribution.
 ## 3. Organisational facts and legal decisions required
 
 These are not technical defects. Each blocks the feature named.
+
+**Status 2026-10-02:** the organisers report every row below resolved.
+`NUXT_SPONSOR_EXPORTS_ENABLED` and `NUXT_ANALYTICS_ACTIVATION_ALLOWED` are set
+to `true` for the **staging** Worker only (`wrangler.jsonc` `env.staging`).
+Production stays unset until staging is verified with the checklist in
+[operations-checklist.md](operations-checklist.md). Keep the evidence for each
+row (agreements, DPIA screening, processor records) where that checklist says.
 
 | Missing fact or decision | Blocks |
 |---|---|
