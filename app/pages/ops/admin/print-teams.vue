@@ -87,4 +87,17 @@ body {
   }
 }
 
+@media screen and (max-width: 639px) {
+  .team-name {
+    font-size: clamp(2rem, 9vw, 4rem);
+    padding: 0 1rem;
+  }
+
+  .logo {
+    left: 6mm;
+    bottom: 6mm;
+    height: 24mm;
+  }
+}
+
 </style>

@@ -109,7 +109,7 @@ const instagram = appConfig.socials.instagram;
       </div>
 
       <AppBanners />
-      <div class="flex flex-col flex-1 w-full min-w-0 [overflow-wrap:anywhere]">
+      <div class="flex flex-col flex-1 w-full min-w-0 [overflow-wrap:break-word]">
         <slot />
       </div>
       <nav

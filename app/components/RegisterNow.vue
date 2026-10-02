@@ -1,6 +1,6 @@
 <template>
   <button
-    class="cursor-pointer flex flex-col text-3xl md:text-5xl font-black text-shadow-lg/80 text-shadow-4 p-2 transition-all ease-in-out duration-200 md:leading-[0.01] md:hover:leading-[0.5] leading-[0.5]"
+    class="cursor-pointer flex flex-col text-3xl md:text-4xl xl:text-5xl font-black text-shadow-lg/80 text-shadow-4 p-2 transition-all ease-in-out duration-200 md:leading-[0.01] md:hover:leading-[0.5] leading-[0.5]"
     @mouseenter="startAnimation" @mouseleave="resetAnimation" @click="navigateRegister">
     <p v-for="i in 5" :key="i" :aria-hidden="i !== 1 ? 'true' : undefined">{{ displayText }}</p>
     <p class="invisible h-0">{{ getGlitchVersion(displayText) }}</p>

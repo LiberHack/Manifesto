@@ -6,7 +6,7 @@ const instagram = appConfig.socials.instagram;
 
 <template>
   <footer
-    class="footer sm:footer-horizontal bg-base-100 text-neutral-content gap-0 border-2 border-primary"
+    class="footer lg:footer-horizontal bg-base-100 text-neutral-content gap-0 border-2 border-primary"
   >
     <aside class="flex flex-row items-center border-2 border-primary p-2">
       <NuxtImg
@@ -18,7 +18,7 @@ const instagram = appConfig.socials.instagram;
     </aside>
 
     <div
-      class="border-primary border-2 h-full p-2 flex flex-col justify-center"
+      class="border-primary border-2 h-full min-w-0 p-2 flex flex-col justify-center"
     >
       <NuxtLink
         to="/reglament"
@@ -29,7 +29,7 @@ const instagram = appConfig.socials.instagram;
     </div>
 
     <div
-      class="border-primary border-2 h-full p-2 md:place-self-center md:justify-self-end w-full md:w-min"
+      class="border-primary border-2 h-full min-w-0 p-2 lg:place-self-center lg:justify-self-end w-full lg:w-auto"
     >
       <h2 class="text-3xl w-full">Social</h2>
       <div class="grid grid-flow-col gap-4 h-full w-full">

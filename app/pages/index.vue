@@ -1,6 +1,6 @@
 <template>
   <div
-    class="w-full min-w-0 flex flex-col gap-16 py-8 font-cygrotesk md:px-32 [overflow-wrap:anywhere]"
+    class="w-full min-w-0 flex flex-col gap-16 py-8 font-cygrotesk md:px-32 [overflow-wrap:break-word]"
   >
     <div
       class="w-full flex flex-col md:flex-row items-center justify-center gap-5"
@@ -34,7 +34,7 @@
     </div>
 
     <div
-      class="w-full flex flex-row justify-center align-middle items-center gap-8 p-8"
+      class="w-full flex flex-col xl:flex-row justify-center align-middle items-center gap-8 p-8"
     >
       <div class="flex flex-col items-center gap-4">
         <RegisterNow />

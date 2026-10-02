@@ -127,10 +127,10 @@ const editionParam = computed(() => props.editionQuery.edition ?? "");
     </form>
 
     <div class="flex flex-wrap gap-2">
-      <a :href="`/api/admin/sponsors/report?edition=${editionParam}`" download class="btn btn-outline btn-sm h-auto min-h-8 whitespace-normal text-left">
+      <a :href="`/api/admin/sponsors/report?edition=${editionParam}`" download class="btn btn-outline btn-sm h-auto min-h-8 w-full sm:w-auto max-w-full whitespace-normal text-left">
         ↓ Aggregate sponsor report (small groups suppressed)
       </a>
-      <a :href="`/api/admin/catering/export?edition=${editionParam}`" download class="btn btn-outline btn-sm h-auto min-h-8 whitespace-normal text-left">
+      <a :href="`/api/admin/catering/export?edition=${editionParam}`" download class="btn btn-outline btn-sm h-auto min-h-8 w-full sm:w-auto max-w-full whitespace-normal text-left">
         ↓ Catering list (organisers only)
       </a>
     </div>
