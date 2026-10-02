@@ -514,28 +514,26 @@ declare
   leader uuid;
   target uuid;
 begin
-  select * into req from public.join_requests where id = p_request for update;
+  -- Same structure as phase 1's definition (only the formation source below
+  -- differs): lock order is registration, team, then the request (see
+  -- join_team), and expiry is evaluated only after the caller is authorized.
+  select * into req from public.join_requests where id = p_request;
   if not found then
     raise exception 'request_not_found';
   end if;
+
+  select id into target from public.registrations
+  where participant_id = req.participant_id and edition_slug = req.edition_slug
+  for update;
+  select leader_id into leader from public.teams where id = req.team_id for update;
+
+  select * into req from public.join_requests where id = p_request for update;
   if req.status <> 'pending' then
     raise exception 'request_not_pending';
   end if;
   if not (select is_current from public.editions where slug = req.edition_slug) then
     raise exception 'edition_not_writable';
   end if;
-
-  if req.expires_at is not null and req.expires_at <= now() then
-    update public.join_requests
-    set status = 'expired', close_reason = 'expired', decided_at = now()
-    where id = p_request
-    returning * into req;
-    return req;
-  end if;
-
-  select leader_id into leader from public.teams where id = req.team_id for update;
-  select id into target from public.registrations
-  where participant_id = req.participant_id and edition_slug = req.edition_slug;
 
   if p_action = 'approve' or p_action = 'reject' then
     if req.kind <> 'application' then
@@ -558,6 +556,16 @@ begin
     end if;
   else
     raise exception 'unknown_action';
+  end if;
+
+  -- Expiry is evaluated only after the caller is authorized, so an
+  -- unauthorized caller cannot force an expired request to be closed.
+  if req.expires_at is not null and req.expires_at <= now() then
+    update public.join_requests
+    set status = 'expired', close_reason = 'expired', decided_at = now()
+    where id = p_request
+    returning * into req;
+    return req;
   end if;
 
   if p_action in ('approve', 'accept') then
