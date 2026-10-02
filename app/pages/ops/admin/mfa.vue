@@ -64,7 +64,7 @@ onMounted(load);
 
 <template>
   <main class="w-full min-h-screen flex justify-center p-4 py-12">
-    <div class="w-full max-w-md bg-base-100 p-8 border-primary border-2 flex flex-col gap-4">
+    <div class="w-full max-w-md min-w-0 bg-base-100 p-4 sm:p-8 border-primary border-2 flex flex-col gap-4 [overflow-wrap:break-word]">
       <h1 class="text-3xl font-black uppercase tracking-tight">Admin second factor</h1>
       <p class="text-sm opacity-70">
         Exports of participant data need a verified second factor in this
@@ -87,11 +87,11 @@ onMounted(load);
 
         <div v-if="qrCode" class="flex flex-col gap-2">
           <p class="text-sm">Scan this with your authenticator app, then enter the 6-digit code.</p>
-          <img :src="qrCode" alt="Authenticator QR code" class="w-48 bg-white p-2" />
+          <img :src="qrCode" alt="Authenticator QR code" class="max-w-full w-48 bg-white p-2" />
           <p class="text-xs break-all opacity-70">Or enter the key: <code>{{ secret }}</code></p>
         </div>
 
-        <form v-if="factorId" class="flex gap-2 items-end" @submit.prevent="verify">
+        <form v-if="factorId" class="flex flex-wrap gap-2 items-end" @submit.prevent="verify">
           <label class="form-control">
             <span class="label-text font-bold">Code</span>
             <input

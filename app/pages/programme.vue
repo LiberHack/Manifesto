@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { labelContentTableCells } from "~/utils/contentTables";
+
 const { data: page } = await useAsyncData("programme", () =>
   queryCollection("programme").path("/programme").first(),
 );
@@ -7,19 +9,21 @@ if (!page.value) {
   throw createError({ statusCode: 404, statusMessage: "Page not found" });
 }
 
+labelContentTableCells(page.value.body);
+
 useSeoMeta({ title: "Програма — LiberHack" });
 </script>
 
 <template>
   <div
-    class="w-full flex flex-col gap-12 py-8 font-cygrotesk px-6 md:px-32 lg:px-64 xl:px-96 overflow-x-hidden"
+    class="w-full min-w-0 flex flex-col gap-12 py-8 font-cygrotesk px-4 sm:px-6 md:px-32 lg:px-64 xl:px-96 [overflow-wrap:break-word]"
   >
     <div
-      class="flex flex-col gap-4 bg-base-100/80 border-primary border-4 p-6 md:p-10"
+      class="min-w-0 flex flex-col gap-4 bg-base-100/80 border-primary border-4 p-4 sm:p-6 md:p-10"
     >
       <div class="flex items-start justify-between gap-4 flex-wrap">
         <h1
-          class="text-4xl md:text-6xl font-bold text-shadow-lg/80 text-shadow-4 wrap-break-word"
+          class="text-3xl sm:text-4xl md:text-6xl font-bold text-shadow-lg/80 text-shadow-4 wrap-break-word"
         >
           Програма
         </h1>
@@ -43,10 +47,11 @@ useSeoMeta({ title: "Програма — LiberHack" });
       </p>
     </div>
 
-    <div class="bg-base-100/90 border-2 border-primary/40 p-6 md:p-10">
+    <div class="min-w-0 bg-base-100/90 border-2 border-primary/40 p-4 sm:p-6 md:p-10">
       <ContentRenderer
         v-if="page"
         :value="page"
+       
         class="prose prose-invert max-w-none prose-headings:font-black prose-headings:uppercase prose-headings:tracking-tight prose-h2:text-primary prose-h2:border-b-2 prose-h2:border-primary prose-h2:pb-2 prose-h2:mt-10 prose-table:border-collapse prose-table:w-full prose-th:border prose-th:border-primary/60 prose-th:p-3 prose-th:bg-primary/20 prose-th:text-left prose-td:border prose-td:border-primary/30 prose-td:p-3 prose-tr:even:bg-base-100/60 prose-strong:text-primary prose-a:text-primary prose-a:no-underline hover:prose-a:underline"
       />
     </div>

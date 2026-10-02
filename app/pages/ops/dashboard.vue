@@ -292,12 +292,12 @@ async function logout() {
 </script>
 
 <template>
-  <main class="max-w-2xl mx-auto p-6 py-8 flex flex-col">
-    <div class="bg-base-100 p-8 flex flex-col gap-8 border-primary border-2">
+  <main class="w-full max-w-2xl min-w-0 mx-auto p-4 sm:p-6 py-8 flex flex-col">
+    <div class="min-w-0 bg-base-100 p-4 sm:p-8 flex flex-col gap-8 border-primary border-2">
 
       <div class="flex items-center justify-between flex-wrap gap-8">
         <h1 class="text-xl md:text-4xl font-black uppercase">Dashboard</h1>
-        <div class="flex gap-2 items-center">
+        <div class="flex flex-wrap gap-2 items-center">
           <NuxtLink to="/ops/teams" class="btn btn-outline font-black uppercase">> Teams</NuxtLink>
           <NuxtLink to="/ops/messages" class="btn btn-outline font-black uppercase">
             > Messages
@@ -503,7 +503,7 @@ async function logout() {
               <template v-else>Are you sure you want to leave {{ me.team.name }}?</template>
             </p>
             <div v-if="leaveMessage" role="alert" class="alert alert-error text-sm">{{ leaveMessage }}</div>
-            <div class="flex gap-2">
+            <div class="flex flex-wrap gap-2">
               <button
                 :disabled="leavingTeam"
                 class="btn btn-error btn-sm font-black uppercase"
@@ -601,7 +601,7 @@ async function logout() {
             <p class="text-sm font-bold">
               This will break the link for anyone who already has it. Continue?
             </p>
-            <div class="flex gap-2">
+            <div class="flex flex-wrap gap-2">
               <button
                 :disabled="rotatingInvite"
                 class="btn btn-warning btn-sm font-black uppercase"

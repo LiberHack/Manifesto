@@ -530,12 +530,12 @@ async function addAnnouncement() {
 </script>
 
 <template>
-  <main class="max-w-5xl mx-auto p-6 space-y-12 bg-base-100">
-    <div class="flex flex-col md:flex-row items-center justify-between gap-3">
+  <main class="w-full max-w-5xl min-w-0 mx-auto p-4 sm:p-6 space-y-12 bg-base-100 [overflow-wrap:break-word]">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
       <h1 class="text-4xl font-black uppercase">Admin</h1>
-      <div class="flex items-center gap-3">
+      <div class="flex flex-wrap items-center gap-3 min-w-0">
         <label class="text-sm font-semibold opacity-70">Edition</label>
-        <select v-model="selectedSlug" class="select select-bordered select-sm">
+        <select v-model="selectedSlug" class="select select-bordered select-sm min-w-0 max-w-full">
           <option v-for="e in editions ?? []" :key="e.slug" :value="e.slug">
             {{ e.name }}{{ e.is_current ? ' (current)' : ` — ${e.status}` }}
           </option>
@@ -553,8 +553,8 @@ async function addAnnouncement() {
     <section class="space-y-6">
       <h2 class="text-2xl font-bold">Editions</h2>
 
-      <div class="card bg-base-200 border border-base-content/20">
-        <div class="card-body space-y-4">
+      <div class="card min-w-0 bg-base-200 border border-base-content/20">
+        <div class="card-body min-w-0 space-y-4">
           <div class="flex items-center justify-between">
             <h3 class="font-black text-lg uppercase">All editions</h3>
             <button class="btn btn-ghost btn-xs" @click="showEditions = !showEditions">
@@ -565,7 +565,7 @@ async function addAnnouncement() {
           <div v-show="showEditions" class="space-y-4">
             <div v-if="editionError" class="alert alert-error text-sm">{{ editionError }}</div>
 
-            <div class="overflow-x-auto">
+            <div class="max-w-full min-w-0 overflow-x-auto">
               <table class="table table-sm">
                 <thead>
                   <tr>
@@ -650,27 +650,27 @@ async function addAnnouncement() {
                   v-model="newEdition.slug"
                   type="text"
                   placeholder="2027"
-                  class="input input-bordered input-sm flex-1"
+                  class="input input-bordered input-sm w-full min-w-0 flex-1"
                 />
                 <input
                   v-model="newEdition.name"
                   type="text"
                   placeholder="LiberHack 2027"
-                  class="input input-bordered input-sm flex-1"
+                  class="input input-bordered input-sm w-full min-w-0 flex-1"
                 />
                 <input
                   v-model.number="newEdition.participant_cap"
                   type="number"
                   min="1"
-                  class="input input-bordered input-sm w-28"
+                  class="input input-bordered input-sm w-full sm:w-28"
                 />
               </div>
               <div class="flex flex-col sm:flex-row gap-3">
-                <div class="flex flex-col gap-1 flex-1">
+                <div class="flex flex-col gap-1 flex-1 min-w-0">
                   <label class="text-sm font-semibold opacity-70">Starts at (Sofia)</label>
                   <input v-model="newEdition.starts_at" type="datetime-local" class="input input-bordered input-sm w-full" />
                 </div>
-                <div class="flex flex-col gap-1 flex-1">
+                <div class="flex flex-col gap-1 flex-1 min-w-0">
                   <label class="text-sm font-semibold opacity-70">Ends at (Sofia)</label>
                   <input v-model="newEdition.ends_at" type="datetime-local" class="input input-bordered input-sm w-full" />
                 </div>
@@ -693,8 +693,8 @@ async function addAnnouncement() {
       <h2 class="text-2xl font-bold">Live CMS</h2>
 
       <!-- Event Config -->
-      <div class="card bg-base-200 border border-base-content/20">
-        <div class="card-body space-y-4">
+      <div class="card min-w-0 bg-base-200 border border-base-content/20">
+        <div class="card-body min-w-0 space-y-4">
           <div class="flex items-center justify-between">
             <h3 class="font-black text-lg uppercase">Event Config</h3>
             <button class="btn btn-ghost btn-xs" @click="showConfig = !showConfig">
@@ -713,7 +713,7 @@ async function addAnnouncement() {
               />
             </div>
             <div class="flex flex-col sm:flex-row gap-3">
-              <div class="flex flex-col gap-1 flex-1">
+              <div class="flex flex-col gap-1 flex-1 min-w-0">
                 <label class="text-sm font-semibold opacity-70">Starts at (Sofia)</label>
                 <input
                   v-model="configForm.event_start"
@@ -721,7 +721,7 @@ async function addAnnouncement() {
                   class="input input-bordered input-sm w-full"
                 />
               </div>
-              <div class="flex flex-col gap-1 flex-1">
+              <div class="flex flex-col gap-1 flex-1 min-w-0">
                 <label class="text-sm font-semibold opacity-70">Ends at (Sofia)</label>
                 <input
                   v-model="configForm.event_end"
@@ -750,8 +750,8 @@ async function addAnnouncement() {
       </div>
 
       <!-- Schedule -->
-      <div class="card bg-base-200 border border-base-content/20">
-        <div class="card-body space-y-4">
+      <div class="card min-w-0 bg-base-200 border border-base-content/20">
+        <div class="card-body min-w-0 space-y-4">
           <div class="flex items-center justify-between">
             <h3 class="font-black text-lg uppercase">Schedule ({{ scheduleItems.length }})</h3>
             <button class="btn btn-ghost btn-xs" @click="showSchedule = !showSchedule">
@@ -761,7 +761,7 @@ async function addAnnouncement() {
 
           <div v-show="showSchedule" class="space-y-4">
             <div
-              class="overflow-x-auto transition-opacity"
+              class="max-w-full min-w-0 overflow-x-auto transition-opacity"
               :class="{ 'pointer-events-none opacity-50': scheduleReordering }"
             >
               <table class="table table-xs w-full">
@@ -829,8 +829,8 @@ async function addAnnouncement() {
             </div>
 
             <!-- Add row -->
-            <div class="flex flex-col sm:flex-row gap-2 sm:items-end border-t border-base-content/10 pt-3">
-              <div class="flex flex-col gap-1 flex-1">
+            <div class="flex flex-col lg:flex-row gap-2 lg:items-end border-t border-base-content/10 pt-3">
+              <div class="flex flex-col gap-1 flex-1 min-w-0">
                 <label class="text-xs opacity-60">Label</label>
                 <input
                   v-model="scheduleNewForm.label"
@@ -839,7 +839,7 @@ async function addAnnouncement() {
                   placeholder="Opening ceremony"
                 />
               </div>
-              <div class="flex flex-col gap-1">
+              <div class="flex flex-col gap-1 flex-1 min-w-0">
                 <label class="text-xs opacity-60">Starts at (Sofia)</label>
                 <input
                   v-model="scheduleNewForm.starts_at"
@@ -847,7 +847,7 @@ async function addAnnouncement() {
                   class="input input-bordered input-sm w-full"
                 />
               </div>
-              <div class="flex flex-col gap-1">
+              <div class="flex flex-col gap-1 flex-1 min-w-0">
                 <label class="text-xs opacity-60">Ends at (Sofia, optional)</label>
                 <input
                   v-model="scheduleNewForm.ends_at"
@@ -856,7 +856,7 @@ async function addAnnouncement() {
                 />
               </div>
               <button
-                class="btn btn-primary btn-sm shrink-0"
+                class="btn btn-primary btn-sm shrink-0 self-start lg:self-auto"
                 :disabled="editionReadOnly || scheduleAdding || !scheduleNewForm.label.trim()"
                 @click="addScheduleItem"
               >
@@ -868,8 +868,8 @@ async function addAnnouncement() {
       </div>
 
       <!-- Announcements -->
-      <div class="card bg-base-200 border border-base-content/20">
-        <div class="card-body space-y-4">
+      <div class="card min-w-0 bg-base-200 border border-base-content/20">
+        <div class="card-body min-w-0 space-y-4">
           <div class="flex items-center justify-between gap-3 flex-wrap">
             <h3 class="font-black text-lg uppercase">Announcements ({{ announcementItems.length }})</h3>
             <div class="flex items-center gap-2">
@@ -888,7 +888,7 @@ async function addAnnouncement() {
             <div v-if="announcementError" class="alert alert-error text-sm">{{ announcementError }}</div>
 
             <div
-              class="overflow-x-auto transition-opacity"
+              class="max-w-full min-w-0 overflow-x-auto transition-opacity"
               :class="{ 'pointer-events-none opacity-50': announcementsReordering }"
             >
               <table class="table table-xs w-full">
@@ -918,7 +918,7 @@ async function addAnnouncement() {
                             v-model="announcementEditForm.body"
                             rows="2"
                             maxlength="300"
-                            class="textarea textarea-bordered textarea-xs w-full min-w-64"
+                            class="textarea textarea-bordered textarea-xs w-full min-w-0 sm:min-w-64"
                           />
                           <div class="flex flex-wrap gap-2">
                             <select v-model="announcementEditForm.channel" class="select select-bordered select-xs">
@@ -939,10 +939,10 @@ async function addAnnouncement() {
                               v-model="announcementEditForm.href"
                               type="text"
                               placeholder="/ops/dashboard or https://…"
-                              class="input input-bordered input-xs flex-1 min-w-48"
+                              class="input input-bordered input-xs w-full min-w-0 sm:min-w-48 flex-1"
                             />
                           </div>
-                          <div class="flex flex-wrap gap-3 items-center">
+                          <div class="flex flex-wrap gap-3 items-center min-w-0">
                             <label class="flex items-center gap-1 text-xs">
                               <input v-model="announcementEditForm.dismissible" type="checkbox" class="checkbox checkbox-xs" />
                               Dismissible
@@ -953,11 +953,11 @@ async function addAnnouncement() {
                             </label>
                             <label class="flex items-center gap-1 text-xs">
                               From
-                              <input v-model="announcementEditForm.starts_at" type="datetime-local" class="input input-bordered input-xs" />
+                              <input v-model="announcementEditForm.starts_at" type="datetime-local" class="input input-bordered input-xs w-full sm:w-auto min-w-0" />
                             </label>
                             <label class="flex items-center gap-1 text-xs">
                               Until
-                              <input v-model="announcementEditForm.ends_at" type="datetime-local" class="input input-bordered input-xs" />
+                              <input v-model="announcementEditForm.ends_at" type="datetime-local" class="input input-bordered input-xs w-full sm:w-auto min-w-0" />
                             </label>
                           </div>
                           <div class="flex gap-1">
@@ -1030,10 +1030,10 @@ async function addAnnouncement() {
                   v-model="announcementNewForm.href"
                   type="text"
                   placeholder="/ops/dashboard or https://…"
-                  class="input input-bordered input-xs flex-1 min-w-48"
+                  class="input input-bordered input-xs w-full min-w-0 sm:min-w-48 flex-1"
                 />
               </div>
-              <div class="flex flex-wrap gap-3 items-center">
+              <div class="flex flex-wrap gap-3 items-center min-w-0">
                 <label class="flex items-center gap-1 text-xs">
                   <input v-model="announcementNewForm.dismissible" type="checkbox" class="checkbox checkbox-xs" />
                   Dismissible
@@ -1042,13 +1042,13 @@ async function addAnnouncement() {
                   <input v-model="announcementNewForm.active" type="checkbox" class="checkbox checkbox-xs" />
                   Active
                 </label>
-                <label class="flex items-center gap-1 text-xs">
+                <label class="flex flex-col sm:flex-row items-start sm:items-center gap-1 text-xs w-full sm:w-auto">
                   From
-                  <input v-model="announcementNewForm.starts_at" type="datetime-local" class="input input-bordered input-xs" />
+                  <input v-model="announcementNewForm.starts_at" type="datetime-local" class="input input-bordered input-xs w-full sm:w-auto min-w-0" />
                 </label>
-                <label class="flex items-center gap-1 text-xs">
+                <label class="flex flex-col sm:flex-row items-start sm:items-center gap-1 text-xs w-full sm:w-auto">
                   Until
-                  <input v-model="announcementNewForm.ends_at" type="datetime-local" class="input input-bordered input-xs" />
+                  <input v-model="announcementNewForm.ends_at" type="datetime-local" class="input input-bordered input-xs w-full sm:w-auto min-w-0" />
                 </label>
                 <button
                   class="btn btn-primary btn-sm shrink-0"
@@ -1073,7 +1073,7 @@ async function addAnnouncement() {
 
     <!-- ── Participants ────────────────────────────────────────────────────── -->
     <section>
-      <div class="flex items-center justify-between mb-4">
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
         <h2 class="text-2xl font-bold">Participants ({{ participants?.length ?? 0 }})</h2>
         <div class="flex gap-2 flex-wrap">
           <a :href="`/api/admin/participants/export?edition=${selectedSlug}`" download class="btn btn-outline btn-sm">↓ Export CSV</a>
@@ -1085,7 +1085,7 @@ async function addAnnouncement() {
           >↓ With contacts</a>
         </div>
       </div>
-      <div class="overflow-x-auto">
+      <div class="max-w-full min-w-0 overflow-x-auto">
         <table class="table table-xs md:table-md w-full">
           <thead class="text-xs md:text-lg">
             <tr>
@@ -1139,7 +1139,7 @@ async function addAnnouncement() {
 
     <!-- ── Teams ──────────────────────────────────────────────────────────── -->
     <section>
-      <div class="flex items-center justify-between mb-4">
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
         <h2 class="text-2xl font-bold">Teams ({{ teams?.length ?? 0 }})</h2>
         <a :href="`/api/admin/teams/export?edition=${selectedSlug}`" download class="btn btn-outline btn-sm">↓ Export CSV</a>
       </div>
@@ -1147,11 +1147,11 @@ async function addAnnouncement() {
         <div
           v-for="team in teams"
           :key="team.id"
-          class="card bg-base-200 border border-base-content/20"
+          class="card min-w-0 bg-base-200 border border-base-content/20"
         >
           <div class="card-body">
-            <div class="flex items-start justify-between">
-              <h3 class="card-title font-black text-base">{{ team.name }}</h3>
+            <div class="flex flex-wrap items-start justify-between gap-2 min-w-0">
+              <h3 class="card-title min-w-0 font-black text-base break-words">{{ team.name }}</h3>
               <button
                 class="btn btn-error btn-xs shrink-0"
                 :disabled="editionReadOnly"
@@ -1174,7 +1174,7 @@ async function addAnnouncement() {
 
   <!-- Participant detail modal -->
   <dialog v-if="selected" class="modal modal-open" @click.self="selected = null">
-    <div class="modal-box max-w-lg">
+    <div class="modal-box max-w-lg min-w-0 [overflow-wrap:break-word]">
       <button
         class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
         @click="selected = null"
@@ -1183,7 +1183,7 @@ async function addAnnouncement() {
       <h3 class="font-black text-xl uppercase mb-4">{{ selected.name }}</h3>
 
       <div class="space-y-3 text-sm">
-        <div class="grid grid-cols-[7rem_1fr] gap-y-2">
+        <div class="grid grid-cols-[minmax(5rem,7rem)_minmax(0,1fr)] gap-y-2">
           <span class="opacity-50 font-semibold">Email</span>
           <span>{{ selected.email }}</span>
 
@@ -1223,7 +1223,7 @@ async function addAnnouncement() {
             <span class="text-xs opacity-60">
               {{ selected.contact.share_with_team ? 'Shared with teammates' : 'Organizers only' }}
             </span>
-            <span class="flex items-center gap-2">
+            <span class="flex flex-wrap items-center gap-2">
               <span v-if="selected.contact.reachable_confirmed_at" class="badge badge-success badge-sm">
                 Reached {{ new Date(selected.contact.reachable_confirmed_at).toLocaleDateString() }}
               </span>

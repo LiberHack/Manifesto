@@ -88,7 +88,7 @@ const purgeStale = computed(() => {
 </script>
 
 <template>
-  <div v-if="report" class="flex flex-col gap-4">
+  <div v-if="report" class="min-w-0 flex flex-col gap-4 [overflow-wrap:break-word]">
     <h3 class="font-black text-lg uppercase">Where registrations come from</h3>
     <p class="text-sm opacity-70 max-w-3xl">
       Only browsers whose visitor clicked "Allow analytics" are counted, and only
@@ -143,7 +143,7 @@ const purgeStale = computed(() => {
     <figure>
       <figcaption class="font-bold text-sm mb-2">Registrations by source</figcaption>
       <p v-if="!report.sources.length" class="text-sm opacity-60">Nothing recorded yet.</p>
-      <div v-for="s in report.sources" :key="s.source_key" class="grid grid-cols-[12rem_1fr_3rem] items-center gap-2 text-sm">
+      <div v-for="s in report.sources" :key="s.source_key" class="grid grid-cols-[minmax(0,12rem)_minmax(0,1fr)_3rem] items-center gap-2 text-sm">
         <span class="truncate" :title="s.source_key">{{ s.label }} <span class="opacity-50 text-xs">{{ s.channel }}</span></span>
         <svg :viewBox="`0 0 100 6`" preserveAspectRatio="none" class="h-4 w-full" aria-hidden="true">
           <rect x="0" y="0" :width="(s.registrations / maxSource) * 100" height="6" :fill="colorOf(s.source_key)" />
@@ -186,15 +186,17 @@ const purgeStale = computed(() => {
         browsers with a registration within 7 days ÷ browsers that landed, both
         from the same closed cohorts. Time before consent is not measured.
       </p>
-      <table class="table table-sm w-auto">
-        <thead><tr><th>Step</th><th class="text-right">Browsers</th><th class="text-right">Of landed</th></tr></thead>
-        <tbody>
-          <tr><td>Landed</td><td class="text-right tabular-nums">{{ report.funnel.closed_totals.landed }}</td><td class="text-right">100%</td></tr>
-          <tr><td>Clicked register</td><td class="text-right tabular-nums">{{ report.funnel.closed_totals.cta }}</td><td class="text-right">{{ pct(report.funnel.closed_totals.cta, report.funnel.closed_totals.landed) }}</td></tr>
-          <tr><td>Started the form</td><td class="text-right tabular-nums">{{ report.funnel.closed_totals.started }}</td><td class="text-right">{{ pct(report.funnel.closed_totals.started, report.funnel.closed_totals.landed) }}</td></tr>
-          <tr class="font-bold"><td>Converted browsers (registered within 7 days)</td><td class="text-right tabular-nums">{{ report.funnel.closed_totals.completed_7d }}</td><td class="text-right">{{ pct(report.funnel.closed_totals.completed_7d, report.funnel.closed_totals.landed) }}</td></tr>
-        </tbody>
-      </table>
+      <div class="max-w-full overflow-x-auto">
+        <table class="table table-sm w-auto">
+          <thead><tr><th>Step</th><th class="text-right">Browsers</th><th class="text-right">Of landed</th></tr></thead>
+          <tbody>
+            <tr><td>Landed</td><td class="text-right tabular-nums">{{ report.funnel.closed_totals.landed }}</td><td class="text-right">100%</td></tr>
+            <tr><td>Clicked register</td><td class="text-right tabular-nums">{{ report.funnel.closed_totals.cta }}</td><td class="text-right">{{ pct(report.funnel.closed_totals.cta, report.funnel.closed_totals.landed) }}</td></tr>
+            <tr><td>Started the form</td><td class="text-right tabular-nums">{{ report.funnel.closed_totals.started }}</td><td class="text-right">{{ pct(report.funnel.closed_totals.started, report.funnel.closed_totals.landed) }}</td></tr>
+            <tr class="font-bold"><td>Converted browsers (registered within 7 days)</td><td class="text-right tabular-nums">{{ report.funnel.closed_totals.completed_7d }}</td><td class="text-right">{{ pct(report.funnel.closed_totals.completed_7d, report.funnel.closed_totals.landed) }}</td></tr>
+          </tbody>
+        </table>
+      </div>
       <p v-if="report.funnel.open.length" class="text-xs opacity-70 mt-2">
         Not included above, because their 7 days are not over yet:
         {{ report.funnel.open.reduce((a, r) => a + r.landed, 0) }} browsers that landed
