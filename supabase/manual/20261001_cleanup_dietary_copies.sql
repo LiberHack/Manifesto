@@ -2,7 +2,7 @@
 --
 -- `supabase db push` does not run files in supabase/manual/. Run this by hand,
 -- once, after:
---   1. migration 20261001000100_consent_records.sql is applied (it copies the
+--   1. migration 20261002000100_consent_records.sql is applied (it copies the
 --      current edition's free-text dietary answers into registration_catering);
 --   2. the code that stops reading registrations.dietary is deployed;
 --   3. a human has reviewed this file and taken a backup they are allowed to

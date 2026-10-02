@@ -50,7 +50,7 @@ check "exactly one retention job is scheduled daily" \
   "1 | 17 3 * * * | select public.run_retention()"
 
 # Re-applying the scheduling migration must not duplicate the job.
-run < "$ROOT/supabase/migrations/20261002000100_sponsor_consent_and_retention.sql"
+run < "$ROOT/supabase/migrations/20261002000300_sponsor_consent_and_retention.sql"
 check "re-applying the migration keeps a single job" \
   "$(q "select count(*) from cron.job where jobname in ('liberhack-retention', 'analytics-purge')")" "1"
 

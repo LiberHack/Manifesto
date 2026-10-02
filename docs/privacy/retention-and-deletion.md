@@ -40,7 +40,7 @@ decision is documented.
 
 ## Scheduling
 
-Migration `20261002000100_sponsor_consent_and_retention.sql` enables
+Migration `20261002000300_sponsor_consent_and_retention.sql` enables
 `pg_cron` where the database offers it (Supabase does). It then (re)creates
 exactly one job, `liberhack-retention`, which runs `select public.run_retention()`
 daily at 03:17 UTC, and removes the older `analytics-purge` job. Re-running the
@@ -158,7 +158,7 @@ at least as long as the oldest backup that could be restored.
    functions. So apply the migrations before any environment runs the new
    code, ideally while `ops_enabled` is off.
    `bunx supabase db push` applies three migrations, all additive:
-   `20261001000100`, `20261001000200`, `20261002000100`. The last one enables
+   `20261002000100`, `20261002000200`, `20261002000300`. The last one enables
    pg_cron and schedules the job. Check it with the queries above.
 3. `bunx supabase config push` enables TOTP MFA (`[auth.mfa.totp]`). Admins
    enrol at `/ops/admin/mfa`.

@@ -2,7 +2,7 @@
 -- tied to the registration and stay adjustable until withdrawal is no longer
 -- possible; retention is configured explicitly and scheduled.
 --
--- Builds on 20261001000100 / 20261001000200 without rewriting their records:
+-- Builds on 20261002000100 / 20261002000200 without rewriting their records:
 -- existing `acknowledged` sponsor rows stay as they are and never count as
 -- consent.
 
