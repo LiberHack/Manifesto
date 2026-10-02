@@ -101,6 +101,8 @@ export default defineNuxtConfig({
     supabaseSecretKey: process.env.NUXT_SUPABASE_SECRET_KEY ?? "",
     resendApiKey: process.env.NUXT_RESEND_API_KEY ?? "",
     resendFromEmail: process.env.NUXT_RESEND_FROM_EMAIL ?? "",
+    // Local development only: send mail to Mailpit (e.g. http://127.0.0.1:54324).
+    mailpitUrl: process.env.NUXT_MAILPIT_URL ?? "",
     siteUrl: "https://liberhack.org",
     // Per-IP /api limit for the in-memory fallback (runtimes without Workers
     // rate-limit bindings). Production uses the RL_* bindings instead.

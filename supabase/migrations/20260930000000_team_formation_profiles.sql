@@ -229,6 +229,19 @@ begin
     return;
   end if;
 
+  -- A leader's successor gets an UPDATE below. Lock the other members'
+  -- registrations now, in id order and before the team row, so the global order
+  -- (registrations, then teams, then join_requests) holds: otherwise a member
+  -- switching teams (own registration, then this team) deadlocks with us. The
+  -- unlocked leadership read is safe: only leave_team moves leadership, and a
+  -- move onto this registration needs the lock we already hold.
+  if exists (select 1 from public.teams where id = r.team_id and leader_id = r.id) then
+    perform 1 from public.registrations
+    where team_id = r.team_id and id <> r.id
+    order by id
+    for update;
+  end if;
+
   perform 1 from public.teams where id = r.team_id for update;
 
   update public.registrations set team_id = null, role = 'participant' where id = r.id;
@@ -252,8 +265,9 @@ $$;
 -- Put a registration into a team of the current edition, within the team's
 -- declared size (never more than six). With p_allow_switch the registration
 -- first leaves its current team, in the same transaction, so a failed join
--- never leaves anyone teamless. Team rows are locked in id order so two
--- opposite switches cannot deadlock.
+-- never leaves anyone teamless. Lock order, shared by every formation function:
+-- registrations, then teams (in id order), then join_requests. A concurrent
+-- leave, decision or opposite switch therefore cannot deadlock.
 create or replace function public.join_team(
   p_registration uuid,
   p_team uuid,
@@ -271,7 +285,15 @@ declare
   members int;
   capacity int;
 begin
-  select team_id into current_team from public.registrations where id = p_registration;
+  -- Lock the registration before any team row: leave_team, create_team and
+  -- decide_join_request all take the registration lock first, so this order is
+  -- consistent and cannot deadlock against a concurrent leave.
+  select id, participant_id, edition_slug, team_id into r
+  from public.registrations where id = p_registration for update;
+  if not found then
+    raise exception 'registration_not_found';
+  end if;
+  current_team := r.team_id;
 
   perform 1 from public.teams
   where id in (p_team, current_team)
@@ -288,23 +310,14 @@ begin
     raise exception 'edition_not_writable';
   end if;
 
-  select id, participant_id, edition_slug, team_id into r
-  from public.registrations where id = p_registration for update;
-  if not found then
-    raise exception 'registration_not_found';
-  end if;
-
   if r.edition_slug <> t.edition_slug then
     raise exception 'edition_mismatch';
   end if;
   if r.team_id is not distinct from p_team then
     raise exception 'already_in_team';
   end if;
-  if r.team_id is not null then
-    -- A concurrent change moved them after the unlocked read above.
-    if not p_allow_switch or r.team_id is distinct from current_team then
-      raise exception 'already_in_team';
-    end if;
+  if r.team_id is not null and not p_allow_switch then
+    raise exception 'already_in_team';
   end if;
 
   capacity := least(t.desired_size, 6);
@@ -414,28 +427,28 @@ declare
   leader uuid;
   target uuid;
 begin
-  select * into req from public.join_requests where id = p_request for update;
+  -- Lock order is registration, team, then the request itself (see join_team):
+  -- join_team closes this person's other requests while holding their
+  -- registration, so taking the request first could deadlock against it. The
+  -- unlocked read only finds whose registration and team to lock; participant,
+  -- team and edition of a request never change.
+  select * into req from public.join_requests where id = p_request;
   if not found then
     raise exception 'request_not_found';
   end if;
+
+  select id into target from public.registrations
+  where participant_id = req.participant_id and edition_slug = req.edition_slug
+  for update;
+  select leader_id into leader from public.teams where id = req.team_id for update;
+
+  select * into req from public.join_requests where id = p_request for update;
   if req.status <> 'pending' then
     raise exception 'request_not_pending';
   end if;
   if not (select is_current from public.editions where slug = req.edition_slug) then
     raise exception 'edition_not_writable';
   end if;
-
-  if req.expires_at is not null and req.expires_at <= now() then
-    update public.join_requests
-    set status = 'expired', close_reason = 'expired', decided_at = now()
-    where id = p_request
-    returning * into req;
-    return req;
-  end if;
-
-  select leader_id into leader from public.teams where id = req.team_id for update;
-  select id into target from public.registrations
-  where participant_id = req.participant_id and edition_slug = req.edition_slug;
 
   if p_action = 'approve' or p_action = 'reject' then
     if req.kind <> 'application' then
@@ -458,6 +471,16 @@ begin
     end if;
   else
     raise exception 'unknown_action';
+  end if;
+
+  -- Expiry is evaluated only after the caller is authorized, so an
+  -- unauthorized caller cannot force an expired request to be closed.
+  if req.expires_at is not null and req.expires_at <= now() then
+    update public.join_requests
+    set status = 'expired', close_reason = 'expired', decided_at = now()
+    where id = p_request
+    returning * into req;
+    return req;
   end if;
 
   if p_action in ('approve', 'accept') then

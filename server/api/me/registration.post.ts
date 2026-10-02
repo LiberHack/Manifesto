@@ -1,6 +1,7 @@
 import { serverSupabaseUser } from "#supabase/server";
 import { useSupabaseAdmin } from "#server/utils/supabase";
 import { requireOpenEdition } from "#server/utils/registrationContext";
+import { requireConfirmedEmail } from "#server/utils/requireConfirmedEmail";
 import { parseContact, parseProfileFields } from "#server/utils/profileInput";
 import { addSkillsToCatalogue, resolveSkills } from "#server/utils/skills";
 import { saveContact } from "#server/utils/contacts";
@@ -17,7 +18,8 @@ const MAX_DIETARY_LENGTH = 200;
  * Besides the core fields it takes the optional matching profile and the
  * required preferred contact (`{ method: "email_only" }` is the explicit
  * opt-out). Refused with 403 `ops_closed` until the edition's participant area
- * opens. Past the per-edition cap the registration still succeeds with
+ * opens, and with 403 `email_unverified` until the account's email is
+ * confirmed. Past the per-edition cap the registration still succeeds with
  * `seat_state = 'waitlisted'` (the `admit_new_registration` trigger).
  */
 export default defineEventHandler(async (event) => {
@@ -26,6 +28,7 @@ export default defineEventHandler(async (event) => {
 
   const supabase = useSupabaseAdmin();
   const edition = await requireOpenEdition(supabase);
+  await requireConfirmedEmail(supabase, user.sub);
 
   const body = (await readBody<Record<string, unknown>>(event)) ?? {};
 

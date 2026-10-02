@@ -85,7 +85,6 @@ update public.registrations set seat_state = 'accepted', offer_expires_at = null
  where id = '00000000-0000-0000-0000-000000000211';
 insert into auth.users (id, email, raw_user_meta_data) values
  ('00000000-0000-0000-0000-000000000112', 'attendance12@example.com', '{"name":"Attendance 12"}');
-update public.registrations set offer_attempts = 0 where id = (select id from queue_head);
 delete from public.registrations where id = '00000000-0000-0000-0000-000000000211';
 select assert((select seat_state = 'offered' from public.registrations
  where id = (select id from queue_head)), 'deleting a reserved registration offers its seat');
@@ -93,6 +92,9 @@ insert into public.registrations (id, participant_id, edition_slug)
  values ('00000000-0000-0000-0000-000000000212','00000000-0000-0000-0000-000000000112','2027');
 select assert((select seat_state = 'waitlisted' from public.registrations
  where id = '00000000-0000-0000-0000-000000000212'), 'a newcomer never takes a seat ahead of the queue');
+update public.editions set participant_cap = participant_cap + 1 where slug = '2027';
+select assert((select seat_state = 'offered' from public.registrations
+ where id = '00000000-0000-0000-0000-000000000212'), 'raising the cap offers the freed seat to the waitlist');
 select assert((select count(*) <= participant_cap from public.registrations r
  join public.editions e on e.slug = r.edition_slug
  where e.slug = '2027' and r.seat_state in ('accepted','offered') group by participant_cap),
@@ -142,6 +144,41 @@ select assert(raises($$select public.change_seat('00000000-0000-0000-0000-000000
  '00000000-0000-0000-0000-000000000111', 'cancel')$$, 'permission denied for function change_seat'),
  'seat mutation is server-only');
 reset role;
+-- A sole waiter is re-offered once, not forever.
+insert into public.editions (slug, name, status, is_current, participant_cap)
+ values ('reoffer', 'Reoffer', 'draft', false, 1);
+insert into auth.users (id, email) values
+ ('00000000-0000-0000-0000-000000000191', 'reoffer-holder@example.com'),
+ ('00000000-0000-0000-0000-000000000192', 'reoffer-waiter@example.com');
+insert into public.registrations (id, participant_id, edition_slug) values
+ ('00000000-0000-0000-0000-000000000291', '00000000-0000-0000-0000-000000000191', 'reoffer');
+insert into public.registrations (id, participant_id, edition_slug) values
+ ('00000000-0000-0000-0000-000000000292', '00000000-0000-0000-0000-000000000192', 'reoffer');
+select public.change_seat('00000000-0000-0000-0000-000000000291',
+ '00000000-0000-0000-0000-000000000191', 'cancel');
+update public.registrations set offer_expires_at = now() - interval '1 minute'
+ where id = '00000000-0000-0000-0000-000000000292';
+select public.expire_seat_offers('reoffer');
+select assert((select seat_state = 'offered' and offer_attempts = 2 from public.registrations
+ where id = '00000000-0000-0000-0000-000000000292'), 'a sole waiter is re-offered once');
+update public.registrations set offer_expires_at = now() - interval '1 minute'
+ where id = '00000000-0000-0000-0000-000000000292';
+select public.expire_seat_offers('reoffer');
+select assert((select seat_state = 'waitlisted' and offer_attempts = 2 from public.registrations
+ where id = '00000000-0000-0000-0000-000000000292')
+ and (select count(*) = 2 from public.notification_jobs
+      where registration_id = '00000000-0000-0000-0000-000000000292' and kind = 'seat_offer'),
+ 'after two unanswered offers the waiter is not offered (or emailed) again');
+
+-- Erasure: outreach about a deleted registration, request or team goes with it.
+insert into public.organizer_outreach (edition_slug, queue, subject_id, status, outcome)
+ values ('reoffer', 'uncertain', '00000000-0000-0000-0000-000000000292', 'contacted',
+         'Said they may not afford the train');
+delete from public.registrations where id = '00000000-0000-0000-0000-000000000292';
+select assert(not exists (select 1 from public.organizer_outreach
+ where subject_id = '00000000-0000-0000-0000-000000000292'),
+ 'deleting a registration deletes outreach notes about it');
+
 select 'ATTENDANCE VERIFICATION COMPLETE' as result;
 
 -- ── chat digests (phase 2 on top of phase 3) ───────────────────────────────

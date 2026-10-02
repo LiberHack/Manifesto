@@ -59,7 +59,7 @@ revoke all on public.attendance_barriers from anon, authenticated;
 create table public.checkin_events (
   id bigint generated always as identity primary key,
   registration_id uuid not null references public.registrations(id) on delete cascade,
-  actor_id uuid not null references public.participants(id),
+  actor_id uuid references public.participants(id) on delete set null,
   old_checked_in_at timestamptz,
   new_checked_in_at timestamptz,
   reason text not null,
@@ -91,13 +91,38 @@ create table public.organizer_outreach (
   queue text not null check (queue in ('unmatched','unanswered_request','uncertain','contact_failure','unconfirmed_team')),
   subject_id uuid not null,
   status text not null default 'open' check (status in ('open','assigned','contacted','resolved')),
-  owner_id uuid references public.participants(id),
+  owner_id uuid references public.participants(id) on delete set null,
   outcome varchar(500),
   updated_at timestamptz not null default now(),
   primary key (edition_slug, queue, subject_id)
 );
 alter table public.organizer_outreach enable row level security;
 revoke all on public.organizer_outreach from anon, authenticated;
+
+-- Outreach is about a registration, a join request or a team (subject_id by
+-- queue) and may hold free-text notes about that person in outcome. subject_id
+-- cannot carry a foreign key, so forget the outreach when its subject goes:
+-- account erasure cascades to registrations and join requests and must not
+-- leave notes behind. SECURITY DEFINER because the erasure cascade runs as
+-- the auth service role, which has no rights on this table.
+create function public.forget_outreach_subject() returns trigger
+language plpgsql security definer set search_path = '' as $$
+begin
+  delete from public.organizer_outreach where subject_id = old.id;
+  return null;
+end; $$;
+
+create trigger forget_outreach_on_registration_delete
+  after delete on public.registrations
+  for each row execute function public.forget_outreach_subject();
+create trigger forget_outreach_on_request_delete
+  after delete on public.join_requests
+  for each row execute function public.forget_outreach_subject();
+create trigger forget_outreach_on_team_delete
+  after delete on public.teams
+  for each row execute function public.forget_outreach_subject();
+
+revoke all on function public.forget_outreach_subject() from public, anon, authenticated;
 
 alter table public.editions
   add column reminder_mixer_days integer not null default 10 check (reminder_mixer_days >= 0),
@@ -127,7 +152,12 @@ begin
   return r;
 end; $$;
 
--- Called after cancellation or offer expiry while the edition is locked.
+-- Called after cancellation, offer expiry, cap raise or delete while the edition
+-- is locked. Offers to the least-often-offered person at the head of the queue,
+-- so a never-offered waiter goes first but an expired offer can be re-offered
+-- once, rather than leaving a freed seat permanently unfilled. After a second
+-- unanswered offer the person stays waitlisted for an organizer to follow up;
+-- without the limit a sole waiter would be re-offered (and emailed) forever.
 create function public.offer_next_seat(p_edition text) returns uuid language plpgsql as $$
 declare cap integer; taken integer; candidate uuid; hours integer;
 begin
@@ -137,8 +167,8 @@ begin
     where edition_slug = p_edition and seat_state in ('accepted','offered');
   if taken >= cap then return null; end if;
   select id into candidate from public.registrations
-    where edition_slug = p_edition and seat_state = 'waitlisted' and offer_attempts = 0
-    order by registered_at, id limit 1 for update;
+    where edition_slug = p_edition and seat_state = 'waitlisted' and offer_attempts < 2
+    order by offer_attempts, registered_at, id limit 1 for update;
   if candidate is null then return null; end if;
   update public.registrations set seat_state = 'offered',
     offer_expires_at = now() + make_interval(hours => hours),
