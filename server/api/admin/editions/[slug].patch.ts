@@ -77,6 +77,12 @@ export default defineEventHandler(async (event) => {
     .single();
 
   if (error) {
+    if (error.message?.includes("cap_below_reserved_seats")) {
+      throw createError({
+        statusCode: 409,
+        message: "The cap can't be lower than the seats already accepted or offered",
+      });
+    }
     console.error("[admin/editions.patch] update failed:", error.message);
     throw createError({ statusCode: 500, message: "Failed to update edition" });
   }

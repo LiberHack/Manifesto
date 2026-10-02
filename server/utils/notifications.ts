@@ -153,6 +153,25 @@ export function registerNotificationHandler(kind: string, handler: Handler): voi
   HANDLERS[kind] = handler;
 }
 
+/**
+ * Record a failed attempt with exponential backoff; after MAX_ATTEMPTS the job
+ * stays failed and surfaces in the organizers' contact-failure queue.
+ */
+async function markFailed(
+  supabase: SupabaseClient,
+  job: NotificationJob,
+  reason: string,
+): Promise<void> {
+  await supabase
+    .from("notification_jobs")
+    .update({
+      status: "failed",
+      last_error: reason,
+      next_attempt_at: new Date(Date.now() + 2 ** job.attempts * 60_000).toISOString(),
+    })
+    .eq("id", job.id);
+}
+
 export interface DispatchResult {
   sent: number;
   skipped: number;
@@ -177,14 +196,26 @@ export async function dispatchDueJobs(
   const claimed = (jobs ?? []) as NotificationJob[];
   if (claimed.length === 0) return result;
 
-  const { data: rows } = await supabase
+  // The edition embed names its foreign key: attendance_snapshots is a second
+  // registrations <-> editions path, and an unqualified embed is ambiguous
+  // (PostgREST 300, PGRST201).
+  const { data: rows, error: lookupError } = await supabase
     .from("registrations")
     .select(
       "id, team_id, seat_state, offer_expires_at, offer_attempts, intention_at, " +
         "participant:participants(name, email), " +
-        "edition:editions(name, starts_at, arrival_host, team_formation_slot)",
+        "edition:editions!registrations_edition_slug_fkey(name, starts_at, arrival_host, team_formation_slot)",
     )
     .in("id", [...new Set(claimed.map((j) => j.registration_id))]);
+
+  // A failed lookup says nothing about relevance: retry the jobs later rather
+  // than cancelling them as if every recipient had gone.
+  if (lookupError) {
+    console.error("[notifications] recipient lookup failed:", lookupError.message);
+    for (const job of claimed) await markFailed(supabase, job, "recipient lookup failed");
+    result.failed += claimed.length;
+    return result;
+  }
   const recipients = new Map(
     ((rows ?? []) as unknown as Recipient[]).map((r) => [r.id, r]),
   );
@@ -221,16 +252,7 @@ export async function dispatchDueJobs(
         .eq("id", job.id);
       result.sent++;
     } else {
-      // Exponential backoff; after MAX_ATTEMPTS the job stays failed and
-      // surfaces in the organizers' contact-failure queue.
-      await supabase
-        .from("notification_jobs")
-        .update({
-          status: "failed",
-          last_error: "delivery failed",
-          next_attempt_at: new Date(Date.now() + 2 ** job.attempts * 60_000).toISOString(),
-        })
-        .eq("id", job.id);
+      await markFailed(supabase, job, "delivery failed");
       result.failed++;
     }
   }
