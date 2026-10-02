@@ -21,7 +21,10 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   // The redirect is UX only — the server enforces the gate with
   // 403 not_registered on every edition-scoped mutation.
-  const { data: me } = await useMe();
+  const { data: me, refresh } = await useMe();
+  // The cached /api/me may predate this session (fetched signed out before an
+  // email-confirmation login), and a null there would skip the gate.
+  if (me.value?.id !== user.value.sub) await refresh();
   if (me.value && me.value.registration === null) {
     // Carry the intended destination so an invite link survives the detour.
     return navigateTo(
