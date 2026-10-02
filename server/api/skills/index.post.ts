@@ -1,5 +1,6 @@
 import { serverSupabaseUser } from "#supabase/server";
 import { useSupabaseAdmin } from "#server/utils/supabase";
+import { requireConfirmedEmail } from "#server/utils/requireConfirmedEmail";
 
 const MAX_SKILLS_PER_USER = 5;
 
@@ -14,6 +15,10 @@ export default defineEventHandler(async (event) => {
   }
 
   const supabase = useSupabaseAdmin();
+  // Not edition-scoped, so requireRegistration does not cover it: new
+  // participants add skills from the register-edition form before they have a
+  // registration. Confirmed email is the gate; the per-user cap is below.
+  await requireConfirmedEmail(supabase, user.sub);
 
   // Check if skill already exists (case-insensitive) — no cap needed, just reuse
   const { data: existing } = await supabase
