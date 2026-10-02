@@ -40,7 +40,7 @@ const createTeam = handleSubmit(async (values) => {
     return;
   }
 
-  router.push("/ops/dashboard");
+  router.push("/ops/dashboard?created=1");
 });
 </script>
 
@@ -71,8 +71,10 @@ const createTeam = handleSubmit(async (values) => {
           type="text"
           class="input input-bordered w-full"
           :class="{ 'input-error': errors.name }"
+          :aria-invalid="!!errors.name"
+          :aria-describedby="errors.name ? 'name-error' : undefined"
         />
-        <span v-if="errors.name" class="label-text-alt text-error mt-1">{{
+        <span v-if="errors.name" id="name-error" class="label-text-alt text-error mt-1">{{
           errors.name
         }}</span>
       </label>
@@ -81,7 +83,7 @@ const createTeam = handleSubmit(async (values) => {
         <span class="label-text font-bold">Skills Wanted</span>
 
         <SkillPicker v-model="skillsWanted" :allow-create="true" class="mt-1" />
-        <span v-if="skillsError" class="label-text-alt text-error mt-1">{{
+        <span v-if="skillsError" id="skills-error" class="label-text-alt text-error mt-1">{{
           skillsError
         }}</span>
       </div>
@@ -95,9 +97,12 @@ const createTeam = handleSubmit(async (values) => {
           v-bind="descriptionAttrs"
           class="textarea textarea-bordered w-full"
           rows="3"
+          :aria-invalid="!!errors.description"
+          :aria-describedby="errors.description ? 'description-error' : undefined"
         />
         <span
           v-if="errors.description"
+          id="description-error"
           class="label-text-alt text-error mt-1"
           >{{ errors.description }}</span
         >

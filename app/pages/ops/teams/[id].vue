@@ -152,6 +152,8 @@ async function sendRequest() {
         <div
           v-if="message"
           class="alert mb-4"
+          :role="message === 'Request sent!' ? 'status' : 'alert'"
+          aria-live="polite"
           :class="message === 'Request sent!' ? 'alert-success' : 'alert-error'"
         >
           {{ message }}

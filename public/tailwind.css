@@ -22,7 +22,7 @@
   --color-base-300: oklch(74% 0.238 322.16);
   --color-base-content: oklch(97% 0.001 106.424);
   --color-primary: oklch(66% 0.295 322.15);
-  --color-primary-content: oklch(100% 0 0);
+  --color-primary-content: oklch(15% 0.004 49.25);
   --color-secondary: oklch(66% 0.295 322.15);
   --color-secondary-content: oklch(28% 0.109 3.907);
   --color-accent: oklch(66% 0.295 322.15);
@@ -66,7 +66,9 @@
     /* Tailwind orange-400 */
   }
 
-  .animate-snap-color {
-    animation: snap-orange 1s steps(1) infinite;
+  @media (prefers-reduced-motion: no-preference) {
+    .animate-snap-color {
+      animation: snap-orange 1s steps(1) infinite;
+    }
   }
 }

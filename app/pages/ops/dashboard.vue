@@ -41,6 +41,9 @@ async function changeSeat(action: "accept" | "cancel") {
 
 const supabase = useSupabaseClient();
 const router = useRouter();
+const route = useRoute();
+// Set by /ops/team/create after a successful create.
+const showCreatedBanner = ref(route.query.created === "1");
 const { data: me, refresh: refreshMe } = await useMe();
 const { unreadTotal, refresh: refreshConversations } = await useConversations();
 useVisiblePolling(refreshConversations, 15_000);
@@ -174,9 +177,11 @@ const leavingTeam = ref(false);
 const showLeaveConfirm = ref(false);
 const leaveMessage = ref("");
 const teamMemberCount = ref<number | null>(null);
+const leaveConfirmEl = ref<HTMLElement | null>(null);
 
 watch(showLeaveConfirm, async (open) => {
-  if (open && me.value?.team?.id && teamMemberCount.value === null) {
+  if (!open) return;
+  if (me.value?.team?.id && teamMemberCount.value === null) {
     try {
       const team = await $fetch<{ members: unknown[] }>(`/api/teams/${me.value.team.id}`);
       teamMemberCount.value = team.members.length;
@@ -184,6 +189,9 @@ watch(showLeaveConfirm, async (open) => {
       teamMemberCount.value = 1;
     }
   }
+  // Move focus to the confirmation so keyboard and screen-reader users land on it.
+  await nextTick();
+  leaveConfirmEl.value?.focus();
 });
 
 async function leaveTeam() {
@@ -233,6 +241,7 @@ async function saveRepo() {
 const copyingInvite = ref(false);
 const rotatingInvite = ref(false);
 const inviteCopyMessage = ref("");
+const showRotateConfirm = ref(false);
 
 function inviteUrl() {
   return `${window.location.origin}/ops/invite/${me.value?.team?.invite_code}`;
@@ -245,7 +254,7 @@ async function copyInviteLink() {
     await navigator.clipboard.writeText(inviteUrl());
     inviteCopyMessage.value = "Copied!";
   } catch {
-    inviteCopyMessage.value = inviteUrl();
+    inviteCopyMessage.value = `Couldn't copy — here's the link: ${inviteUrl()}`;
   }
   copyingInvite.value = false;
   setTimeout(() => { inviteCopyMessage.value = ""; }, 3000);
@@ -262,6 +271,7 @@ async function rotateInviteLink() {
     inviteCopyMessage.value = e.data?.message ?? "Failed to rotate";
   }
   rotatingInvite.value = false;
+  showRotateConfirm.value = false;
   setTimeout(() => { inviteCopyMessage.value = ""; }, 3000);
 }
 
@@ -286,6 +296,15 @@ async function logout() {
           </NuxtLink>
           <button class="btn btn-ghost btn-sm" @click="logout">Logout</button>
         </div>
+      </div>
+
+      <div
+        v-if="showCreatedBanner"
+        role="status"
+        class="alert border-2 border-primary bg-base-200 text-sm"
+      >
+        <span>Team created!</span>
+        <button class="btn btn-ghost btn-xs" aria-label="Dismiss" @click="showCreatedBanner = false">✕</button>
       </div>
 
       <section v-if="me?.registration && attendance" id="attendance" class="border-2 border-base-content p-4 space-y-3">
@@ -367,6 +386,8 @@ async function logout() {
 
           <div
             v-if="profileMessage"
+            :role="profileMessage === 'Saved!' ? 'status' : 'alert'"
+            aria-live="polite"
             class="text-sm"
             :class="profileMessage === 'Saved!' ? 'text-success' : 'text-error'"
           >
@@ -395,6 +416,8 @@ async function logout() {
         <ContactFields v-model="contactForm" />
         <div
           v-if="contactMessage"
+          :role="contactMessage === 'Saved!' ? 'status' : 'alert'"
+          aria-live="polite"
           class="text-sm"
           :class="contactMessage === 'Saved!' ? 'text-success' : 'text-error'"
         >
@@ -433,7 +456,7 @@ async function logout() {
           </NuxtLink>
           <NuxtLink to="/ops/messages" class="link text-sm ml-3">Team chat →</NuxtLink>
 
-          <div v-if="showLeaveConfirm" class="mt-4 p-4 border border-error flex flex-col gap-3">
+          <div v-if="showLeaveConfirm" ref="leaveConfirmEl" tabindex="-1" class="mt-4 p-4 border border-error flex flex-col gap-3">
             <p class="text-sm font-bold">
               <template v-if="teamMemberCount === null">Loading…</template>
               <template v-else-if="isLeader && teamMemberCount > 1">
@@ -444,7 +467,7 @@ async function logout() {
               </template>
               <template v-else>Are you sure you want to leave {{ me.team.name }}?</template>
             </p>
-            <div v-if="leaveMessage" class="alert alert-error text-sm">{{ leaveMessage }}</div>
+            <div v-if="leaveMessage" role="alert" class="alert alert-error text-sm">{{ leaveMessage }}</div>
             <div class="flex gap-2">
               <button
                 :disabled="leavingTeam"
@@ -481,6 +504,8 @@ async function logout() {
 
           <div
             v-if="teamMessage"
+            :role="teamMessage === 'Saved!' ? 'status' : 'alert'"
+            aria-live="polite"
             class="text-sm mb-2"
             :class="teamMessage === 'Saved!' ? 'text-success' : 'text-error'"
           >
@@ -523,14 +548,35 @@ async function logout() {
               v-if="isLeader"
               class="btn btn-ghost btn-sm font-black uppercase"
               :disabled="rotatingInvite"
-              @click="rotateInviteLink"
+              :aria-expanded="showRotateConfirm"
+              @click="showRotateConfirm = true"
             >
-              {{ rotatingInvite ? "Rotating…" : "Rotate Link" }}
+              Rotate Link
             </button>
           </div>
-          <p v-if="inviteCopyMessage" class="text-sm mt-2 text-primary font-mono break-all">
+          <div
+            v-if="inviteCopyMessage"
+            role="status"
+            aria-live="polite"
+            class="text-sm mt-2 text-primary font-mono break-all"
+          >
             {{ inviteCopyMessage }}
-          </p>
+          </div>
+          <div v-if="showRotateConfirm" class="mt-2 p-3 border border-warning flex flex-col gap-2">
+            <p class="text-sm font-bold">
+              This will break the link for anyone who already has it. Continue?
+            </p>
+            <div class="flex gap-2">
+              <button
+                :disabled="rotatingInvite"
+                class="btn btn-warning btn-sm font-black uppercase"
+                @click="rotateInviteLink"
+              >
+                {{ rotatingInvite ? "Rotating…" : "Confirm Rotate" }}
+              </button>
+              <button class="btn btn-ghost btn-sm" @click="showRotateConfirm = false">Cancel</button>
+            </div>
+          </div>
         </section>
 
         <section id="project-repo">
@@ -545,6 +591,8 @@ async function logout() {
           />
           <div
             v-if="repoMessage"
+            :role="repoMessage === 'Saved!' ? 'status' : 'alert'"
+            aria-live="polite"
             class="text-sm mb-2"
             :class="repoMessage === 'Saved!' ? 'text-success' : 'text-error'"
           >

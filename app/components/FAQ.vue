@@ -1,55 +1,48 @@
+<script setup>
+const openIndex = ref(null);
+</script>
+
 <template>
   <ul class="list bg-base-100 rounded-box shadow-md w-full">
     <li
       tabindex="0"
+      role="button"
+      :aria-expanded="openIndex === 0"
+      @focus="openIndex = 0"
+      @blur="openIndex = null"
       class="collapse collapse-arrow bg-base-100 border-base-300 border"
     >
       <div class="collapse-title font-semibold">awards</div>
       <div class="collapse-content text-sm">
         <p>
-          Наградите са разделени в два вида: <strong>общо класиране</strong> и
-          <strong>по направления</strong>.
+          Наградният фонд за Edition 2 се обявява преди събитието
+          (<strong>TBA</strong>). Структурата остава същата:
         </p>
 
         <ul class="list-[square] list-inside ml-2">
           <li>
-            <strong>Общо класиране:</strong>
-            <ol class="list-[circle] list-inside ml-2">
-              <li>1-во място: 500 € + предметна награда</li>
-              <li>2-ро място: 300 €</li>
-              <li>3-то място: 100 €</li>
-            </ol>
+            <strong>Общо класиране:</strong> журито избира трите най-силни
+            проекта измежду всички отбори, независимо от направлението — 1-во,
+            2-ро и 3-то място.
           </li>
           <li>
-            <strong>Направления и категории:</strong>
-            <ul class="list-[circle] list-inside ml-2">
-              <li>
-                <strong>Победителят във всяко направление</strong> получава
-                специална грамота (дори ако не попада в общото класиране).
-              </li>
-              <li>
-                <strong>Най-добрите проекти във всяка категория</strong>
-                получават допълнителна награда от 100 €.
-              </li>
-            </ul>
+            <strong>Партньорски направления:</strong> победителят във всяко
+            обявено партньорско направление получава отделна награда, дори ако
+            не е в общото класиране.
           </li>
           <li>
             <strong>За всички участници:</strong> Всеки, включил се в конкурса,
             получава официален сертификат за участие.
           </li>
         </ul>
-        <!-- <p>
-          Наградите са два вида: общо класиране и по направления. 1-во място —
-          500€ + предметна награда, 2-ро място — 300€, 3-то място — 100€.
-          Победителят във всяко направление получава специална грамота — дори
-          ако не е в общото класиране. Най-добрите проекти във всяка категория
-          има по 100 евро допълнителна награда. Всички участници получават
-          сертификат за участие.
-        </p> -->
       </div>
     </li>
     <li
       tabindex="0"
+      role="button"
+      :aria-expanded="openIndex === 1"
+      @focus="openIndex = 1"
+      @blur="openIndex = null"
       class="collapse collapse-arrow bg-base-100 border-base-300 border"
     >
       <div class="collapse-title font-semibold">team_size</div>
@@ -64,12 +57,16 @@
     </li>
     <li
       tabindex="0"
+      role="button"
+      :aria-expanded="openIndex === 2"
+      @focus="openIndex = 2"
+      @blur="openIndex = null"
       class="collapse collapse-arrow bg-base-100 border-base-300 border"
     >
       <div class="collapse-title font-semibold">age</div>
       <div class="collapse-content text-sm">
         <p>
-          LiberHack е за младежи от 14 до 25 години. Учители и родители са добре
+          LiberHack е за младежи от 14 до 21 години. Учители и родители са добре
           дошли като наблюдатели — присъстват и подкрепят, но не се намесват в
           работата на отборите.
         </p>
@@ -77,58 +74,79 @@
     </li>
     <li
       tabindex="0"
+      role="button"
+      :aria-expanded="openIndex === 3"
+      @focus="openIndex = 3"
+      @blur="openIndex = null"
       class="collapse collapse-arrow bg-base-100 border-base-300 border"
     >
       <div class="collapse-title font-semibold">register_time</div>
       <div class="collapse-content text-sm">
         <p>
-          Можете да се запишете за участие в периода от 26 април до 1 юни.
-          Регистрацията е задължителна за всички — участници и наблюдатели.
-          Избраното направление може да се промени на място.
+          Регистрацията за Edition 2 е отворена от 19 септември до 20 ноември
+          2026 г. Задължителна е за всички — участници и наблюдатели.
         </p>
       </div>
     </li>
     <li
       tabindex="0"
+      role="button"
+      :aria-expanded="openIndex === 4"
+      @focus="openIndex = 4"
+      @blur="openIndex = null"
       class="collapse collapse-arrow bg-base-100 border-base-300 border"
     >
       <div class="collapse-title font-semibold">is_alone</div>
       <div class="collapse-content text-sm">
         <p>
-          Регистрирай се индивидуално и ние ще ти помогнем да намериш отбор по
-          време на събитието. Отборите могат да се регистрират заедно или
-          поотделно — съставът може да се финализира на самото събитие.
+          Регистрирай се индивидуално и ние ще те разпределим в отбор
+          предварително, преди събитието, за да дойдеш на място с готов екип.
+          Отборите могат да се регистрират заедно или поотделно.
         </p>
       </div>
     </li>
     <li
       tabindex="0"
+      role="button"
+      :aria-expanded="openIndex === 5"
+      @focus="openIndex = 5"
+      @blur="openIndex = null"
       class="collapse collapse-arrow bg-base-100 border-base-300 border"
     >
       <div class="collapse-title font-semibold">location</div>
       <div class="collapse-content text-sm">
         <p>
-          Събитието ще се проведе в старата сграда на ППМГ "Акад. Никола
-          Обрешков", гр. Бургас.
+          Edition 2 се провежда в Международния конгресен център Бургас, с
+          подкрепата на Община Бургас — всички отбори, щандове и сцена в едно
+          общо пространство.
         </p>
       </div>
     </li>
     <li
       tabindex="0"
+      role="button"
+      :aria-expanded="openIndex === 6"
+      @focus="openIndex = 6"
+      @blur="openIndex = null"
       class="collapse collapse-arrow bg-base-100 border-base-300 border"
     >
       <div class="collapse-title font-semibold">schedule</div>
       <div class="collapse-content text-sm">
         <p>
-          LiberHack е ~48 часа — от петък 5 юни следобед до неделя 7 юни на
-          обяд. Стартът на разработката е петък вечер след официалното
-          откриване. Финалните презентации и обявяването на победителите са в
-          неделя от 15:00 нататък.
+          LiberHack · Edition 2 е ~48 часа — от петък 27 ноември следобед до
+          неделя 29 ноември на обяд. Стартът на разработката е петък вечер след
+          официалното откриване, а финалните презентации и обявяването на
+          победителите са в неделя следобед. Точният часови график ще бъде
+          публикуван преди събитието.
         </p>
       </div>
     </li>
     <li
       tabindex="0"
+      role="button"
+      :aria-expanded="openIndex === 7"
+      @focus="openIndex = 7"
+      @blur="openIndex = null"
       class="collapse collapse-arrow bg-base-100 border-base-300 border"
     >
       <div class="collapse-title font-semibold">work_in_advance</div>
@@ -142,6 +160,10 @@
     </li>
     <li
       tabindex="0"
+      role="button"
+      :aria-expanded="openIndex === 8"
+      @focus="openIndex = 8"
+      @blur="openIndex = null"
       class="collapse collapse-arrow bg-base-100 border-base-300 border"
     >
       <div class="collapse-title font-semibold">tech_stack</div>
@@ -155,12 +177,16 @@
     </li>
     <li
       tabindex="0"
+      role="button"
+      :aria-expanded="openIndex === 9"
+      @focus="openIndex = 9"
+      @blur="openIndex = null"
       class="collapse collapse-arrow bg-base-100 border-base-300 border"
     >
       <div class="collapse-title font-semibold">judging</div>
       <div class="collapse-content text-sm">
         <p>
-          Оценяват се 4 критерия: Техническо майсторство & Сигурност (30%),
+          Оценяват се 4 критерия: Техническо майсторство и Сигурност (30%),
           Радикално критично мислене (30%), Системен дизайн & UX (20%),
           Презентация & „Roast" (20%). Всеки отбор има до 10 минути за
           презентация + 5 минути за въпроси от журито.
@@ -169,6 +195,10 @@
     </li>
     <li
       tabindex="0"
+      role="button"
+      :aria-expanded="openIndex === 10"
+      @focus="openIndex = 10"
+      @blur="openIndex = null"
       class="collapse collapse-arrow bg-base-100 border-base-300 border"
     >
       <div class="collapse-title font-semibold">ip_ownership</div>
@@ -181,6 +211,10 @@
     </li>
     <li
       tabindex="0"
+      role="button"
+      :aria-expanded="openIndex === 11"
+      @focus="openIndex = 11"
+      @blur="openIndex = null"
       class="collapse collapse-arrow bg-base-100 border-base-300 border"
     >
       <div class="collapse-title font-semibold">food</div>
@@ -193,6 +227,10 @@
     </li>
     <li
       tabindex="0"
+      role="button"
+      :aria-expanded="openIndex === 12"
+      @focus="openIndex = 12"
+      @blur="openIndex = null"
       class="collapse collapse-arrow bg-base-100 border-base-300 border"
     >
       <div class="collapse-title font-semibold">from_home</div>
@@ -202,6 +240,10 @@
     </li>
     <li
       tabindex="0"
+      role="button"
+      :aria-expanded="openIndex === 13"
+      @focus="openIndex = 13"
+      @blur="openIndex = null"
       class="collapse collapse-arrow bg-base-100 border-base-300 border"
     >
       <div class="collapse-title font-semibold">mentors</div>
@@ -215,6 +257,10 @@
     </li>
     <li
       tabindex="0"
+      role="button"
+      :aria-expanded="openIndex === 14"
+      @focus="openIndex = 14"
+      @blur="openIndex = null"
       class="collapse collapse-arrow bg-base-100 border-base-300 border"
     >
       <div class="collapse-title font-semibold">more_questions</div>

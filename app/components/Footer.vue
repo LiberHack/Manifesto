@@ -11,6 +11,7 @@ const instagram = appConfig.socials.instagram;
     <aside class="flex flex-row items-center border-2 border-primary p-2">
       <NuxtImg
         src="/favicon.webp"
+        alt="LiberHack"
         class="w-32 border-primary border-r-2 object-contain"
       />
       <p>LiberHack.</p>
@@ -30,7 +31,7 @@ const instagram = appConfig.socials.instagram;
     <div
       class="border-primary border-2 h-full p-2 md:place-self-center md:justify-self-end w-full md:w-min"
     >
-      <h1 class="text-3xl w-full">Social</h1>
+      <h2 class="text-3xl w-full">Social</h2>
       <div class="grid grid-flow-col gap-4 h-full w-full">
         <a
           class="flex flex-row gap-2 items-center"

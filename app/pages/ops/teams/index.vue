@@ -59,12 +59,15 @@ const filteredTeams = computed(() => {
     </div>
 
     <div class="space-y-3">
-      <input
-        v-model="nameFilter"
-        type="text"
-        placeholder="Search by team name…"
-        class="input input-bordered w-full"
-      />
+      <label class="form-control">
+        <span class="sr-only">Search teams by name</span>
+        <input
+          v-model="nameFilter"
+          type="text"
+          placeholder="Search by team name…"
+          class="input input-bordered w-full"
+        />
+      </label>
 
       <label class="flex items-center gap-2 cursor-pointer text-sm">
         <input v-model="openOnly" type="checkbox" class="checkbox checkbox-primary checkbox-sm" />
