@@ -56,7 +56,9 @@ export default defineEventHandler(async (event) => {
     const { success } = await limiter.limit({ key });
     retryAfter = success ? null : WINDOW_MS / 1000;
   } else {
-    retryAfter = localLimit(key, routeMax);
+    // One counter per limit, like the per-binding Workers limiters: a shared
+    // counter would charge every /api call against the tighter route limits.
+    retryAfter = localLimit(`${bindingName}:${key}`, routeMax);
   }
 
   if (retryAfter !== null) {
