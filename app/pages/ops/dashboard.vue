@@ -1,12 +1,52 @@
 <script setup lang="ts">
+import {
+  CONTACT_METHOD_LABELS,
+  contactFormFrom,
+  profileFormFrom,
+  recruitmentFormFrom,
+  type ContactForm,
+  type ContactMethod,
+  type ProfileForm,
+  type RecruitmentForm,
+} from "#shared/teamFormation";
+
 definePageMeta({ middleware: ["auth"] });
+
+const { data: attendance, refresh: refreshAttendance } = await useFetch<{
+  intention: string | null; intention_at: string | null; seat_state: string;
+  offer_expires_at: string | null; checked_in_at: string | null;
+}>("/api/me/attendance");
+const intention = ref(attendance.value?.intention ?? "");
+const barrierReasons = ref<string[]>([]);
+const barrierDetails = ref("");
+const attendanceMessage = ref("");
+async function saveAttendance() {
+  try {
+    await $fetch("/api/me/attendance/intention", { method: "POST", body: {
+      intention: intention.value, reasons: barrierReasons.value, details: barrierDetails.value,
+    } });
+    await refreshAttendance();
+    attendanceMessage.value = "Attendance response saved.";
+  } catch (e: any) { attendanceMessage.value = e.data?.message ?? "Could not save response"; }
+}
+async function changeSeat(action: "accept" | "cancel") {
+  try {
+    const result = await $fetch<{ seat_state: string }>("/api/me/attendance/seat", { method: "POST", body: { action } });
+    await refreshAttendance();
+    attendanceMessage.value = action === "accept"
+      ? result.seat_state === "accepted" ? "Seat accepted." : "The offer expired. You remain on the waitlist."
+      : "Registration cancelled.";
+  } catch (e: any) { attendanceMessage.value = e.data?.message ?? "Could not change seat"; }
+}
 
 const supabase = useSupabaseClient();
 const router = useRouter();
 const route = useRoute();
-const { data: me, refresh: refreshMe } = await useMe();
-
+// Set by /ops/team/create after a successful create.
 const showCreatedBanner = ref(route.query.created === "1");
+const { data: me, refresh: refreshMe } = await useMe();
+const { unreadTotal, refresh: refreshConversations } = await useConversations();
+useVisiblePolling(refreshConversations, 15_000);
 
 // leader_id points at a registration, not an account.
 const isLeader = computed(
@@ -23,6 +63,8 @@ const profileForm = reactive({
     | "experienced",
   public: me.value?.registration?.public ?? true,
 });
+const profileSkills = ref<string[]>([...(me.value?.registration?.skills ?? [])]);
+const matchingProfile = ref<ProfileForm>(profileFormFrom(me.value?.registration));
 const profileSaving = ref(false);
 const profileMessage = ref("");
 
@@ -36,6 +78,8 @@ async function saveProfile() {
         dietary: profileForm.dietary,
         experience: profileForm.experience || null,
         public: profileForm.public,
+        skills: profileSkills.value,
+        ...matchingProfile.value,
       },
     });
     await refreshMe();
@@ -46,9 +90,46 @@ async function saveProfile() {
   profileSaving.value = false;
 }
 
+// ── Completion prompt ─────────────────────────────────────────────────────────
+// Participants who registered before these fields existed finish them here.
+const missingContact = computed(() => me.value?.registration?.contact_complete === false);
+const missingMatching = computed(
+  () => !!me.value?.registration && !me.value.team && me.value.registration.matching_status === null,
+);
+
+// ── Contact ───────────────────────────────────────────────────────────────────
+interface OwnContact {
+  method: ContactMethod;
+  handle: string | null;
+  other_label: string | null;
+  share_with_team: boolean;
+  reachable_confirmed_at: string | null;
+}
+const { data: savedContact, refresh: refreshContact } = await useFetch<OwnContact | null>(
+  "/api/me/contact",
+);
+const contactForm = ref<ContactForm>(contactFormFrom(savedContact.value));
+const contactSaving = ref(false);
+const contactMessage = ref("");
+
+async function saveContact() {
+  contactSaving.value = true;
+  contactMessage.value = "";
+  try {
+    await $fetch("/api/me/contact", { method: "PUT", body: contactForm.value });
+    await Promise.all([refreshContact(), refreshMe()]);
+    contactMessage.value = "Saved!";
+  } catch (e: any) {
+    contactMessage.value = e.data?.message ?? "Something went wrong";
+  }
+  contactSaving.value = false;
+}
+
 // ── Team edit ─────────────────────────────────────────────────────────────────
 const skillsWanted = ref<string[]>([]);
 const teamDescription = ref("");
+const recruitment = ref<RecruitmentForm>(recruitmentFormFrom(null));
+const memberCount = ref(1);
 const teamSaving = ref(false);
 const teamMessage = ref("");
 
@@ -58,6 +139,7 @@ watch(
     if (team) {
       skillsWanted.value = [...(team.skills_wanted ?? [])];
       teamDescription.value = team.description ?? "";
+      recruitment.value = recruitmentFormFrom(team);
     }
   },
   { immediate: true },
@@ -69,13 +151,25 @@ async function saveTeam() {
   try {
     await $fetch(`/api/teams/${me.value.team.id}`, {
       method: "PATCH",
-      body: { skills_wanted: skillsWanted.value, description: teamDescription.value },
+      body: {
+        skills_wanted: skillsWanted.value,
+        description: teamDescription.value,
+        ...recruitment.value,
+      },
     });
+    await refreshMe();
     teamMessage.value = "Saved!";
   } catch (e: any) {
     teamMessage.value = e.data?.message ?? "Something went wrong";
   }
   teamSaving.value = false;
+}
+
+if (me.value?.team?.id && isLeader.value) {
+  const { data: teamDetail } = await useFetch<{ members: unknown[] }>(
+    `/api/teams/${me.value.team.id}`,
+  );
+  memberCount.value = teamDetail.value?.members.length ?? 1;
 }
 
 // ── Leave team ────────────────────────────────────────────────────────────────
@@ -86,18 +180,18 @@ const teamMemberCount = ref<number | null>(null);
 const leaveConfirmEl = ref<HTMLElement | null>(null);
 
 watch(showLeaveConfirm, async (open) => {
-  if (open) {
-    if (me.value?.team?.id && teamMemberCount.value === null) {
-      try {
-        const team = await $fetch<{ members: unknown[] }>(`/api/teams/${me.value.team.id}`);
-        teamMemberCount.value = team.members.length;
-      } catch {
-        teamMemberCount.value = 1;
-      }
+  if (!open) return;
+  if (me.value?.team?.id && teamMemberCount.value === null) {
+    try {
+      const team = await $fetch<{ members: unknown[] }>(`/api/teams/${me.value.team.id}`);
+      teamMemberCount.value = team.members.length;
+    } catch {
+      teamMemberCount.value = 1;
     }
-    await nextTick();
-    leaveConfirmEl.value?.focus();
   }
+  // Move focus to the confirmation so keyboard and screen-reader users land on it.
+  await nextTick();
+  leaveConfirmEl.value?.focus();
 });
 
 async function leaveTeam() {
@@ -189,143 +283,208 @@ async function logout() {
 </script>
 
 <template>
-  <main class="max-w-2xl mx-auto p-6 py-8 flex flex-col gap-6">
-    <div class="flex items-center justify-between flex-wrap gap-4">
-      <h1 class="text-xl md:text-4xl font-black uppercase">Dashboard</h1>
-      <div class="flex gap-3 items-center">
-        <NuxtLink to="/ops/teams" class="btn btn-outline font-black uppercase">> Teams</NuxtLink>
-        <div class="w-px h-6 bg-base-content/20" />
-        <button class="btn btn-ghost btn-sm" @click="logout">Logout</button>
+  <main class="max-w-2xl mx-auto p-6 py-8 flex flex-col">
+    <div class="bg-base-100 p-8 flex flex-col gap-8 border-primary border-2">
+
+      <div class="flex items-center justify-between flex-wrap gap-8">
+        <h1 class="text-xl md:text-4xl font-black uppercase">Dashboard</h1>
+        <div class="flex gap-2 items-center">
+          <NuxtLink to="/ops/teams" class="btn btn-outline font-black uppercase">> Teams</NuxtLink>
+          <NuxtLink to="/ops/messages" class="btn btn-outline font-black uppercase">
+            > Messages
+            <span v-if="unreadTotal" class="badge badge-primary" :aria-label="`${unreadTotal} unread`">{{ unreadTotal }}</span>
+          </NuxtLink>
+          <button class="btn btn-ghost btn-sm" @click="logout">Logout</button>
+        </div>
       </div>
-    </div>
 
-    <div
-      v-if="showCreatedBanner"
-      role="status"
-      class="alert border-2 border-primary bg-base-200 text-sm"
-    >
-      <span>Team created!</span>
-      <button class="btn btn-ghost btn-xs" @click="showCreatedBanner = false">✕</button>
-    </div>
+      <div
+        v-if="showCreatedBanner"
+        role="status"
+        class="alert border-2 border-primary bg-base-200 text-sm"
+      >
+        <span>Team created!</span>
+        <button class="btn btn-ghost btn-xs" aria-label="Dismiss" @click="showCreatedBanner = false">✕</button>
+      </div>
 
-    <!-- Profile -->
-    <section v-if="me" id="profile" class="bg-base-100 p-6 md:p-8 flex flex-col gap-4 border-2 border-base-content/20">
-      <h2 class="text-lg font-bold uppercase tracking-tight">Profile</h2>
-      <div>
+      <section v-if="me?.registration && attendance" id="attendance" class="border-2 border-base-content p-4 space-y-3">
+        <h2 class="text-xl font-black uppercase">Attendance</h2>
+        <p>Seat: <strong>{{ attendance.seat_state }}</strong></p>
+        <p v-if="attendance.seat_state === 'offered'" class="text-sm">Accept by {{ new Date(attendance.offer_expires_at!).toLocaleString() }} or this offer expires.</p>
+        <button v-if="attendance.seat_state === 'offered'" class="btn btn-primary" @click="changeSeat('accept')">Accept seat</button>
+        <p v-if="attendance.checked_in_at" class="text-sm">Checked in: {{ new Date(attendance.checked_in_at).toLocaleString() }}</p>
+        <template v-if="attendance.seat_state !== 'cancelled'">
+          <label class="form-control"><span class="label-text font-bold">Will you come?</span>
+            <select v-model="intention" class="select select-bordered w-full">
+              <option value="" disabled>Choose your answer</option><option value="coming">Coming</option>
+              <option value="unsure">Unsure</option><option value="cannot_come">Cannot come</option>
+            </select>
+          </label>
+          <p class="text-sm">Need help? Only organizers can see these barriers.</p>
+          <div class="flex flex-wrap gap-3"><label v-for="reason in ['transport','equipment','timing','team','other']" :key="reason" class="label cursor-pointer gap-1"><input v-model="barrierReasons" type="checkbox" :value="reason" class="checkbox checkbox-sm">{{ reason }}</label></div>
+          <textarea v-model="barrierDetails" maxlength="500" class="textarea textarea-bordered w-full" placeholder="Optional details for organizers" />
+          <div class="flex flex-wrap gap-2"><button :disabled="!intention" class="btn btn-primary" @click="saveAttendance">Save response</button>
+            <button class="btn btn-outline" @click="changeSeat('cancel')">Cancel registration</button></div>
+        </template>
+        <p v-if="attendanceMessage" role="status" class="text-sm">{{ attendanceMessage }}</p>
+      </section>
+
+      <div v-if="missingContact || missingMatching" role="status" class="alert alert-warning flex flex-col items-start gap-1">
+        <strong>Finish your profile for this edition</strong>
+        <a v-if="missingContact" href="#contact" class="link text-sm">
+          Add a preferred contact so organizers can reach you →
+        </a>
+        <a v-if="missingMatching" href="#profile" class="link text-sm">
+          Tell us whether you're looking for a team →
+        </a>
+      </div>
+
+      <!-- Profile -->
+      <section v-if="me" id="profile">
+        <h2 class="text-xl font-bold mb-3">Profile</h2>
         <p class="mb-1"><strong>Name:</strong> {{ me.name }}</p>
         <p class="mb-2"><strong>Email:</strong> {{ me.email }}</p>
-        <div class="flex flex-wrap gap-1">
-          <span v-for="skill in me.registration?.skills ?? []" :key="skill" class="badge badge-outline">
-            {{ skill }}
-          </span>
-        </div>
-      </div>
-
-      <div class="flex flex-col gap-3">
-        <label class="form-control">
-          <span class="label-text font-bold">Experience Level</span>
-          <select v-model="profileForm.experience" class="select select-bordered w-full">
-            <option value="">— not set —</option>
-            <option value="beginner">Beginner — new to hacking / tech events</option>
-            <option value="intermediate">Intermediate — comfortable building</option>
-            <option value="experienced">Experienced — seasoned hacker</option>
-          </select>
-        </label>
-
-        <label class="form-control">
-          <span class="label-text font-bold">Dietary Requirements</span>
-          <input
-            v-model="profileForm.dietary"
-            type="text"
-            maxlength="200"
-            placeholder="e.g. vegetarian, gluten-free, none"
-            class="input input-bordered w-full"
-          />
-        </label>
-
-        <label class="flex items-start gap-3 cursor-pointer">
-          <input
-            :checked="!profileForm.public"
-            type="checkbox"
-            class="checkbox checkbox-primary mt-1 shrink-0"
-            @change="profileForm.public = !($event.target as HTMLInputElement).checked"
-          />
-          <span class="text-sm leading-snug">Hide my profile from the public archive.</span>
-        </label>
-
-        <div
-          v-if="profileMessage"
-          class="text-sm"
-          :role="profileMessage === 'Saved!' ? 'status' : 'alert'"
-          aria-live="polite"
-          :class="profileMessage === 'Saved!' ? 'text-success' : 'text-error'"
-        >
-          {{ profileMessage }}
-        </div>
-
-        <button
-          class="btn btn-sm btn-primary font-black uppercase self-start"
-          :disabled="profileSaving"
-          @click="saveProfile"
-        >
-          {{ profileSaving ? "Saving…" : "Save Profile" }}
-        </button>
-      </div>
-    </section>
-
-    <!-- Has team -->
-    <template v-if="me?.team">
-      <section
-        id="your-team"
-        class="bg-base-100 p-6 md:p-8 flex flex-col gap-4 border-2 border-primary"
-      >
-        <div class="flex items-center justify-between gap-4 flex-wrap">
-          <h2 class="text-xl font-black uppercase tracking-tight">Your Team</h2>
-          <button
-            class="btn btn-ghost btn-xs text-error font-bold uppercase"
-            :aria-expanded="showLeaveConfirm"
-            @click="showLeaveConfirm = true"
-          >
-            Leave Team
-          </button>
-        </div>
-        <NuxtLink :to="`/ops/teams/${me.team.id}`" class="link font-bold text-lg">
-          {{ me.team.name }}
-        </NuxtLink>
-
-        <div
-          v-if="showLeaveConfirm"
-          ref="leaveConfirmEl"
-          tabindex="-1"
-          class="p-4 border border-error flex flex-col gap-3"
-        >
-          <p class="text-sm font-bold">
-            <template v-if="teamMemberCount === null">Loading…</template>
-            <template v-else-if="isLeader && teamMemberCount > 1">
-              You're the leader. Leaving will transfer leadership to the next member.
-            </template>
-            <template v-else-if="isLeader">
-              You're the only member. Leaving will delete the team.
-            </template>
-            <template v-else>Are you sure you want to leave {{ me.team.name }}?</template>
-          </p>
-          <div v-if="leaveMessage" role="alert" class="alert alert-error text-sm">{{ leaveMessage }}</div>
-          <div class="flex gap-2">
-            <button
-              :disabled="leavingTeam"
-              class="btn btn-error btn-sm font-black uppercase"
-              @click="leaveTeam"
-            >
-              {{ leavingTeam ? "Leaving…" : "Confirm Leave" }}
-            </button>
-            <button class="btn btn-ghost btn-sm" @click="showLeaveConfirm = false">Cancel</button>
+        <div class="flex flex-col gap-3">
+          <div class="form-control">
+            <span class="label-text font-bold">Skills</span>
+            <SkillPicker v-model="profileSkills" allow-create />
           </div>
-        </div>
-
-        <section v-if="isLeader" id="edit-team" class="pt-4 border-t border-base-content/20 flex flex-col gap-3">
-          <h3 class="text-sm font-bold uppercase tracking-wide opacity-70">Edit Team</h3>
 
           <label class="form-control">
+            <span class="label-text font-bold">Experience Level</span>
+            <select v-model="profileForm.experience" class="select select-bordered w-full">
+              <option value="">— not set —</option>
+              <option value="beginner">Beginner — new to hacking / tech events</option>
+              <option value="intermediate">Intermediate — comfortable building</option>
+              <option value="experienced">Experienced — seasoned hacker</option>
+            </select>
+          </label>
+
+          <label class="form-control">
+            <span class="label-text font-bold">Dietary Requirements</span>
+            <input
+              v-model="profileForm.dietary"
+              type="text"
+              maxlength="200"
+              placeholder="e.g. vegetarian, gluten-free, none"
+              class="input input-bordered w-full"
+            />
+          </label>
+
+          <label class="flex items-start gap-3 cursor-pointer">
+            <input
+              :checked="!profileForm.public"
+              type="checkbox"
+              class="checkbox checkbox-primary mt-1 shrink-0"
+              @change="profileForm.public = !($event.target as HTMLInputElement).checked"
+            />
+            <span class="text-sm leading-snug">Hide my profile from the public archive.</span>
+          </label>
+
+          <div class="divider my-1" />
+          <ProfileFields v-model="matchingProfile" />
+
+          <div
+            v-if="profileMessage"
+            :role="profileMessage === 'Saved!' ? 'status' : 'alert'"
+            aria-live="polite"
+            class="text-sm"
+            :class="profileMessage === 'Saved!' ? 'text-success' : 'text-error'"
+          >
+            {{ profileMessage }}
+          </div>
+
+          <button
+            class="btn btn-sm btn-outline font-black uppercase"
+            :disabled="profileSaving"
+            @click="saveProfile"
+          >
+            {{ profileSaving ? "Saving…" : "Save Profile" }}
+          </button>
+        </div>
+      </section>
+
+      <section v-if="me?.registration" id="contact" class="flex flex-col gap-3">
+        <h2 class="text-xl font-bold">Contact</h2>
+        <p v-if="savedContact" class="text-sm">
+          <strong>{{ CONTACT_METHOD_LABELS[savedContact.method] }}</strong>
+          <template v-if="savedContact.handle"> · {{ savedContact.handle }}</template>
+          <span v-if="savedContact.reachable_confirmed_at" class="badge badge-success badge-sm ml-2">
+            Confirmed by organizers
+          </span>
+        </p>
+        <ContactFields v-model="contactForm" />
+        <div
+          v-if="contactMessage"
+          :role="contactMessage === 'Saved!' ? 'status' : 'alert'"
+          aria-live="polite"
+          class="text-sm"
+          :class="contactMessage === 'Saved!' ? 'text-success' : 'text-error'"
+        >
+          {{ contactMessage }}
+        </div>
+        <button
+          class="btn btn-sm btn-outline font-black uppercase"
+          :disabled="contactSaving || !contactForm.method"
+          @click="saveContact"
+        >
+          {{ contactSaving ? "Saving…" : "Save Contact" }}
+        </button>
+      </section>
+
+      <MyProposals v-if="me?.registration && !me.team" @changed="refreshMe" />
+
+      <section v-if="me?.registration" id="my-requests">
+        <h2 class="text-xl font-bold mb-3">Applications &amp; invitations</h2>
+        <MyRequests @joined="refreshMe" />
+      </section>
+
+      <!-- Has team -->
+      <section v-if="me?.team" class="space-y-8">
+        <section id="your-team">
+          <div class="flex items-center justify-between gap-4 flex-wrap">
+            <h2 class="text-xl font-bold">Your Team</h2>
+            <button
+              class="btn btn-ghost btn-xs text-error font-bold uppercase"
+              @click="showLeaveConfirm = true"
+            >
+              Leave Team
+            </button>
+          </div>
+          <NuxtLink :to="`/ops/teams/${me.team.id}`" class="link font-bold text-lg">
+            {{ me.team.name }}
+          </NuxtLink>
+          <NuxtLink to="/ops/messages" class="link text-sm ml-3">Team chat →</NuxtLink>
+
+          <div v-if="showLeaveConfirm" ref="leaveConfirmEl" tabindex="-1" class="mt-4 p-4 border border-error flex flex-col gap-3">
+            <p class="text-sm font-bold">
+              <template v-if="teamMemberCount === null">Loading…</template>
+              <template v-else-if="isLeader && teamMemberCount > 1">
+                You're the leader. Leaving will transfer leadership to the next member.
+              </template>
+              <template v-else-if="isLeader">
+                You're the only member. Leaving will delete the team.
+              </template>
+              <template v-else>Are you sure you want to leave {{ me.team.name }}?</template>
+            </p>
+            <div v-if="leaveMessage" role="alert" class="alert alert-error text-sm">{{ leaveMessage }}</div>
+            <div class="flex gap-2">
+              <button
+                :disabled="leavingTeam"
+                class="btn btn-error btn-sm font-black uppercase"
+                @click="leaveTeam"
+              >
+                {{ leavingTeam ? "Leaving…" : "Confirm Leave" }}
+              </button>
+              <button class="btn btn-ghost btn-sm" @click="showLeaveConfirm = false">Cancel</button>
+            </div>
+          </div>
+        </section>
+
+        <section v-if="isLeader" id="edit-team">
+          <h2 class="text-xl font-bold mb-3">Edit Team</h2>
+
+          <label class="form-control mb-3">
             <span class="label-text font-bold">Description</span>
             <textarea
               v-model="teamDescription"
@@ -336,23 +495,25 @@ async function logout() {
             />
           </label>
 
-          <div class="form-control">
+          <div class="form-control mb-3">
             <span class="label-text font-bold">Skills Wanted</span>
             <SkillPicker v-model="skillsWanted" :allow-create="true" />
           </div>
 
+          <TeamRecruitmentFields v-model="recruitment" :member-count="memberCount" />
+
           <div
             v-if="teamMessage"
-            class="text-sm"
             :role="teamMessage === 'Saved!' ? 'status' : 'alert'"
             aria-live="polite"
+            class="text-sm mb-2"
             :class="teamMessage === 'Saved!' ? 'text-success' : 'text-error'"
           >
             {{ teamMessage }}
           </div>
 
           <button
-            class="btn btn-sm btn-primary font-black uppercase self-start"
+            class="btn btn-sm btn-outline font-black uppercase mt-3"
             :disabled="teamSaving"
             @click="saveTeam"
           >
@@ -360,16 +521,19 @@ async function logout() {
           </button>
         </section>
 
-        <section v-if="isLeader" id="pending-requests" class="pt-4 border-t border-base-content/20">
-          <h3 class="text-sm font-bold uppercase tracking-wide opacity-70 mb-2">Pending requests</h3>
-          <ManageRequests />
+        <section v-if="isLeader" id="pending-requests">
+          <div class="flex items-center justify-between gap-4 flex-wrap mb-2">
+            <h2 class="text-xl font-bold">Pending requests</h2>
+            <NuxtLink to="/ops/people" class="btn btn-outline btn-xs font-black uppercase">
+              Find people to invite
+            </NuxtLink>
+          </div>
+          <ManageRequests :team-id="me.team.id" @changed="refreshMe" />
         </section>
-      </section>
 
-      <div class="grid gap-6 md:grid-cols-2">
-        <section id="invite-link" class="bg-base-100 p-6 flex flex-col gap-3 border border-base-content/20">
-          <h2 class="text-sm font-bold uppercase tracking-wide opacity-70">Invite Link</h2>
-          <p class="text-sm opacity-60">
+        <section id="invite-link">
+          <h2 class="text-xl font-bold mb-3">Invite Link</h2>
+          <p class="text-sm opacity-60 mb-3">
             Share this link to invite people directly to your team.
           </p>
           <div class="flex gap-2 flex-wrap">
@@ -394,11 +558,11 @@ async function logout() {
             v-if="inviteCopyMessage"
             role="status"
             aria-live="polite"
-            class="text-sm text-primary font-mono break-all"
+            class="text-sm mt-2 text-primary font-mono break-all"
           >
             {{ inviteCopyMessage }}
           </div>
-          <div v-if="showRotateConfirm" class="p-3 border border-warning flex flex-col gap-2">
+          <div v-if="showRotateConfirm" class="mt-2 p-3 border border-warning flex flex-col gap-2">
             <p class="text-sm font-bold">
               This will break the link for anyone who already has it. Continue?
             </p>
@@ -415,52 +579,51 @@ async function logout() {
           </div>
         </section>
 
-        <section id="project-repo" class="bg-base-100 p-6 flex flex-col gap-3 border border-base-content/20">
-          <h2 class="text-sm font-bold uppercase tracking-wide opacity-70">Project Repo</h2>
-          <p class="text-sm opacity-60">Link your team's GitHub repository.</p>
+        <section id="project-repo">
+          <h2 class="text-xl font-bold mb-3">Project Repo</h2>
+          <p class="text-sm opacity-60 mb-3">Link your team's GitHub repository.</p>
           <input
             v-model="repoUrl"
             type="text"
             maxlength="500"
             placeholder="https://github.com/your-team/your-project"
-            class="input input-bordered w-full"
+            class="input input-bordered w-full mb-3"
           />
           <div
             v-if="repoMessage"
-            class="text-sm"
             :role="repoMessage === 'Saved!' ? 'status' : 'alert'"
             aria-live="polite"
+            class="text-sm mb-2"
             :class="repoMessage === 'Saved!' ? 'text-success' : 'text-error'"
           >
             {{ repoMessage }}
           </div>
           <button
-            class="btn btn-sm btn-outline font-black uppercase self-start"
+            class="btn btn-sm btn-outline font-black uppercase"
             :disabled="repoSaving"
             @click="saveRepo"
           >
             {{ repoSaving ? "Saving…" : "Save Repo" }}
           </button>
         </section>
-      </div>
-    </template>
-
-    <section v-else id="no-team" class="bg-base-100 p-6 md:p-8 flex flex-col gap-3 border-2 border-base-content/20">
-      <h2 class="text-lg font-bold uppercase tracking-tight">No Team Yet</h2>
-      <div class="flex flex-col md:flex-row gap-3">
-        <NuxtLink to="/ops/teams" class="btn btn-primary btn-sm font-black uppercase">
-          Browse Teams
-        </NuxtLink>
-        <NuxtLink to="/ops/team/create" class="btn btn-outline btn-sm font-black uppercase">
+      </section>
+      <section v-else id="no-team" class="flex flex-col gap-3">
+        <h2 class="text-xl font-bold">No Team Yet</h2>
+        <SuggestedTeams
+          :help-requested-at="me?.registration?.organizer_help_requested_at ?? null"
+          @changed="refreshMe"
+        />
+        <NuxtLink to="/ops/team/create" class="btn btn-outline btn-sm font-black uppercase self-start">
           Form a Team
         </NuxtLink>
-      </div>
-    </section>
+      </section>
 
-    <section v-if="me?.role === 'admin'" id="admin" class="bg-base-100 p-6 border-2 border-warning">
-      <NuxtLink to="/ops/admin" class="btn btn-warning btn-sm font-black uppercase">
-        Admin Panel
-      </NuxtLink>
-    </section>
+      <section v-if="me?.role === 'admin'" id="admin">
+        <NuxtLink to="/ops/admin" class="btn btn-warning btn-sm font-black uppercase">
+          Admin Panel
+        </NuxtLink>
+      </section>
+
+    </div>
   </main>
 </template>

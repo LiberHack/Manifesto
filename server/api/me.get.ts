@@ -28,8 +28,12 @@ export default defineEventHandler(async (event) => {
   const { data: registration } = await supabase
     .from("registrations")
     .select(
-      "id, role, team_id, skills, dietary, experience, public, accepted_terms_at, registered_at, " +
-        "team:teams!registrations_team_id_fkey(id, name, skills_wanted, description, leader_id, invite_code, github_url)",
+      "id, role, team_id, skills, skills_input, dietary, experience, public, accepted_terms_at, registered_at, " +
+        "matching_status, intro, preferred_roles, interests, goals, languages, organizer_help_requested_at, " +
+        "github_url, gitlab_url, codeberg_url, portfolio_url, " +
+        "contact:registration_contacts(method), " +
+        "team:teams!registrations_team_id_fkey(id, name, skills_wanted, description, leader_id, invite_code, github_url, " +
+        "recruiting, wanted_roles, desired_size, interests, goals, welcomes_beginners, languages)",
     )
     .eq("participant_id", user.sub)
     .eq("edition_slug", edition.slug)
@@ -39,14 +43,16 @@ export default defineEventHandler(async (event) => {
     return { ...participant, edition, registration: null, team: null };
   }
 
-  const { team, ...rest } = registration as Record<string, unknown> & {
+  const { team, contact, ...rest } = registration as unknown as Record<string, unknown> & {
     team: unknown;
+    contact: unknown;
   };
 
   return {
     ...participant,
     edition,
-    registration: rest,
+    // Only whether a contact exists: the value itself is served by /api/me/contact.
+    registration: { ...rest, contact_complete: contact !== null },
     team: team ?? null,
     // Flattened per-edition fields, kept for template convenience.
     skills: rest.skills,

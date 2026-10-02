@@ -1,4 +1,11 @@
 <script setup lang="ts">
+import {
+  contactFormFrom,
+  profileFormFrom,
+  type ContactForm,
+  type ProfileForm,
+} from "#shared/teamFormation";
+
 definePageMeta({ middleware: ["auth"] });
 
 interface RegistrationState {
@@ -10,12 +17,13 @@ interface RegistrationState {
   } | null;
   registered: boolean;
   full: boolean;
-  prefill: {
+  prefill: (Partial<ProfileForm> & {
     skills: string[];
     dietary: string | null;
     experience: "" | "beginner" | "intermediate" | "experienced" | null;
     public: boolean;
-  } | null;
+    contact?: Parameters<typeof contactFormFrom>[0];
+  }) | null;
 }
 
 const router = useRouter();
@@ -45,6 +53,13 @@ const form = reactive({
   coc: false,
 });
 
+// Matching status is never prefilled: discovery consent is given per edition.
+const profile = ref<ProfileForm>({
+  ...profileFormFrom(state.value?.prefill),
+  matching_status: null,
+});
+const contact = ref<ContactForm>(contactFormFrom(state.value?.prefill?.contact));
+
 const error = ref("");
 const loading = ref(false);
 
@@ -63,6 +78,8 @@ async function submit() {
         experience: form.experience,
         public: form.public,
         accepted_terms: form.coc,
+        ...profile.value,
+        contact: contact.value,
       },
     });
     await refreshMe();
@@ -103,14 +120,6 @@ async function submit() {
         </NuxtLink>
       </template>
 
-      <template v-else-if="isFull">
-        <h1 class="text-3xl font-black uppercase tracking-tight">Registration full</h1>
-        <p class="text-sm opacity-70">
-          {{ state.edition.name }} has reached its participant limit. Your
-          account is safe — you'll be able to register for the next edition.
-        </p>
-      </template>
-
       <form v-else class="flex flex-col gap-2" @submit.prevent="submit">
         <h1 class="text-3xl font-black uppercase tracking-tight">
           Register for {{ state.edition.name }}
@@ -118,6 +127,7 @@ async function submit() {
         <p class="text-sm opacity-70">
           Your account carries over. Confirm your details for this edition.
         </p>
+        <p v-if="isFull" class="alert alert-info text-sm">Seats are full. Register to join the waitlist; an offer will show its expiry time on your dashboard.</p>
 
         <div v-if="error" role="alert" class="alert alert-error text-sm">
           {{ error }}
@@ -155,6 +165,12 @@ async function submit() {
           />
         </label>
 
+        <ContactFields v-model="contact" />
+
+        <div class="divider my-1" />
+        <ProfileFields v-model="profile" />
+        <div class="divider my-1" />
+
         <label class="flex items-start gap-3 cursor-pointer">
           <input
             :checked="!form.public"
@@ -183,10 +199,10 @@ async function submit() {
 
         <button
           type="submit"
-          :disabled="loading || !form.coc || !form.experience"
+          :disabled="loading || !form.coc || !form.experience || !contact.method"
           class="btn btn-primary w-full font-black uppercase"
         >
-          {{ loading ? "Registering…" : `Register for ${state.edition.name}` }}
+          {{ loading ? "Registering…" : isFull ? "Join waitlist" : `Register for ${state.edition.name}` }}
         </button>
       </form>
     </div>

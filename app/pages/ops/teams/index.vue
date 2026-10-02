@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import { CONTRIBUTION_ROLE_LABELS } from "#shared/teamFormation";
+
 definePageMeta({ middleware: ["auth"] });
 
 const { data: teams } = await useFetch<any[]>("/api/teams");
 
 const nameFilter = ref("");
+const openOnly = ref(false);
 const selectedSkills = ref<string[]>([]);
 
 const allSkills = computed(() => {
@@ -24,6 +27,7 @@ const filteredTeams = computed(() => {
   let result = teams.value ?? [];
   const q = nameFilter.value.trim().toLowerCase();
   if (q) result = result.filter((t) => t.name.toLowerCase().includes(q));
+  if (openOnly.value) result = result.filter((t) => t.recruiting && t.vacancies > 0);
   if (selectedSkills.value.length)
     result = result.filter((t) =>
       selectedSkills.value.some((s) => t.skills_wanted?.includes(s)),
@@ -63,6 +67,11 @@ const filteredTeams = computed(() => {
           placeholder="Search by team name…"
           class="input input-bordered w-full"
         />
+      </label>
+
+      <label class="flex items-center gap-2 cursor-pointer text-sm">
+        <input v-model="openOnly" type="checkbox" class="checkbox checkbox-primary checkbox-sm" />
+        Only teams with open places
       </label>
 
       <div v-if="allSkills.length" class="flex flex-wrap gap-1.5">
@@ -111,9 +120,19 @@ const filteredTeams = computed(() => {
               {{ skill }}
             </span>
           </div>
-          <p class="text-xs opacity-50 mt-2 flex items-center gap-1.5">
-            {{ team.members.length }}/6 members
-            <span v-if="team.members.length >= 6" class="badge badge-error badge-xs">Full</span>
+          <div v-if="team.wanted_roles?.length" class="flex flex-wrap gap-1">
+            <span v-for="role in team.wanted_roles" :key="role" class="badge badge-primary badge-outline text-xs">
+              {{ CONTRIBUTION_ROLE_LABELS[role as keyof typeof CONTRIBUTION_ROLE_LABELS] }}
+            </span>
+          </div>
+          <p class="text-xs mt-2 flex flex-wrap gap-2 items-center">
+            <span class="opacity-50">{{ team.members.length }}/{{ team.desired_size }} members</span>
+            <span v-if="!team.recruiting" class="badge badge-ghost badge-sm">Not recruiting</span>
+            <span v-else-if="team.vacancies > 0" class="badge badge-success badge-sm">
+              {{ team.vacancies }} open {{ team.vacancies === 1 ? "place" : "places" }}
+            </span>
+            <span v-else class="badge badge-ghost badge-sm">Full</span>
+            <span v-if="team.welcomes_beginners" class="badge badge-info badge-sm">Beginners welcome</span>
           </p>
         </div>
       </NuxtLink>

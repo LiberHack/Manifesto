@@ -37,7 +37,7 @@ const validateSkills = (skillsWanted: unknown): string[] => {
 };
 
 export default defineEventHandler(async (event) => {
-  const { registration, edition, supabase } = await requireRegistration(event);
+  const { registration, supabase } = await requireRegistration(event);
 
   if (registration.team_id) {
     throw createError({ statusCode: 409, message: "Already in a team" });
@@ -55,17 +55,14 @@ export default defineEventHandler(async (event) => {
 
   const skills = validateSkills(body.skills_wanted);
 
-  const { data: team, error } = await supabase
-    .from("teams")
-    .insert({
-      name: body.name.trim(),
-      edition_slug: edition.slug,
-      leader_id: registration.id,
-      skills_wanted: skills,
-      description: body.description ?? null,
-    })
-    .select()
-    .single();
+  // create_team inserts the team and makes the caller its leading member in
+  // one transaction, refusing if a concurrent request already put them in a team.
+  const { data: team, error } = await supabase.rpc("create_team", {
+    p_registration: registration.id,
+    p_name: body.name.trim(),
+    p_skills_wanted: skills,
+    p_description: body.description ?? null,
+  });
 
   if (error) {
     if (error.code === "23505") {
@@ -74,27 +71,11 @@ export default defineEventHandler(async (event) => {
         message: "A team with that name already exists in this edition",
       });
     }
-    console.error("[teams.post] insert failed:", error.message);
-    throw createError({ statusCode: 500, message: "Failed to create team" });
-  }
-
-  // Conditional on team_id still being null, so a concurrent create (or join)
-  // that got there first wins and this team is rolled back rather than left
-  // with a leader who is not a member.
-  const { data: joined, error: joinError } = await supabase
-    .from("registrations")
-    .update({ team_id: team.id, role: "leader" })
-    .eq("id", registration.id)
-    .is("team_id", null)
-    .select("id");
-
-  if (joinError || !joined?.length) {
-    await supabase.from("teams").delete().eq("id", team.id);
-    if (joinError) {
-      console.error("[teams.post] leader update failed:", joinError.message);
-      throw createError({ statusCode: 500, message: "Failed to create team" });
+    if (error.message?.includes("already_in_team")) {
+      throw createError({ statusCode: 409, message: "Already in a team" });
     }
-    throw createError({ statusCode: 409, message: "Already in a team" });
+    console.error("[teams.post] create_team failed:", error.message);
+    throw createError({ statusCode: 500, message: "Failed to create team" });
   }
 
   return team;
