@@ -1,6 +1,6 @@
 \set ON_ERROR_STOP on
 
--- Runs after 06-verify-privacy.sql. '2027' is current.
+-- Runs after 10-verify-privacy.sql. '2027' is current.
 
 select assert(
   not (select analytics_enabled from public.editions where slug = '2027'),
@@ -61,7 +61,7 @@ exception when others then
 end
 $$;
 
--- Registrations created by 06-verify-privacy.sql.
+-- Registrations created by 10-verify-privacy.sql.
 select id as r1 from public.registrations
 where participant_id = 'a0000000-0000-0000-0000-000000000001' and edition_slug = '2027' \gset
 select id as r2 from public.registrations

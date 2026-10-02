@@ -11,6 +11,14 @@ interface RegistrationRow {
   catering: { diet: string; note: string | null } | { diet: string; note: string | null }[] | null;
   registered_at: string;
   accepted_terms_at: string;
+  matching_status: string | null;
+  contact: {
+    method: string;
+    handle: string | null;
+    other_label: string | null;
+    share_with_team: boolean;
+    reachable_confirmed_at: string | null;
+  } | null;
   participant: {
     id: string;
     name: string;
@@ -27,8 +35,9 @@ export default defineEventHandler(async (event) => {
   const { data, error } = await supabase
     .from("registrations")
     .select(
-      "id, role, team_id, skills, experience, public, public_opted_in_at, registered_at, accepted_terms_at, " +
+      "id, role, team_id, skills, experience, public, public_opted_in_at, registered_at, accepted_terms_at, matching_status, " +
         "catering:registration_catering(diet, note), " +
+        "contact:registration_contacts(method, handle, other_label, share_with_team, reachable_confirmed_at), " +
         "participant:participants(id, name, email, role, created_at)",
     )
     .eq("edition_slug", edition.slug)
@@ -55,6 +64,9 @@ export default defineEventHandler(async (event) => {
     public: r.public_opted_in_at !== null,
     registered_at: r.registered_at,
     accepted_terms_at: r.accepted_terms_at,
+    matching_status: r.matching_status,
+    // Organizer-only: this route is behind requireAdmin.
+    contact: r.contact,
     created_at: r.participant?.created_at ?? r.registered_at,
   }));
 });

@@ -1,5 +1,11 @@
 <script setup lang="ts">
 import { DIETS, MAX_DIETARY_NOTE_LENGTH, type Diet } from "#shared/utils/privacy";
+import {
+  contactFormFrom,
+  profileFormFrom,
+  type ContactForm,
+  type ProfileForm,
+} from "#shared/teamFormation";
 
 definePageMeta({ middleware: ["auth"] });
 
@@ -19,10 +25,11 @@ interface RegistrationState {
   } | null;
   registered: boolean;
   full: boolean;
-  prefill: {
+  prefill: (Partial<ProfileForm> & {
     skills: string[];
     experience: "" | "beginner" | "intermediate" | "experienced" | null;
-  } | null;
+    contact?: Parameters<typeof contactFormFrom>[0];
+  }) | null;
   notice_version: string;
   sponsor_recipients: SponsorRecipient[];
   dietary_notes_enabled: boolean;
@@ -79,6 +86,13 @@ const form = reactive({
   marketingEmail: false,
 });
 
+// Matching status is never prefilled: discovery consent is given per edition.
+const profile = ref<ProfileForm>({
+  ...profileFormFrom(state.value?.prefill),
+  matching_status: null,
+});
+const contact = ref<ContactForm>(contactFormFrom(state.value?.prefill?.contact));
+
 const error = ref("");
 const loading = ref(false);
 
@@ -101,7 +115,9 @@ const canSubmit = computed(
     (!anySponsorYes.value || form.recruitmentAdult !== null) &&
     form.experience !== "" &&
     form.diet !== "" &&
-    (!hasNote.value || form.dietaryNoteConsent),
+    (!hasNote.value || form.dietaryNoteConsent) &&
+    // A preferred contact is required ("Email only" is the explicit opt-out).
+    !!contact.value.method,
 );
 
 async function submit() {
@@ -125,12 +141,19 @@ async function submit() {
         ),
         recruitment_adult: anySponsorYes.value ? form.recruitmentAdult : null,
         marketing_email: form.marketingEmail,
+        ...profile.value,
+        contact: contact.value,
       },
     });
     await refreshMe();
     await router.push(nextPath.value);
   } catch (e: unknown) {
     const message = (e as { data?: { message?: string } }).data?.message;
+    if (message === "email_unverified") {
+      loading.value = false;
+      await router.push("/ops/verify-email");
+      return;
+    }
     if (message === "sponsor_recipients_changed" || message === "notice_changed") {
       // What the person is acknowledging changed while the form was open.
       await refreshState();
@@ -169,14 +192,6 @@ async function submit() {
         </NuxtLink>
       </template>
 
-      <template v-else-if="isFull">
-        <h1 class="text-3xl font-black uppercase tracking-tight">Registration full</h1>
-        <p class="text-sm opacity-70">
-          {{ state.edition.name }} has reached its participant limit. Your
-          account is safe — you'll be able to register for the next edition.
-        </p>
-      </template>
-
       <form v-else class="flex flex-col gap-3" @submit.prevent="submit">
         <h1 class="text-3xl font-black uppercase tracking-tight">
           Register for {{ state.edition.name }}
@@ -184,6 +199,7 @@ async function submit() {
         <p class="text-sm opacity-70">
           Your account carries over. Confirm your details for this edition.
         </p>
+        <p v-if="isFull" class="alert alert-info text-sm">Seats are full. Register to join the waitlist; an offer will show its expiry time on your dashboard.</p>
 
         <div v-if="error" role="alert" class="alert alert-error text-sm">
           {{ error }}
@@ -319,6 +335,12 @@ async function submit() {
           </p>
         </fieldset>
 
+        <ContactFields v-model="contact" />
+
+        <div class="divider my-1" />
+        <ProfileFields v-model="profile" />
+        <div class="divider my-1" />
+
         <label class="flex items-start gap-3 cursor-pointer">
           <input v-model="form.public" type="checkbox" class="checkbox checkbox-primary mt-1 shrink-0" />
           <span class="text-sm leading-snug">
@@ -359,7 +381,7 @@ async function submit() {
           :disabled="loading || !canSubmit"
           class="btn btn-primary w-full font-black uppercase"
         >
-          {{ loading ? "Registering…" : `Register for ${state.edition.name}` }}
+          {{ loading ? "Registering…" : isFull ? "Join waitlist" : `Register for ${state.edition.name}` }}
         </button>
       </form>
     </div>

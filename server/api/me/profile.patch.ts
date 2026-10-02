@@ -6,8 +6,11 @@ import {
   type Diet,
 } from "#shared/utils/privacy";
 import { EXPERIENCE_VALUES, type ExperienceLevel } from "#server/utils/registrationInput";
+import { parseProfileFields } from "#server/utils/profileInput";
+import { addSkillsToCatalogue, resolveSkills } from "#server/utils/skills";
 
 interface Body {
+  skills?: unknown;
   experience?: unknown;
   public?: unknown;
   diet?: unknown;
@@ -16,15 +19,25 @@ interface Body {
 }
 
 /**
- * Edit the caller's per-edition profile: experience, public-archive opt-in and
- * catering. A dietary note is stored only with an explicit consent and
+ * Edit the caller's per-edition profile: skills, experience, the matching
+ * profile, public-archive opt-in and catering. A dietary note is stored only with an explicit consent and
  * clearing it withdraws that consent and deletes the note.
  */
 export default defineEventHandler(async (event) => {
   const { user, registration, edition, supabase } = await requireRegistration(event);
-  const body = (await readBody<Body>(event)) ?? {};
+  // Typed catering/profile fields plus the open matching-profile fields that
+  // parseProfileFields validates.
+  const body = (await readBody<Body & Record<string, unknown>>(event)) ?? {};
 
-  const update: Record<string, string | boolean | null> = {};
+  const update: Record<string, unknown> = { ...parseProfileFields(body) };
+  let newSkills: string[] = [];
+
+  if (body.skills !== undefined) {
+    const resolved = await resolveSkills(supabase, body.skills);
+    update.skills = resolved.skills;
+    update.skills_input = resolved.skills_input;
+    newSkills = resolved.new_skills;
+  }
 
   if (body.experience !== undefined) {
     if (
@@ -132,6 +145,8 @@ export default defineEventHandler(async (event) => {
       if (error) throw createError({ statusCode: 500, message: "Internal server error" });
     }
   }
+
+  await addSkillsToCatalogue(supabase, newSkills, user.sub);
 
   return { ok: true };
 });

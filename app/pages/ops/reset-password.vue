@@ -51,6 +51,10 @@ async function submit() {
         {{ error }}
       </div>
 
+      <p v-if="!ready" class="text-sm text-center">
+        <NuxtLink to="/ops/forgot-password" class="link">Request a new link</NuxtLink>
+      </p>
+
       <template v-if="ready">
         <label class="form-control">
           <span class="label-text font-bold">New Password</span>

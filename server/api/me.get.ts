@@ -28,9 +28,13 @@ export default defineEventHandler(async (event) => {
   const { data: registration } = await supabase
     .from("registrations")
     .select(
-      "id, role, team_id, skills, experience, public, public_opted_in_at, accepted_terms_at, registered_at, " +
+      "id, role, team_id, skills, skills_input, experience, public, public_opted_in_at, accepted_terms_at, registered_at, " +
+        "matching_status, intro, preferred_roles, interests, goals, languages, organizer_help_requested_at, " +
+        "github_url, gitlab_url, codeberg_url, portfolio_url, " +
         "catering:registration_catering(diet, note), " +
-        "team:teams!registrations_team_id_fkey(id, name, skills_wanted, description, leader_id, invite_code, github_url)",
+        "contact:registration_contacts(method), " +
+        "team:teams!registrations_team_id_fkey(id, name, skills_wanted, description, leader_id, invite_code, github_url, " +
+        "recruiting, wanted_roles, desired_size, interests, goals, welcomes_beginners, languages)",
     )
     .eq("participant_id", user.sub)
     .eq("edition_slug", edition.slug)
@@ -40,9 +44,10 @@ export default defineEventHandler(async (event) => {
     return { ...participant, edition, registration: null, team: null };
   }
 
-  const { team, catering, ...rest } = registration as unknown as Record<string, unknown> & {
+  const { team, catering, contact, ...rest } = registration as unknown as Record<string, unknown> & {
     team: unknown;
     catering: unknown;
+    contact: unknown;
   };
   const cateringRow = (Array.isArray(catering) ? catering[0] : catering) ?? null;
 
@@ -50,7 +55,8 @@ export default defineEventHandler(async (event) => {
     ...participant,
     edition,
     // Catering lives in its own restricted table; only the owner sees it here.
-    registration: { ...rest, catering: cateringRow },
+    // Only whether a contact exists: the value itself is served by /api/me/contact.
+    registration: { ...rest, catering: cateringRow, contact_complete: contact !== null },
     team: team ?? null,
     // Flattened per-edition fields, kept for template convenience.
     skills: rest.skills,

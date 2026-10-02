@@ -1,8 +1,12 @@
 <script setup lang="ts">
+import { useId } from "vue";
+
 const props = defineProps<{ modelValue: string[]; allowCreate?: boolean }>();
 const emit = defineEmits<{ "update:modelValue": [string[]] }>();
 
 const MAX_CREATED = 5;
+const listboxId = useId();
+const addOptionId = `${listboxId}-add`;
 
 const { data: allSkills } = await useFetch<{ name: string }[]>("/api/skills");
 const user = useSupabaseUser();
@@ -172,6 +176,19 @@ function onArrow(dir: 1 | -1) {
     });
   });
 }
+
+function optionId(i: number) {
+  return `${listboxId}-option-${i}`;
+}
+
+const activeDescendant = computed(() => {
+  if (activeIndex.value < 0) return undefined;
+  if (activeIndex.value < filtered.value.length)
+    return optionId(activeIndex.value);
+  if (activeIndex.value === filtered.value.length && showAddNew.value)
+    return addOptionId;
+  return undefined;
+});
 </script>
 
 <template>
@@ -186,6 +203,7 @@ function onArrow(dir: 1 | -1) {
         <button
           type="button"
           class="cursor-pointer hover:opacity-70"
+          :aria-label="`Remove ${skill}`"
           @click="remove(skill)"
         >
           ✕
@@ -201,6 +219,11 @@ function onArrow(dir: 1 | -1) {
         maxlength="30"
         class="input input-bordered input-sm w-full"
         autocomplete="off"
+        role="combobox"
+        aria-autocomplete="list"
+        :aria-expanded="open"
+        :aria-controls="listboxId"
+        :aria-activedescendant="activeDescendant"
         @input="onInput"
         @focus="onInput"
         @blur="onBlur"
@@ -212,12 +235,17 @@ function onArrow(dir: 1 | -1) {
 
       <ul
         v-if="open && itemCount > 0"
+        :id="listboxId"
         ref="listEl"
+        role="listbox"
         class="absolute z-50 mt-1 w-full bg-base-100 border border-base-300 rounded shadow-lg max-h-48 overflow-y-auto"
       >
         <li
           v-for="(skill, i) in filtered"
+          :id="optionId(i)"
           :key="skill.name"
+          role="option"
+          :aria-selected="activeIndex === i"
           class="px-3 py-1.5 cursor-pointer flex items-center justify-between text-sm transition-colors"
           :class="
             activeIndex === i
@@ -232,6 +260,9 @@ function onArrow(dir: 1 | -1) {
 
         <li
           v-if="showAddNew"
+          :id="addOptionId"
+          role="option"
+          :aria-selected="activeIndex === filtered.length"
           class="px-3 py-1.5 cursor-pointer text-sm font-bold border-t border-base-300 transition-colors"
           :class="
             activeIndex === filtered.length

@@ -38,7 +38,7 @@ values, and the `acknowledged` sponsor rows written under the earlier,
 mandatory draft of this feature (migration `20261002000100`). Those rows are
 preserved unchanged and remain acknowledgments. Existing participants must
 give a fresh Yes in `/ops/privacy` before they can be exported. This is tested
-in `supabase/tests/06-verify-privacy.sql`.
+in `supabase/tests/10-verify-privacy.sql`.
 
 ## Sponsor sharing: voluntary, per recipient, fails closed
 

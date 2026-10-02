@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { PRIVACY_NOTICE_FINAL, PRIVACY_NOTICE_VERSION } from '#shared/utils/privacy'
 import { VueDraggable } from 'vue-draggable-plus'
+import { fromSofiaLocal, toSofiaLocal } from '~/utils/sofiaTime'
 
 definePageMeta({ middleware: ["admin"] });
 
@@ -126,6 +127,29 @@ async function setAnalyticsEnabled(edition: Edition, enabled: boolean) {
   }
 }
 
+/**
+ * Change an edition's participant cap. Raising it offers the new seats to the
+ * waitlist; lowering it below the accepted and offered seats is refused (409).
+ */
+async function setCap(edition: Edition, cap: number) {
+  if (!Number.isInteger(cap) || cap < 1 || cap === edition.participant_cap) return
+
+  editionBusy.value = true
+  editionError.value = ''
+  try {
+    await $fetch(`/api/admin/editions/${edition.slug}`, {
+      method: 'PATCH',
+      body: { participant_cap: cap },
+    })
+  } catch (e: unknown) {
+    editionError.value =
+      (e as { data?: { message?: string } }).data?.message ?? 'Failed to update edition'
+  } finally {
+    await refreshEditions()
+    editionBusy.value = false
+  }
+}
+
 async function goLive(slug: string) {
   if (
     !confirm(
@@ -173,38 +197,21 @@ async function recordSponsorObjection(id: string) {
   alert("Recorded. Check the export audit for sponsors who already received their data.");
 }
 
+/** Record that an organizer reached this person on their preferred channel. */
+async function confirmContact(p: any, confirmed: boolean) {
+  const result = await $fetch<{ reachable_confirmed_at: string | null }>(
+    `/api/admin/registrations/${p.registration_id}/contact-confirm`,
+    { method: "POST", body: { confirmed }, query: editionQuery.value },
+  );
+  p.contact = { ...p.contact, reachable_confirmed_at: result.reachable_confirmed_at };
+  await refreshParticipants();
+}
+
 async function deleteTeam(id: string) {
   if (!confirm("Delete this team? All members will be freed.")) return;
   await $fetch(`/api/admin/teams/${id}`, { method: "DELETE" });
   await refreshTeams();
   await refreshParticipants();
-}
-
-// ── Timezone helpers (Europe/Sofia) ─────────────────────────────────────────
-function toSofiaLocal(iso: string | null): string {
-  if (!iso) return ''
-  const d = new Date(iso)
-  const formatter = new Intl.DateTimeFormat('sv-SE', {
-    timeZone: 'Europe/Sofia',
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit',
-  })
-  return formatter.format(d).replace(' ', 'T')
-}
-
-function fromSofiaLocal(localStr: string): string {
-  if (!localStr) return ''
-  // Compute the UTC offset for Europe/Sofia at the given local time.
-  // We interpret localStr as a Sofia wall-clock time (YYYY-MM-DDTHH:mm),
-  // then find the UTC equivalent by probing with Intl.DateTimeFormat.
-  const probe = new Date(localStr)
-  const sofiaStr = new Intl.DateTimeFormat('sv-SE', {
-    timeZone: 'Europe/Sofia',
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit',
-  }).format(probe).replace(' ', 'T')
-  const offsetMs = probe.getTime() - new Date(sofiaStr).getTime()
-  return new Date(new Date(localStr).getTime() - offsetMs).toISOString()
 }
 
 // ── Section visibility toggles ───────────────────────────────────────────────
@@ -534,6 +541,7 @@ async function addAnnouncement() {
           </option>
         </select>
         <NuxtLink to="/ops/dashboard" class="btn btn-ghost btn-sm">← Dashboard</NuxtLink>
+        <NuxtLink to="/ops/admin/attendance" class="btn btn-primary btn-sm">Attendance desk</NuxtLink>
       </div>
     </div>
 
@@ -580,7 +588,18 @@ async function addAnnouncement() {
                         {{ e.is_current ? 'live (current)' : e.status }}
                       </span>
                     </td>
-                    <td>{{ e.participant_cap }}</td>
+                    <td>
+                      <input
+                        :key="`${e.slug}-${e.participant_cap}`"
+                        type="number"
+                        min="1"
+                        class="input input-bordered input-xs w-20"
+                        :aria-label="`Participant cap for ${e.slug}`"
+                        :value="e.participant_cap"
+                        :disabled="editionBusy || e.status === 'archived'"
+                        @change="setCap(e, Number(($event.target as HTMLInputElement).value))"
+                      />
+                    </td>
                     <td>
                       <label class="flex items-center gap-2 cursor-pointer">
                         <input
@@ -1045,12 +1064,23 @@ async function addAnnouncement() {
     <!-- ── Sources & sponsors ─────────────────────────────────────────────── -->
     <AdminSources :edition-query="editionQuery" :read-only="editionReadOnly" />
     <AdminSponsors :edition-query="editionQuery" :read-only="editionReadOnly" />
+    <NuxtLink to="/ops/admin/matching" class="btn btn-outline btn-sm font-black uppercase">
+      > Matching queue, proposals &amp; reports
+    </NuxtLink>
 
     <!-- ── Participants ────────────────────────────────────────────────────── -->
     <section>
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-2xl font-bold">Participants ({{ participants?.length ?? 0 }})</h2>
-        <a :href="`/api/admin/participants/export?edition=${selectedSlug}`" download class="btn btn-outline btn-sm">↓ Export CSV</a>
+        <div class="flex gap-2 flex-wrap">
+          <a :href="`/api/admin/participants/export?edition=${selectedSlug}`" download class="btn btn-outline btn-sm">↓ Export CSV</a>
+          <a
+            :href="`/api/admin/participants/export?edition=${selectedSlug}&include_contacts=1`"
+            download
+            class="btn btn-ghost btn-sm"
+            title="Adds preferred contacts. Organizer-only, like the plain export."
+          >↓ With contacts</a>
+        </div>
       </div>
       <div class="overflow-x-auto">
         <table class="table table-xs md:table-md w-full">
@@ -1060,6 +1090,8 @@ async function addAnnouncement() {
               <th>Email</th>
               <th>Role</th>
               <th>Team</th>
+              <th>Matching</th>
+              <th>Contact</th>
               <th></th>
             </tr>
           </thead>
@@ -1081,6 +1113,12 @@ async function addAnnouncement() {
                 </span>
               </td>
               <td>{{ p.team_id ? "✓" : "—" }}</td>
+              <td>{{ p.matching_status ?? "—" }}</td>
+              <td>
+                <span v-if="!p.contact" class="badge badge-warning badge-sm">missing</span>
+                <span v-else-if="p.contact.reachable_confirmed_at" class="badge badge-success badge-sm">confirmed</span>
+                <span v-else class="badge badge-ghost badge-sm">{{ p.contact.method }}</span>
+              </td>
               <td>
                 <button
                   class="btn btn-error btn-xs"
@@ -1168,6 +1206,31 @@ async function addAnnouncement() {
 
           <span class="opacity-50 font-semibold">Public</span>
           <span>{{ selected.public ? 'opted in' : 'no' }}</span>
+
+          <span class="opacity-50 font-semibold">Matching</span>
+          <span>{{ selected.matching_status ?? 'not answered' }}</span>
+
+          <span class="opacity-50 font-semibold">Contact</span>
+          <span v-if="!selected.contact">— not provided yet</span>
+          <span v-else class="flex flex-col gap-1">
+            <span>
+              {{ selected.contact.method === 'other' ? selected.contact.other_label : selected.contact.method }}
+              <template v-if="selected.contact.handle">· {{ selected.contact.handle }}</template>
+            </span>
+            <span class="text-xs opacity-60">
+              {{ selected.contact.share_with_team ? 'Shared with teammates' : 'Organizers only' }}
+            </span>
+            <span class="flex items-center gap-2">
+              <span v-if="selected.contact.reachable_confirmed_at" class="badge badge-success badge-sm">
+                Reached {{ new Date(selected.contact.reachable_confirmed_at).toLocaleDateString() }}
+              </span>
+              <button
+                class="btn btn-xs"
+                :disabled="editionReadOnly"
+                @click="confirmContact(selected, !selected.contact.reachable_confirmed_at)"
+              >{{ selected.contact.reachable_confirmed_at ? 'Clear confirmation' : 'Mark as reached' }}</button>
+            </span>
+          </span>
         </div>
 
         <div v-if="selected.skills?.length">

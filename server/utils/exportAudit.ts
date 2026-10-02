@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type ExportKind =
   | "participants"
+  | "participants_contacts"
   | "teams"
   | "catering"
   | "sponsor"

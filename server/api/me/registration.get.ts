@@ -4,9 +4,28 @@ import { getCurrentEdition } from "#server/utils/registrationContext";
 import { PRIVACY_NOTICE_VERSION } from "#shared/utils/privacy";
 import { listActiveRecipients } from "#server/utils/sponsors";
 
+const PROFILE_COLUMNS =
+  "intro, preferred_roles, interests, goals, languages, github_url, gitlab_url, codeberg_url, portfolio_url";
+
 interface Prefill {
   skills: string[];
   experience: "beginner" | "intermediate" | "experienced" | null;
+  intro?: string | null;
+  preferred_roles?: string[];
+  interests?: string[];
+  goals?: string[];
+  languages?: string[];
+  github_url?: string | null;
+  gitlab_url?: string | null;
+  codeberg_url?: string | null;
+  portfolio_url?: string | null;
+  /** Prior edition's preferred contact, offered for re-confirmation. */
+  contact?: {
+    method: string;
+    handle: string | null;
+    other_label: string | null;
+    share_with_team: boolean;
+  } | null;
 }
 
 /**
@@ -14,9 +33,11 @@ interface Prefill {
  * already registered, whether it is full, the sponsor recipients the
  * acknowledgment covers, and values to pre-fill.
  *
- * Pre-fill carries skills and experience only — from the most recent prior
- * registration, or the signup form's metadata for a first-time account.
- * Catering, the public-archive choice and every consent are asked afresh.
+ * Pre-fill comes from the most recent prior registration: skills, experience,
+ * the reusable introduction, links and contact. For a first-time account it
+ * falls back to the metadata captured on the signup form. Catering, the
+ * public-archive choice, matching status and every consent are asked afresh
+ * each edition.
  */
 export default defineEventHandler(async (event) => {
   const user = await serverSupabaseUser(event);
@@ -47,7 +68,10 @@ export default defineEventHandler(async (event) => {
       .maybeSingle(),
     supabase
       .from("registrations")
-      .select("skills, experience")
+      .select(
+        `id, skills, experience, ${PROFILE_COLUMNS}, ` +
+          "contact:registration_contacts(method, handle, other_label, share_with_team)",
+      )
       .eq("participant_id", user.sub)
       .neq("edition_slug", edition.slug)
       .order("registered_at", { ascending: false })
@@ -66,7 +90,7 @@ export default defineEventHandler(async (event) => {
   const experience = metadata.experience;
 
   const prefill: Prefill = prior
-    ? (prior as Prefill)
+    ? (({ id: _id, ...rest }) => rest)(prior as unknown as Prefill & { id: string })
     : {
         skills: Array.isArray(metadata.skills) ? (metadata.skills as string[]) : [],
         experience:

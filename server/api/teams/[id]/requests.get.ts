@@ -1,25 +1,36 @@
 import { requireRegistration } from "#server/utils/requireRegistration";
 import { requireTeamLeadership } from "#server/utils/registrationContext";
+import { PUBLIC_PROFILE_COLUMNS, toPublicProfile } from "#server/utils/joinRequests";
 
+interface RequestRow {
+  id: string;
+  kind: "application" | "invitation";
+  participant_id: string;
+  message: string | null;
+  created_at: string;
+  expires_at: string | null;
+  conversation: { id: string } | null;
+}
+
+/**
+ * The leader's view of their team's open requests: applications with the
+ * applicant's public profile and message, and invitations still awaiting an
+ * answer. Never includes dietary or contact details.
+ */
 export default defineEventHandler(async (event) => {
   const ctx = await requireRegistration(event);
   const { supabase, edition } = ctx;
 
-  const teamId = getRouterParam(event, "id");
-  await requireTeamLeadership(
-    ctx,
-    teamId!,
-    "Only the team leader can view requests",
-  );
+  const teamId = getRouterParam(event, "id")!;
+  await requireTeamLeadership(ctx, teamId, "Only the team leader can view requests");
 
   const { data, error } = await supabase
     .from("join_requests")
-    .select(
-      "id, status, created_at, participant:participants(id, name)",
-    )
-    .eq("team_id", teamId!)
+    .select("id, kind, participant_id, message, created_at, expires_at, conversation:conversations(id)")
+    .eq("team_id", teamId)
     .eq("edition_slug", edition.slug)
     .eq("status", "pending")
+    .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
     .order("created_at", { ascending: true });
 
   if (error) {
@@ -27,37 +38,25 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 500, message: "Internal server error" });
   }
 
-  // Skills live on the requester's registration for this edition, not on the
-  // identity mirror, so they are resolved in a second pass.
-  const ids = (data ?? [])
-    .map((r) => (r.participant as unknown as { id: string } | null)?.id)
-    .filter((id): id is string => Boolean(id));
+  const rows = (data ?? []) as unknown as RequestRow[];
+  if (rows.length === 0) return [];
 
-  if (ids.length === 0) return data ?? [];
-
+  // Profiles live on each person's registration for this edition.
   const { data: regs } = await supabase
     .from("registrations")
-    .select("participant_id, skills")
+    .select(`participant_id, ${PUBLIC_PROFILE_COLUMNS}`)
     .eq("edition_slug", edition.slug)
-    .in("participant_id", ids);
+    .in("participant_id", rows.map((r) => r.participant_id));
 
-  const skillsByParticipant = new Map(
-    (regs ?? []).map((r) => [r.participant_id as string, r.skills as string[]]),
+  const profiles = new Map(
+    ((regs ?? []) as unknown as Array<Record<string, unknown>>).map((r) => [
+      r.participant_id as string,
+      toPublicProfile(r),
+    ]),
   );
 
-  return (data ?? []).map((r) => {
-    const participant = r.participant as unknown as {
-      id: string;
-      name: string;
-    } | null;
-    return {
-      ...r,
-      participant: participant
-        ? {
-            ...participant,
-            skills: skillsByParticipant.get(participant.id) ?? [],
-          }
-        : null,
-    };
-  });
+  return rows.map(({ participant_id, ...request }) => ({
+    ...request,
+    profile: profiles.get(participant_id) ?? null,
+  }));
 });

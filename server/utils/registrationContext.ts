@@ -12,6 +12,7 @@ export interface Edition {
   ops_enabled: boolean;
   /** Consent banner + analytics collection; off until an admin enables it. */
   analytics_enabled: boolean;
+  unanswered_request_hours: number;
 }
 
 export interface Registration {
@@ -46,11 +47,30 @@ export async function getCurrentEdition(
 ): Promise<Edition | null> {
   const { data } = await supabase
     .from("editions")
-    .select("slug, name, starts_at, ends_at, status, participant_cap, ops_enabled, analytics_enabled")
+    .select("slug, name, starts_at, ends_at, status, participant_cap, ops_enabled, analytics_enabled, unanswered_request_hours")
     .eq("is_current", true)
     .maybeSingle();
 
   return (data as Edition | null) ?? null;
+}
+
+/**
+ * The current edition, provided its participant area is open.
+ *
+ * @throws 503 when no edition is live, 403 `ops_closed` when the edition's
+ *   participant area has not opened.
+ */
+export async function requireOpenEdition(
+  supabase: SupabaseClient,
+): Promise<Edition> {
+  const edition = await getCurrentEdition(supabase);
+  if (!edition) {
+    throw createError({ statusCode: 503, message: "no_live_edition" });
+  }
+  if (!edition.ops_enabled) {
+    throw createError({ statusCode: 403, message: "ops_closed" });
+  }
+  return edition;
 }
 
 /**
@@ -69,16 +89,9 @@ export async function resolveRegistrationContext(
 ): Promise<RegistrationContext> {
   if (!user) throw createError({ statusCode: 401, message: "Unauthorized" });
 
-  const edition = await getCurrentEdition(supabase);
-  if (!edition) {
-    throw createError({ statusCode: 503, message: "no_live_edition" });
-  }
-
   // Checked before the registration lookup: while the participant area is
   // closed, whether the caller happens to be registered is not the point.
-  if (!edition.ops_enabled) {
-    throw createError({ statusCode: 403, message: "ops_closed" });
-  }
+  const edition = await requireOpenEdition(supabase);
 
   const { data: registration } = await supabase
     .from("registrations")

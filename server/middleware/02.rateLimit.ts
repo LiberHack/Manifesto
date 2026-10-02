@@ -1,5 +1,6 @@
+import { rateLimitKey } from "#server/utils/rateLimitKey";
+
 const WINDOW_MS = 60_000; // 1 minute
-const MAX_REQUESTS = 60;
 
 // Tighter limits for unauthenticated/expensive endpoints.
 // The binding name must match `ratelimits[].name` in wrangler.jsonc.
@@ -19,12 +20,12 @@ const store = new Map<string, { count: number; resetAt: number }>();
 // share the API budget.
 const API_PATTERN = /^\/(api|go)\//;
 
-function localLimit(ip: string, max: number): number | null {
+function localLimit(key: string, max: number): number | null {
   const now = Date.now();
-  const entry = store.get(ip);
+  const entry = store.get(key);
 
   if (!entry || now >= entry.resetAt) {
-    store.set(ip, { count: 1, resetAt: now + WINDOW_MS });
+    store.set(key, { count: 1, resetAt: now + WINDOW_MS });
     return null;
   }
 
@@ -35,15 +36,18 @@ function localLimit(ip: string, max: number): number | null {
 export default defineEventHandler(async (event) => {
   if (!API_PATTERN.test(event.path)) return;
 
-  // cf-connecting-ip is set by Cloudflare from the actual TCP connection and cannot be spoofed
-  const ip =
-    getHeader(event, "cf-connecting-ip") ??
-    getHeader(event, "x-forwarded-for")?.split(",")[0]?.trim() ??
-    "unknown";
+  const key = rateLimitKey(
+    (event.context.user as { sub?: string } | null | undefined)?.sub,
+    {
+      cfConnectingIp: getHeader(event, "cf-connecting-ip"),
+      forwardedFor: getHeader(event, "x-forwarded-for"),
+    },
+  );
 
+  const maxRequests = Number(useRuntimeConfig(event).rateLimitMax) || 60;
   const [, routeMax, bindingName] =
     ROUTE_LIMITS.find(([pattern]) => pattern.test(event.path)) ??
-    [null, MAX_REQUESTS, "RL_API"];
+    [null, maxRequests, "RL_API"];
 
   const limiter = event.context.cloudflare?.env?.[bindingName] as
     | RateLimitBinding
@@ -51,10 +55,12 @@ export default defineEventHandler(async (event) => {
 
   let retryAfter: number | null;
   if (limiter) {
-    const { success } = await limiter.limit({ key: ip });
+    const { success } = await limiter.limit({ key });
     retryAfter = success ? null : WINDOW_MS / 1000;
   } else {
-    retryAfter = localLimit(ip, routeMax);
+    // One counter per limit, like the per-binding Workers limiters: a shared
+    // counter would charge every /api call against the tighter route limits.
+    retryAfter = localLimit(`${bindingName}:${key}`, routeMax);
   }
 
   if (retryAfter !== null) {

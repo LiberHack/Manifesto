@@ -153,7 +153,7 @@ create table if not exists public.export_audit (
   id              bigint generated always as identity primary key,
   exported_by     uuid null references public.participants(id) on delete set null,
   export_kind     text not null check (export_kind in
-                    ('participants', 'teams', 'catering', 'sponsor', 'sponsor_report',
+                    ('participants', 'participants_contacts', 'teams', 'catering', 'sponsor', 'sponsor_report',
                      'source_report', 'funnel_report')),
   edition_slug    text not null references public.editions(slug) on update cascade on delete restrict,
   recipient_id    uuid null references public.sponsor_recipients(id) on delete restrict,

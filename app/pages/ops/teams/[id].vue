@@ -1,4 +1,13 @@
 <script setup lang="ts">
+import {
+  CONTACT_METHOD_LABELS,
+  CONTRIBUTION_ROLE_LABELS,
+  PARTICIPANT_GOAL_LABELS,
+  REQUEST_MESSAGE_MAX_LENGTH,
+  REQUEST_MESSAGE_MIN_LENGTH,
+  type ContactMethod,
+} from "#shared/teamFormation";
+
 definePageMeta({ middleware: ["auth"] });
 
 const route = useRoute();
@@ -18,6 +27,19 @@ const safeRepoUrl = computed(() => {
 
 const sending = ref(false);
 const message = ref("");
+// Prefilled from the profile introduction; what is sent is stored as-is.
+const applicationMessage = ref(me.value?.registration?.intro ?? "");
+const messageLength = computed(() => applicationMessage.value.trim().length);
+const messageValid = computed(
+  () =>
+    messageLength.value >= REQUEST_MESSAGE_MIN_LENGTH &&
+    messageLength.value <= REQUEST_MESSAGE_MAX_LENGTH,
+);
+const canApply = computed(() => team.value?.recruiting && team.value?.vacancies > 0);
+
+function contactLabel(contact: { method: ContactMethod; other_label: string | null }) {
+  return contact.method === "other" ? contact.other_label : CONTACT_METHOD_LABELS[contact.method];
+}
 
 // Members are keyed by registration id, which is also what leader_id points at.
 const isMember = computed(() =>
@@ -31,7 +53,11 @@ async function sendRequest() {
   sending.value = true;
   message.value = "";
   try {
-    await $fetch(`/api/teams/${route.params.id}/requests`, { method: "POST" });
+    await $fetch(`/api/teams/${route.params.id}/requests`, {
+      method: "POST",
+      // Attributed to recommendations only if the server finds the exposure.
+      body: { message: applicationMessage.value, recommended: route.query.recommended === "1" },
+    });
     message.value = "Request sent!";
   } catch (e: any) {
     message.value = e.data?.message ?? "Something went wrong";
@@ -59,8 +85,37 @@ async function sendRequest() {
         >
       </div>
 
+      <div class="flex flex-wrap gap-2 text-sm">
+        <span v-if="!team.recruiting" class="badge badge-ghost">Not recruiting</span>
+        <span v-else-if="team.vacancies > 0" class="badge badge-success">
+          {{ team.vacancies }} open {{ team.vacancies === 1 ? "place" : "places" }}
+        </span>
+        <span v-else class="badge badge-ghost">Full</span>
+        <span v-if="team.welcomes_beginners" class="badge badge-info">Beginners welcome</span>
+      </div>
+
+      <div v-if="team.wanted_roles?.length">
+        <h2 class="font-bold mb-1">Looking for</h2>
+        <div class="flex flex-wrap gap-1">
+          <span v-for="role in team.wanted_roles" :key="role" class="badge badge-primary badge-outline">
+            {{ CONTRIBUTION_ROLE_LABELS[role as keyof typeof CONTRIBUTION_ROLE_LABELS] }}
+          </span>
+        </div>
+      </div>
+
+      <p v-if="team.interests?.length || team.goals?.length" class="text-sm opacity-70">
+        <template v-if="team.interests?.length">Interests: {{ team.interests.join(", ") }}</template>
+        <template v-if="team.interests?.length && team.goals?.length"> · </template>
+        <template v-if="team.goals?.length">
+          Goals: {{ team.goals.map((g: keyof typeof PARTICIPANT_GOAL_LABELS) => PARTICIPANT_GOAL_LABELS[g]).join(", ") }}
+        </template>
+      </p>
+      <p v-if="team.languages?.length" class="text-sm opacity-70">
+        Working languages: {{ team.languages.join(", ") }}
+      </p>
+
       <h2 class="text-xl font-bold mt-6 mb-3">
-        Members ({{ team.members?.length ?? 0 }}/6)
+        Members ({{ team.members?.length ?? 0 }}/{{ team.desired_size }})
       </h2>
       <ul class="space-y-2">
         <li
@@ -77,6 +132,9 @@ async function sendRequest() {
               >{{ skill }}</span
             >
           </div>
+          <span v-if="member.shared_contact" class="text-xs opacity-70">
+            {{ contactLabel(member.shared_contact) }}: {{ member.shared_contact.handle }}
+          </span>
         </li>
       </ul>
 
@@ -94,24 +152,52 @@ async function sendRequest() {
         <div
           v-if="message"
           class="alert mb-4"
+          :role="message === 'Request sent!' ? 'status' : 'alert'"
+          aria-live="polite"
           :class="message === 'Request sent!' ? 'alert-success' : 'alert-error'"
         >
           {{ message }}
         </div>
 
-        <button
-          v-if="!isMember && !alreadyInTeam"
-          :disabled="sending"
-          class="btn btn-primary font-black uppercase"
-          @click="sendRequest"
+        <form
+          v-if="!isMember && !alreadyInTeam && canApply && message !== 'Request sent!'"
+          class="flex flex-col gap-2"
+          @submit.prevent="sendRequest"
         >
-          {{ sending ? "Sending…" : "Request to Join" }}
-        </button>
+          <label class="form-control">
+            <span class="label-text font-bold">Your message to the team</span>
+            <span class="label-text text-xs opacity-60 mb-1">
+              What would you like to contribute, and why does this team interest you?
+              A short beginner introduction is enough.
+            </span>
+            <textarea
+              v-model="applicationMessage"
+              rows="4"
+              :maxlength="REQUEST_MESSAGE_MAX_LENGTH"
+              class="textarea textarea-bordered w-full"
+            />
+            <span class="label-text-alt text-right" :class="messageValid ? 'opacity-60' : 'text-warning'">
+              {{ messageLength }}/{{ REQUEST_MESSAGE_MAX_LENGTH }}
+              (at least {{ REQUEST_MESSAGE_MIN_LENGTH }})
+            </span>
+          </label>
+          <button
+            type="submit"
+            :disabled="sending || !messageValid"
+            class="btn btn-primary font-black uppercase self-start"
+          >
+            {{ sending ? "Sending…" : "Request to Join" }}
+          </button>
+        </form>
+
+        <p v-else-if="!isMember && !alreadyInTeam && !canApply" class="opacity-60">
+          This team isn't taking applications right now.
+        </p>
 
         <p v-else-if="isMember" class="font-bold text-success">
           You're a member of this team.
         </p>
-        <p v-else class="opacity-60">You're already in a team.</p>
+        <p v-else-if="alreadyInTeam" class="opacity-60">You're already in a team.</p>
       </div>
     </template>
   </main>

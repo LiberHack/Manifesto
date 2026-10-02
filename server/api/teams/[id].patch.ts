@@ -1,5 +1,7 @@
 import { requireRegistration } from "#server/utils/requireRegistration";
 import { requireTeamLeadership } from "#server/utils/registrationContext";
+import { parseTeamRecruitmentFields } from "#server/utils/profileInput";
+import { membershipError } from "#server/utils/joinRequests";
 
 const MAX_SKILLS = 10;
 const MAX_SKILL_LENGTH = 30;
@@ -16,13 +18,9 @@ export default defineEventHandler(async (event) => {
     "Only the team leader can update this team",
   );
 
-  const body = await readBody<{ skills_wanted?: unknown; description?: unknown }>(event);
+  const body = (await readBody<Record<string, unknown>>(event)) ?? {};
 
-  if (body.skills_wanted === undefined && body.description === undefined) {
-    throw createError({ statusCode: 400, message: "No fields to update" });
-  }
-
-  const update: Record<string, unknown> = {};
+  const update: Record<string, unknown> = { ...parseTeamRecruitmentFields(body) };
 
   if (body.skills_wanted !== undefined) {
     if (!Array.isArray(body.skills_wanted)) {
@@ -60,6 +58,10 @@ export default defineEventHandler(async (event) => {
     update.description = description === "" ? null : description;
   }
 
+  if (Object.keys(update).length === 0) {
+    throw createError({ statusCode: 400, message: "No fields to update" });
+  }
+
   const { data, error } = await supabase
     .from("teams")
     .update(update)
@@ -67,9 +69,8 @@ export default defineEventHandler(async (event) => {
     .select()
     .single();
 
-  if (error) {
-    console.error("[teams.patch] update failed:", error.message);
-    throw createError({ statusCode: 500, message: "Internal server error" });
-  }
+  // The check_desired_size trigger rejects a size below the current membership,
+  // under the same row lock joins take.
+  if (error) membershipError(error, "teams.patch");
   return data;
 });
