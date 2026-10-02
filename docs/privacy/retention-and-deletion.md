@@ -160,6 +160,25 @@ at least as long as the oldest backup that could be restored.
    `bunx supabase db push` applies three migrations, all additive:
    `20261002000100`, `20261002000200`, `20261002000300`. The last one enables
    pg_cron and schedules the job. Check it with the queries above.
+
+   **Order against the team-formation stack (#12–#15).** These versions were
+   renumbered to sort after the team-formation migrations
+   (`20260929000000` … `20261002000000`). Push those first. If the privacy
+   migrations go first, `db push` refuses the lower-numbered team-formation
+   ones later as out of order, and `--include-all` would then apply them
+   after privacy, an order nothing was tested in. Before pushing:
+   - Run `bunx supabase migration list` against the target project. Every
+     team-formation version must show as applied remotely, and none of
+     `20261001000100`, `20261001000200` or `20261002000100` may be recorded
+     under the **old** privacy file names (`consent_records`,
+     `source_links_and_analytics`, `sponsor_consent_and_retention`).
+   - If an old privacy version is recorded remotely, stop. Renaming the file
+     does not rename the recorded version. Reconcile it by hand with
+     `supabase migration repair` after review; do not push over it.
+
+   The combined sequence (phase 2 tip plus these three, then the stage 2
+   cleanup and stage 3) was verified on a throwaway database: every
+   migration applies in filename order and all verification suites pass.
 3. `bunx supabase config push` enables TOTP MFA (`[auth.mfa.totp]`). Admins
    enrol at `/ops/admin/mfa`.
 4. Set Worker variables per environment as needed (nothing new is a secret):
