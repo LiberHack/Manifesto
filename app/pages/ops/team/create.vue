@@ -82,7 +82,7 @@ const createTeam = handleSubmit(async (values) => {
       <div class="form-control">
         <span class="label-text font-bold">Skills Wanted</span>
 
-        <SkillPicker v-model="skillsWanted" :allow-create="true" class="mt-1" />
+        <SkillPicker v-model="skillsWanted" allow-create budget="team" class="mt-1" />
         <span v-if="skillsError" id="skills-error" class="label-text-alt text-error mt-1">{{
           skillsError
         }}</span>

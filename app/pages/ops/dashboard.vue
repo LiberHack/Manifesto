@@ -532,7 +532,7 @@ async function logout() {
 
           <div class="form-control mb-3">
             <span class="label-text font-bold">Skills Wanted</span>
-            <SkillPicker v-model="skillsWanted" :allow-create="true" />
+            <SkillPicker v-model="skillsWanted" allow-create budget="team" />
           </div>
 
           <TeamRecruitmentFields v-model="recruitment" :member-count="memberCount" />

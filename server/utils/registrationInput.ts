@@ -5,12 +5,11 @@ import {
   PRIVACY_NOTICE_VERSION,
   type Diet,
 } from "#shared/utils/privacy";
+import { MAX_SKILL_LENGTH, MAX_SKILLS } from "#shared/skills";
 
 export const EXPERIENCE_VALUES = ["beginner", "intermediate", "experienced"] as const;
 export type ExperienceLevel = (typeof EXPERIENCE_VALUES)[number];
 
-export const MAX_SKILLS = 10;
-export const MAX_SKILL_LENGTH = 30;
 const MAX_RECIPIENTS = 50;
 export const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -73,7 +72,7 @@ export function parseRegistrationInput(body: Record<string, unknown> | null): Re
   if (!body || typeof body !== "object") bad("Invalid body");
 
   if (body.accepted_terms !== true) {
-    bad("You must agree to the event rules and the Code of Conduct");
+    bad("You must agree to the Code of Conduct");
   }
   if (body.privacy_notice_acknowledged !== true) {
     bad("You must confirm you have read the Privacy Notice");
