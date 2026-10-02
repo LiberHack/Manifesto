@@ -160,14 +160,22 @@ begin
 
   -- The note (up to 500 characters) explains the proposal to its members; it
   -- stays on the proposal rather than becoming the 200-character description.
-  created := public.create_team(leader, prop.name, '{}', null);
+  -- Not create_team: that records its leader as 'founded', and every member of
+  -- a proposal, the first included, was placed by the organizers. join_team
+  -- re-checks each membership (already in a team, capacity, edition).
+  insert into public.teams (name, edition_slug, leader_id, skills_wanted, description)
+  select prop.name, r.edition_slug, r.id, '{}', null
+  from public.registrations r where r.id = leader
+  returning * into created;
 
   for member in
     select registration_id from public.team_proposal_members
-    where proposal_id = p_proposal and registration_id <> leader
+    where proposal_id = p_proposal
+    order by position
   loop
     perform public.join_team(member.registration_id, created.id, 'organizer');
   end loop;
+  update public.registrations set role = 'leader' where id = leader;
 
   update public.team_proposals
   set status = 'formed', team_id = created.id, decided_at = now()
@@ -514,28 +522,26 @@ declare
   leader uuid;
   target uuid;
 begin
-  select * into req from public.join_requests where id = p_request for update;
+  -- Same structure as phase 1's definition (only the formation source below
+  -- differs): lock order is registration, team, then the request (see
+  -- join_team), and expiry is evaluated only after the caller is authorized.
+  select * into req from public.join_requests where id = p_request;
   if not found then
     raise exception 'request_not_found';
   end if;
+
+  select id into target from public.registrations
+  where participant_id = req.participant_id and edition_slug = req.edition_slug
+  for update;
+  select leader_id into leader from public.teams where id = req.team_id for update;
+
+  select * into req from public.join_requests where id = p_request for update;
   if req.status <> 'pending' then
     raise exception 'request_not_pending';
   end if;
   if not (select is_current from public.editions where slug = req.edition_slug) then
     raise exception 'edition_not_writable';
   end if;
-
-  if req.expires_at is not null and req.expires_at <= now() then
-    update public.join_requests
-    set status = 'expired', close_reason = 'expired', decided_at = now()
-    where id = p_request
-    returning * into req;
-    return req;
-  end if;
-
-  select leader_id into leader from public.teams where id = req.team_id for update;
-  select id into target from public.registrations
-  where participant_id = req.participant_id and edition_slug = req.edition_slug;
 
   if p_action = 'approve' or p_action = 'reject' then
     if req.kind <> 'application' then
@@ -558,6 +564,16 @@ begin
     end if;
   else
     raise exception 'unknown_action';
+  end if;
+
+  -- Expiry is evaluated only after the caller is authorized, so an
+  -- unauthorized caller cannot force an expired request to be closed.
+  if req.expires_at is not null and req.expires_at <= now() then
+    update public.join_requests
+    set status = 'expired', close_reason = 'expired', decided_at = now()
+    where id = p_request
+    returning * into req;
+    return req;
   end if;
 
   if p_action in ('approve', 'accept') then
