@@ -160,14 +160,22 @@ begin
 
   -- The note (up to 500 characters) explains the proposal to its members; it
   -- stays on the proposal rather than becoming the 200-character description.
-  created := public.create_team(leader, prop.name, '{}', null);
+  -- Not create_team: that records its leader as 'founded', and every member of
+  -- a proposal, the first included, was placed by the organizers. join_team
+  -- re-checks each membership (already in a team, capacity, edition).
+  insert into public.teams (name, edition_slug, leader_id, skills_wanted, description)
+  select prop.name, r.edition_slug, r.id, '{}', null
+  from public.registrations r where r.id = leader
+  returning * into created;
 
   for member in
     select registration_id from public.team_proposal_members
-    where proposal_id = p_proposal and registration_id <> leader
+    where proposal_id = p_proposal
+    order by position
   loop
     perform public.join_team(member.registration_id, created.id, 'organizer');
   end loop;
+  update public.registrations set role = 'leader' where id = leader;
 
   update public.team_proposals
   set status = 'formed', team_id = created.id, decided_at = now()

@@ -222,9 +222,23 @@ select assert(
   'send_message refuses the eleventh message in a minute');
 
 select assert(
-  (select source = 'organizer' from public.membership_events
-   where registration_id = '00000000-0000-0000-0000-000000000602' and event = 'joined'),
-  'members joined through a proposal are attributed to the organizers');
+  (select count(*) filter (where me.source = 'organizer') = count(*) and count(*) =
+          (select count(*) from public.team_proposal_members
+           where proposal_id = '00000000-0000-0000-0000-000000000701')
+   from public.team_proposal_members m
+   join public.team_proposals p on p.id = m.proposal_id
+   join public.membership_events me
+     on me.registration_id = m.registration_id and me.team_id = p.team_id and me.event = 'joined'
+   where m.proposal_id = '00000000-0000-0000-0000-000000000701'),
+  'every member joined through a proposal, its leader included, is attributed to the organizers');
+
+select assert(
+  (select r.role = 'leader' and r.team_id = t.id
+   from public.team_proposals p
+   join public.teams t on t.id = p.team_id
+   join public.registrations r on r.id = t.leader_id
+   where p.id = '00000000-0000-0000-0000-000000000701'),
+  'the first proposed member leads the formed team and is in it');
 
 select public.respond_to_proposal('00000000-0000-0000-0000-000000000702',
   '00000000-0000-0000-0000-000000000603', false);
