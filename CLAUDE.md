@@ -281,7 +281,10 @@ Read `docs/privacy/README.md` before touching registration, exports or tracking.
 - Retention: `run_retention()` scheduled by pg_cron (migration), missed runs alerted by the
   `privacy:retention-monitor` Worker cron task. Undecided categories live in `retention_policies`
   as absent rows — never invent periods. See `docs/privacy/retention-and-deletion.md`.
-- **Staging and production share one Supabase project.** `db push` affects production data.
+- **Staging and production use separate Supabase projects.** Staging is
+  `nazsevofugndmwthnvtm` (Manifesto Staging); production is `apfhieizmthicvwvezrg`.
+  Keep the CLI linked to production by default. To push staging, link its project,
+  push, then relink production.
 
 ## Testing
 
@@ -324,6 +327,12 @@ leader auto-promotion through the account-deletion cascade, `promote_edition`, a
 delete/update policies. Add an assertion here for any migration that changes behaviour rather than
 just shape. It is not part of `bun run test` because it needs a local PostgreSQL install.
 
+`test:db` runs on local PostgreSQL (18 on this machine); Supabase runs 17. AFTER
+triggers fired by FK cascades run as the role that queued them on 18, but as the
+outer role on 17 (`supabase_auth_admin` for `auth.admin.deleteUser`). A cascade-path
+trigger that writes to `public` must therefore be `security definer` (see migration
+`20261003000000`). `test:db` cannot catch this at runtime and asserts the property instead.
+
 ## Emails
 
 Templates are MJML compiled to HTML, then inlined as TypeScript constants (so they bundle into the Nitro output with no file-system reads at runtime).
@@ -351,11 +360,16 @@ bunx supabase link --project-ref <ref>    # once per checkout
 bunx supabase db push                     # apply supabase/migrations/ to the linked project
 bunx supabase config push                 # apply supabase/config.toml (auth, SMTP, email templates)
 
-# Optional local stack for development (Postgres + Auth + Studio on http://127.0.0.1:54323)
+# Optional local stack for development (disable SMTP first; see below)
+# Postgres + Auth + Studio on http://127.0.0.1:54323
 bunx supabase start
 bunx supabase db reset                    # rebuild local DB from migrations
 ```
 
+- `supabase/config.toml` enables Resend SMTP: `bunx supabase start` with
+  `RESEND_API_KEY` set sends real auth email. For local testing, disable
+  `[auth.email.smtp]` (`enabled = false`) before starting the stack so mail goes
+  to Mailpit (`http://127.0.0.1:54324`).
 - `supabase/config.toml` `env(...)` values come from `supabase/.env` (git-ignored, see `supabase/.env.example`)
 - API keys and the project URL are in Dashboard > Project Settings > API
 - Auth users, hashed passwords and app data were migrated from the old self-hosted instance via `pg_dump`/`psql` (see `docs/supabase-cloud-migration.md`)

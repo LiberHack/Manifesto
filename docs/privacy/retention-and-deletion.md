@@ -71,8 +71,7 @@ counts, and lists skipped categories.
   daily 07:00 UTC) runs the Nitro task `privacy:retention-monitor`. If no
   `retention` run happened in the last 26 hours, it emails
   `NUXT_OPS_ALERT_EMAIL`, or every admin when that is unset. It also logs an
-  error to Workers logs. Only production sends, because staging uses the same
-  database.
+  error to Workers logs. Only production sends; staging uses its own Supabase project.
 - **In the panel:** Admin → Sources also shows a warning when the last run is
   older than 2 days.
 - **By hand:** test the monitor with
@@ -146,9 +145,10 @@ at least as long as the oldest backup that could be restored.
 
 ## Rollout order
 
-**Staging and production use the same Supabase project**: the same
-`NUXT_PUBLIC_SUPABASE_URL` is set in both `wrangler.jsonc` environments. A
-`db push` for "staging" changes production data. Plan accordingly.
+**Staging and production use separate Supabase projects**: staging is
+`nazsevofugndmwthnvtm` (Manifesto Staging), production is `apfhieizmthicvwvezrg`.
+Keep the CLI linked to production by default. To push staging, link its project,
+push, then relink production. Check `supabase/.temp/project-ref` before each push.
 
 1. Review this branch, including the migrations, which touch `registrations`
    and RLS (CONTRIBUTING requires human review).

@@ -27,9 +27,10 @@ auth provider; Resend sends transactional email over plain HTTPS.
 | PR preview | version of `manifesto-staging` | any other branch | `<version>-manifesto-staging.<subdomain>.workers.dev` | staging's |
 
 Everything below the top level of `wrangler.jsonc` is duplicated under
-`env.staging` because bindings, routes and vars are not inherited. Both
-environments talk to the same Supabase project today; point the staging `vars`
-(and its secrets) at a second project if that ever changes.
+`env.staging` because bindings, routes and vars are not inherited. Staging and
+previews use Supabase project `nazsevofugndmwthnvtm` (Manifesto Staging); production
+uses `apfhieizmthicvwvezrg`. Keep the CLI linked to production by default; to push
+staging, link its project, push, then relink production.
 
 Previews are versions of the *staging* Worker, never of production
 (`preview_urls: false` at the top level): a preview shares the Worker's D1 and
