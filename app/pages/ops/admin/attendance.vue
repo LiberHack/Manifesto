@@ -12,6 +12,8 @@ const formationSlot = computed({
     if (timing.value) timing.value.team_formation_slot = local ? fromSofiaLocal(local) : null;
   },
 });
+// One card per person: someone in several queues was listed once per queue.
+const followUps = computed(() => groupFollowUpQueue(data.value?.queue ?? []));
 const message = ref("");
 const reason = ref("Arrival desk");
 async function checkin(id: string, checked_in: boolean) {
@@ -84,20 +86,30 @@ async function queueReminders() {
     <section v-if="data" class="space-y-3">
       <h2 class="text-xl font-black uppercase">Follow-up queue</h2>
       <label class="form-control max-w-sm"><span class="label-text">Check-in / correction reason</span><input v-model="reason" class="input input-bordered w-full" maxlength="500"></label>
-      <div v-for="item in data.queue" :key="`${item.queue}:${item.subject_id}`" class="border border-base-content p-3 flex flex-wrap items-center gap-2">
-        <div class="min-w-0 flex-1"><strong>{{ item.queue.replaceAll('_', ' ') }}</strong> · {{ item.name }} <span class="text-sm break-all">{{ item.email }}</span><p class="text-xs">{{ item.status }} <span v-if="item.owner_id">· owner {{ item.owner_id.slice(0, 8) }}</span></p></div>
-        <input v-model="item.outcome" maxlength="500" class="input input-bordered input-sm w-full sm:w-48" placeholder="Outreach outcome">
-        <button class="btn btn-xs btn-outline" @click="outreach(item, 'assigned')">Assign</button>
-        <button class="btn btn-xs btn-outline" @click="outreach(item, 'contacted')">Contacted</button>
-        <button class="btn btn-xs btn-outline" @click="outreach(item, 'resolved')">Resolve</button>
-        <button v-if="item.queue !== 'unanswered_request' && item.queue !== 'unconfirmed_team'" class="btn btn-xs btn-primary" @click="checkin(item.subject_id, true)">Check in</button>
-        <button v-if="item.queue !== 'unanswered_request' && item.queue !== 'unconfirmed_team'" class="btn btn-xs btn-ghost" @click="checkin(item.subject_id, false)">Correct check-in</button>
+      <div v-for="group in followUps" :key="group.subject_id" class="border border-base-content p-3 space-y-2">
+        <div class="flex flex-wrap items-start gap-2">
+          <div class="min-w-[14rem] flex-1">
+            <strong>{{ group.name }}</strong>
+            <span v-if="group.email" class="block text-sm [overflow-wrap:anywhere]">{{ group.email }}</span>
+          </div>
+          <template v-if="group.isPerson">
+            <button class="btn btn-xs btn-primary" @click="checkin(group.subject_id, true)">Check in</button>
+            <button class="btn btn-xs btn-ghost" @click="checkin(group.subject_id, false)">Correct check-in</button>
+          </template>
+        </div>
+        <div v-for="item in group.items" :key="item.queue" class="flex flex-wrap items-center gap-2 border-t border-base-content/30 pt-2">
+          <div class="min-w-0 flex-1 text-sm"><strong>{{ item.queue.replaceAll('_', ' ') }}</strong> · {{ item.status }} <span v-if="item.owner_id">· owner {{ item.owner_id.slice(0, 8) }}</span></div>
+          <input v-model="item.outcome" maxlength="500" class="input input-bordered input-sm w-full sm:w-48" placeholder="Outreach outcome">
+          <button class="btn btn-xs btn-outline" @click="outreach(item, 'assigned')">Assign</button>
+          <button class="btn btn-xs btn-outline" @click="outreach(item, 'contacted')">Contacted</button>
+          <button class="btn btn-xs btn-outline" @click="outreach(item, 'resolved')">Resolve</button>
+        </div>
       </div>
     </section>
     <section v-if="data" class="space-y-3">
       <h2 class="text-xl font-black uppercase">Arrival roster</h2>
       <div v-for="person in data.roster" :key="person.id" class="border border-base-content p-3 flex flex-wrap items-center gap-2">
-        <div class="flex-1 min-w-0"><strong>{{ person.name }}</strong> <span class="text-sm break-all">{{ person.email }}</span><p class="text-xs">{{ person.seat_state }} · {{ person.intention ?? 'no response' }} · {{ person.checked_in_at ? 'checked in' : 'not checked in' }}</p><p v-if="person.barrier?.reasons?.length" class="text-xs">Private help request: {{ person.barrier.reasons.join(', ') }} · {{ person.barrier.details }}</p></div>
+        <div class="flex-1 min-w-[14rem]"><strong>{{ person.name }}</strong> <span class="block text-sm [overflow-wrap:anywhere]">{{ person.email }}</span><p class="text-xs">{{ person.seat_state }} · {{ person.intention ?? 'no response' }} · {{ person.checked_in_at ? 'checked in' : 'not checked in' }}</p><p v-if="person.barrier?.reasons?.length" class="text-xs">Private help request: {{ person.barrier.reasons.join(', ') }} · {{ person.barrier.details }}</p></div>
         <button v-if="!person.checked_in_at" class="btn btn-sm btn-primary" :disabled="person.seat_state !== 'accepted'" @click="checkin(person.id, true)">Check in</button>
         <button v-else class="btn btn-sm btn-outline" @click="checkin(person.id, false)">Correct check-in</button>
       </div>
