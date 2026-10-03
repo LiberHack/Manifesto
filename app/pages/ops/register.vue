@@ -81,7 +81,7 @@ async function register() {
 </script>
 
 <template>
-  <main class="w-full min-h-screen flex items-center justify-center p-4 py-12">
+  <main class="w-full flex items-start sm:items-center justify-center p-4 pt-6 pb-12 sm:py-12 sm:min-h-screen">
     <div
       v-if="opsClosed"
       class="w-full max-w-md min-w-0 flex flex-col gap-4 bg-base-100 p-4 sm:p-8 border-primary border-2 [overflow-wrap:break-word]"

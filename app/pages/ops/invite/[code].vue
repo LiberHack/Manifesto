@@ -50,7 +50,7 @@ async function join(confirmSwitch = false) {
 </script>
 
 <template>
-  <main class="w-full min-h-screen flex items-center justify-center p-4 py-12">
+  <main class="w-full flex items-start sm:items-center justify-center p-4 pt-6 pb-12 sm:py-12 sm:min-h-screen">
     <div class="w-full max-w-md flex flex-col gap-4 bg-base-100 p-8 border-primary border-2">
 
       <p class="text-xs font-bold tracking-widest text-primary uppercase">Team Invite</p>
