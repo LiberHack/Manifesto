@@ -74,4 +74,26 @@ select assert(
 reset role;
 reset request.jwt.claim.sub;
 
+-- New-skill allowance: enforced where the rows are written, so concurrent
+-- profile saves cannot each pass the server's count and add 5 apiece.
+select public.add_skills_to_catalogue(
+  array['E2e One', 'E2e Two', 'E2e Three', 'E2e Four', 'E2e Five', 'E2e Six', 'E2e Seven'],
+  '22222222-2222-2222-2222-222222222222');
+select public.add_skills_to_catalogue(array['E2e Eight'], '22222222-2222-2222-2222-222222222222');
+select assert(
+  (select count(*) from public.skills where created_by = '22222222-2222-2222-2222-222222222222') = 5,
+  'one account adds at most 5 skills to the catalogue, however many calls');
+select assert(
+  public.add_skills_to_catalogue(array['e2e one'], '11111111-1111-1111-1111-111111111111') = 0
+  and (select count(*) from public.skills where lower(name) = 'e2e one') = 1,
+  'a skill already in the catalogue (any case) is neither duplicated nor charged');
+
+set request.jwt.claim.sub = '22222222-2222-2222-2222-222222222222';
+set role authenticated;
+select assert(
+  denied($$select public.add_skills_to_catalogue(array['Bypass'], '22222222-2222-2222-2222-222222222222')$$),
+  'add_skills_to_catalogue is not callable by clients');
+reset role;
+reset request.jwt.claim.sub;
+
 select 'DIRECT ACCESS VERIFICATION COMPLETE' as result;

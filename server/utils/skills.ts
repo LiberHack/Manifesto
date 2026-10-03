@@ -63,14 +63,21 @@ export async function resolveSkills(
   return { skills, skills_input: input, new_skills: newSkills };
 }
 
-/** Add skills to the catalogue on the caller's behalf. */
+/**
+ * Add skills to the catalogue on the caller's behalf. The database applies the
+ * MAX_NEW_SKILLS allowance atomically (add_skills_to_catalogue), so concurrent
+ * saves that all passed resolveSkills' count still cannot exceed it; skills
+ * over the allowance stay on the profile but not in the catalogue.
+ */
 export async function addSkillsToCatalogue(
   supabase: SupabaseClient,
   names: string[],
   createdBy: string,
 ): Promise<void> {
   if (names.length === 0) return;
-  await supabase
-    .from("skills")
-    .insert(names.map((name) => ({ name, created_by: createdBy })));
+  const { error } = await supabase.rpc("add_skills_to_catalogue", {
+    p_names: names,
+    p_created_by: createdBy,
+  });
+  if (error) console.error("[skills] catalogue insert failed:", error.message);
 }
