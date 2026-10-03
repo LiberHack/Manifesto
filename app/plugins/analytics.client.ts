@@ -1,5 +1,5 @@
 import { firstQueryValue } from "#shared/utils/source";
-import { referrerHost } from "~/utils/analyticsClient";
+import { isAcquisitionLanding, referrerHost } from "~/utils/analyticsClient";
 
 const TRACKING_PARAMS = [
   "src",
@@ -13,6 +13,7 @@ const TRACKING_PARAMS = [
 
 /**
  * Reads where this page load came from (tag + referrer hostname) into memory,
+ * except on pages opened from our own emails,
  * sends `landing_viewed` only if analytics is already granted, and removes
  * tracking parameters from the address bar so a copied link carries none.
  * Without consent nothing is stored or sent.
@@ -22,12 +23,14 @@ export default defineNuxtPlugin(() => {
   const router = useRouter();
   const { landing, trackLanding } = useAnalyticsConsent();
 
-  landing.value = {
-    path: route.path,
-    src: firstQueryValue(route.query.src),
-    refHost: referrerHost(document.referrer),
-  };
-  trackLanding();
+  if (isAcquisitionLanding(route.path)) {
+    landing.value = {
+      path: route.path,
+      src: firstQueryValue(route.query.src),
+      refHost: referrerHost(document.referrer),
+    };
+    trackLanding();
+  }
 
   if (TRACKING_PARAMS.some((key) => key in route.query)) {
     const query = { ...route.query };

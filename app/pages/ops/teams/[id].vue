@@ -2,7 +2,7 @@
 import {
   CONTACT_METHOD_LABELS,
   CONTRIBUTION_ROLE_LABELS,
-  PARTICIPANT_GOAL_LABELS,
+  formatGoals,
   REQUEST_MESSAGE_MAX_LENGTH,
   REQUEST_MESSAGE_MIN_LENGTH,
   type ContactMethod,
@@ -107,7 +107,7 @@ async function sendRequest() {
         <template v-if="team.interests?.length">Interests: {{ team.interests.join(", ") }}</template>
         <template v-if="team.interests?.length && team.goals?.length"> · </template>
         <template v-if="team.goals?.length">
-          Goals: {{ team.goals.map((g: keyof typeof PARTICIPANT_GOAL_LABELS) => PARTICIPANT_GOAL_LABELS[g]).join(", ") }}
+          Goals: {{ formatGoals(team.goals) }}
         </template>
       </p>
       <p v-if="team.languages?.length" class="text-sm opacity-70">

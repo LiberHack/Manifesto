@@ -20,15 +20,14 @@ if (inviteCode) {
   }
 }
 
-// Pre-flight: the cap now lives on registrations, so signup itself no longer
-// fails when an edition is full — the form has to check and say so. The same
-// call says whether registration has opened at all.
+// Pre-flight: whether registration has opened at all, and whether seats are
+// left. A full edition still takes signups: the edition form puts them on the
+// waitlist.
 const { data: editionState } = await useCurrentEdition();
 
 const opsClosed = computed(() => !editionState.value.ops_open);
-const registrationFull = computed(
-  () => !editionState.value.edition || editionState.value.full,
-);
+const noEdition = computed(() => !editionState.value.edition);
+const seatsFull = computed(() => editionState.value.full);
 
 const form = reactive({
   name: "",
@@ -74,7 +73,10 @@ async function register() {
     return;
   }
 
-  router.push(`/ops/verify-email?email=${encodeURIComponent(form.email)}`);
+  router.push(
+    `/ops/verify-email?email=${encodeURIComponent(form.email)}` +
+      (inviteCode ? `&invite=${inviteCode}` : ""),
+  );
 }
 </script>
 
@@ -110,8 +112,11 @@ async function register() {
         </span>
       </div>
 
-      <div v-if="registrationFull" role="alert" class="alert alert-error text-sm">
-        Registration is closed — the participant limit has been reached.
+      <div v-if="noEdition" role="alert" class="alert alert-error text-sm">
+        Registration is closed.
+      </div>
+      <div v-else-if="seatsFull" class="alert alert-info text-sm">
+        All seats are taken. Sign up to join the waitlist.
       </div>
 
       <div v-if="error" role="alert" class="alert alert-error text-sm">
@@ -153,7 +158,7 @@ async function register() {
 
       <button
         type="submit"
-        :disabled="loading || registrationFull"
+        :disabled="loading || noEdition"
         class="btn btn-primary w-full font-black uppercase"
       >
         {{ loading ? "Registering…" : "Register" }}

@@ -36,6 +36,13 @@ async function join(confirmSwitch = false) {
   } catch (e: any) {
     if (e.data?.message === "already_in_team") {
       needsConfirmSwitch.value = true;
+    } else if (e.data?.message === "not_registered") {
+      // This page skips the auth middleware, so the registration gate lands
+      // here instead: register for the edition, then come back to accept.
+      await router.push(
+        `/ops/register-edition?next=${encodeURIComponent(route.fullPath)}`,
+      );
+      return;
     } else {
       message.value = e.data?.message ?? "Something went wrong";
     }

@@ -46,6 +46,11 @@ export const PARTICIPANT_GOAL_LABELS: Record<ParticipantGoal, string> = {
   competing: "Competing to win",
 };
 
+/** Goals as a readable, comma-separated list. */
+export function formatGoals(goals: readonly ParticipantGoal[]): string {
+  return goals.map((goal) => PARTICIPANT_GOAL_LABELS[goal]).join(", ");
+}
+
 export const CONTACT_METHODS = [
   "phone",
   "viber",

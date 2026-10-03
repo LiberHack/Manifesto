@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {
   CONTRIBUTION_ROLE_LABELS,
-  PARTICIPANT_GOAL_LABELS,
+  formatGoals,
   PROFILE_LINK_FIELDS,
   PROFILE_LINK_LABELS,
   type PublicProfile,
@@ -44,7 +44,7 @@ const links = computed(() =>
       <template v-if="profile.interests.length">Interests: {{ profile.interests.join(", ") }}</template>
       <template v-if="profile.interests.length && profile.goals.length"> · </template>
       <template v-if="profile.goals.length">
-        Goals: {{ profile.goals.map((g) => PARTICIPANT_GOAL_LABELS[g]).join(", ") }}
+        Goals: {{ formatGoals(profile.goals) }}
       </template>
     </p>
     <p v-if="profile.languages.length" class="text-xs opacity-70">
