@@ -372,10 +372,11 @@ These are not technical defects. Each blocks the feature named.
 
 **Status 2026-10-02:** the organisers report every row below resolved.
 `NUXT_SPONSOR_EXPORTS_ENABLED` and `NUXT_ANALYTICS_ACTIVATION_ALLOWED` are set
-to `true` for the **staging** Worker only (`wrangler.jsonc` `env.staging`).
-Production stays unset until staging is verified with the checklist in
-[operations-checklist.md](operations-checklist.md). Keep the evidence for each
-row (agreements, DPIA screening, processor records) where that checklist says.
+to `true` for staging (2026-10-02) and production (2026-10-03, after the flows
+were verified end to end). The server gates only allow the features: analytics
+also needs the edition toggle in Admin → Editions, and sponsor exports need
+active recipients. Keep the evidence for each row (agreements, DPIA screening,
+processor records) where [operations-checklist.md](operations-checklist.md) says.
 
 | Missing fact or decision | Blocks |
 |---|---|
