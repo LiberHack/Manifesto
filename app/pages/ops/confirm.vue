@@ -47,7 +47,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <main class="w-full min-h-screen flex items-center justify-center p-4">
+  <main class="w-full flex items-start sm:items-center justify-center p-4 pt-6 sm:min-h-screen">
     <p v-if="!timedOut" class="text-sm opacity-50 font-mono uppercase tracking-widest">
       Verifying…
     </p>
