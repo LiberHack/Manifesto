@@ -91,9 +91,13 @@ export function useMe() {
   // object on navigation, and watching it refetched /api/me on every click.
   const userId = computed(() => user.value?.sub ?? null);
   const owner = () => userId.value;
-  const { cache, getCachedData } = useSessionCache<Me | null>("me", ME_TTL_MS, owner);
+  const { cache, getCachedData, revalidateIfStale } = useSessionCache<Me | null>(
+    "me",
+    ME_TTL_MS,
+    owner,
+  );
 
-  return useAsyncData<Me | null>(
+  const me = useAsyncData<Me | null>(
     "me",
     // Explicit response type: inferring it from Nitro's route union exceeds the
     // compiler's depth limit now that there are more API routes.
@@ -103,4 +107,6 @@ export function useMe() {
         : Promise.resolve(null),
     { default: () => null, watch: [userId], getCachedData },
   );
+  revalidateIfStale(me.refresh);
+  return me;
 }

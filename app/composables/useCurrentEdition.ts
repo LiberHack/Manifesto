@@ -29,17 +29,25 @@ export function useCurrentEdition() {
   const request = useRequestFetch();
   // Public data: the same for every visitor, so one owner.
   const owner = () => "public";
-  const { cache, getCachedData } = useSessionCache<CurrentEditionState>(
+  const { cache, getCachedData, revalidateIfStale } = useSessionCache<CurrentEditionState>(
     "edition-current",
     EDITION_TTL_MS,
     owner,
   );
 
-  return useAsyncData<CurrentEditionState>(
+  const edition = useAsyncData<CurrentEditionState>(
     "edition-current",
     () =>
       cache.load(
-        () => request<CurrentEditionState>("/api/editions/current", SHARED_READ_FETCH),
+        () =>
+          request<CurrentEditionState>("/api/editions/current", {
+            ...SHARED_READ_FETCH,
+            // The route sends max-age=30. Skip the browser's HTTP cache so an
+            // explicit refresh (after an admin edition change) sees the change;
+            // reuse between navigations is useSessionCache's job. Client only:
+            // Workers do not implement fetch's `cache` option during SSR.
+            ...(import.meta.client ? { cache: "no-cache" as const } : {}),
+          }),
         owner(),
       ),
     {
@@ -47,4 +55,6 @@ export function useCurrentEdition() {
       getCachedData,
     },
   );
+  revalidateIfStale(edition.refresh);
+  return edition;
 }

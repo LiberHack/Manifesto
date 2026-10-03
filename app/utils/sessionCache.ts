@@ -18,6 +18,16 @@ export interface SessionCache<T> {
   load(fetcher: () => Promise<T>, owner: string | null): Promise<T>;
   /** Remember a value obtained elsewhere (the SSR payload on hydration). */
   remember(value: T, owner: string | null): void;
+  /**
+   * Make the next page mount refetch (after a write that may have changed the
+   * data). The value is kept only as the 429 fallback.
+   */
+  invalidate(): void;
+  /**
+   * Whether the value cached for `owner` is past its TTL or invalidated, so a
+   * caller should revalidate it. False when nothing is cached for that owner.
+   */
+  expired(owner: string | null): boolean;
 }
 
 function isRateLimited(error: unknown): boolean {
@@ -58,5 +68,11 @@ export function createSessionCache<T>(ttlMs: number, now: () => number = Date.no
       }
     },
     remember,
+    invalidate() {
+      if (entry) entry = { ...entry, at: Number.NEGATIVE_INFINITY };
+    },
+    expired(owner) {
+      return entry !== null && entry.owner === owner && now() - entry.at > ttlMs;
+    },
   };
 }

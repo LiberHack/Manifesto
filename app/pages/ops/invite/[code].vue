@@ -12,9 +12,7 @@ if (teamError.value?.statusCode === 404) {
   throw createError({ statusCode: 404, message: "Invite link not found or expired." });
 }
 
-const { data: me, refresh: refreshMe } = await useFetch<any>("/api/me", {
-  default: () => null,
-});
+const { data: me, refresh: refreshMe } = await useMe();
 
 const joining = ref(false);
 const message = ref("");

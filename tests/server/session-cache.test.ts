@@ -69,4 +69,30 @@ describe("session cache for shared navigation data", () => {
 
     await expect(cache.load(async () => { throw rateLimited(); }, "user-2")).rejects.toThrow("Too many requests");
   });
+
+  it("after a write, the next page mount refetches, but a 429 can still fall back", async () => {
+    const cache = createSessionCache<string>(60_000, () => 1_000);
+    await cache.load(async () => "me@1", "user-1");
+
+    cache.invalidate();
+    expect(cache.cached("initial", "user-1")).toBeUndefined();
+    await expect(cache.load(async () => { throw rateLimited(); }, "user-1")).resolves.toBe("me@1");
+  });
+
+  it("reports when the shared value should be revalidated", async () => {
+    let now = 1_000;
+    const cache = createSessionCache<string>(30_000, () => now);
+    expect(cache.expired("user-1")).toBe(false); // nothing cached: the first fetch handles it
+
+    await cache.load(async () => "me@1", "user-1");
+    expect(cache.expired("user-1")).toBe(false);
+    now += 30_001;
+    expect(cache.expired("user-1")).toBe(true);
+
+    await cache.load(async () => "me@2", "user-1");
+    cache.invalidate();
+    expect(cache.expired("user-1")).toBe(true);
+    // Another account's entry is the user watch's job, not revalidation.
+    expect(cache.expired("user-2")).toBe(false);
+  });
 });

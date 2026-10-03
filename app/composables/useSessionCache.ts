@@ -3,7 +3,7 @@ import { createSessionCache, type FetchCause, type SessionCache } from "~/utils/
 
 // One set of caches per Nuxt app: per browser tab on the client, per request
 // during SSR, so nothing is shared between visitors on the server.
-const caches = new WeakMap<NuxtApp, Map<string, SessionCache<unknown>>>();
+const caches = new WeakMap<object, Map<string, SessionCache<unknown>>>();
 
 /**
  * The navigation cache for `key`, plus a `getCachedData` for useAsyncData that
@@ -19,6 +19,18 @@ export function useSessionCache<T>(key: string, ttlMs: number, owner: () => stri
 
   return {
     cache: store,
+    /**
+     * Stale-while-revalidate. A consumer that stays mounted (AppBanners, the
+     * layout) keeps the shared useAsyncData entry alive, and while it lives a
+     * new call with the same key does not refetch. So when the value is past
+     * its TTL, or a write invalidated it, start a background refresh. "defer"
+     * makes every caller on the same navigation share one request.
+     */
+    revalidateIfStale(refresh: (opts?: { dedupe?: "cancel" | "defer" }) => Promise<unknown>): void {
+      if (import.meta.client && !nuxtApp.isHydrating && store.expired(owner())) {
+        void refresh({ dedupe: "defer" });
+      }
+    },
     getCachedData(dataKey: string, app: NuxtApp, ctx: { cause: FetchCause }): T | undefined {
       if (app.isHydrating) {
         const fromPayload = app.payload.data[dataKey] as T | undefined;
@@ -28,6 +40,11 @@ export function useSessionCache<T>(key: string, ttlMs: number, owner: () => stri
       return store.cached(ctx.cause, owner());
     },
   };
+}
+
+/** Mark every navigation cache of this app stale; the next page mount refetches. */
+export function invalidateSessionCaches(nuxtApp: object): void {
+  for (const cache of caches.get(nuxtApp)?.values() ?? []) cache.invalidate();
 }
 
 /**
