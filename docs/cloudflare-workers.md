@@ -13,7 +13,7 @@ auth provider; Resend sends transactional email over plain HTTPS.
 | TLS / domain | Caddy + Let's Encrypt | Cloudflare custom domain (`routes[].custom_domain` in `wrangler.jsonc`) |
 | Markdown content | better-sqlite3 file in the container | D1 database, binding `DB` (loaded from the build dump on first request) |
 | Image optimisation | ipx + sharp | none (`<NuxtImg>` emits plain `<img>`); opt into Cloudflare Image Transformations later |
-| Rate limiting | in-memory map keyed by `x-real-ip` | Workers Rate Limiting bindings `RL_API` / `RL_INVITE` / `RL_SKILLS`, keyed by `cf-connecting-ip` |
+| Rate limiting | in-memory map keyed by `x-real-ip` | Workers Rate Limiting bindings `RL_API` / `RL_READ` / `RL_INVITE` / `RL_SKILLS`, keyed by signed-in user or `cf-connecting-ip` for anonymous requests |
 | Live screen SSE | module-level set of controllers, admin writes broadcast | each SSE connection polls Supabase every 5 s and emits on change |
 | Email | `resend` SDK | `fetch` to `https://api.resend.com/emails` (SDK needs `@react-email/render`, not bundleable) |
 | Secrets | `.env` on the server | `wrangler secret put` |

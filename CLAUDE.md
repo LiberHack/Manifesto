@@ -51,7 +51,7 @@ app/middleware/   # auth.ts — client-side route guard (checks session + email_
 server/           # Nitro API routes, middleware, email utils
 server/api/       # REST API endpoints
 server/emails/    # MJML email templates — edit .mjml, run generate-ts.mjs to rebuild
-server/middleware/ # 00.noindex.ts (X-Robots-Tag off production), 01.auth.ts (attaches user to context), 02.rateLimit.ts (60 req/min per user / IP)
+server/middleware/ # 00.noindex.ts (X-Robots-Tag off production), 01.auth.ts (attaches user to context), 02.rateLimit.ts (separate signed-in read and API budgets)
 public/           # Static assets (tailwind.css lives here)
 nuxt.config.ts    # Nuxt configuration
 wrangler.jsonc    # Cloudflare Workers config (assets, D1, rate limits, public vars)
@@ -82,7 +82,7 @@ unset locally.
 - `/ops/*` pages are protected by the `auth` client middleware — redirects to `/` if the current edition's participant area is closed (`ops_enabled`), `/ops/login` if no session, `/ops/verify-email` if email not confirmed, `/ops/register-edition` if the account has no `registration` in the current edition (see Editions below)
 - Server-side: `01.auth.ts` attaches the Supabase user to `event.context.user`
 - Email verification: the client middleware checks the JWT's `user_metadata.email_verified` (UX only). The real gate is `requireConfirmedEmail` in `POST /api/me/registration`, which reads `auth.users.email_confirmed_at`; every edition-scoped route requires a registration, so unconfirmed accounts reach none of them
-- Rate limiting: 60 req/min on all `/api/*` routes (`02.rateLimit.ts`) via Workers Rate Limiting bindings (`RL_*` in `wrangler.jsonc`); keyed per signed-in user and per IP for anonymous requests, so many attendees behind one NAT do not share a bucket; falls back to an in-memory map in `nuxt dev`
+- Rate limiting: signed-in `GET`/`HEAD` requests to `/api/*` use `RL_READ` (300/min); signed-in writes and every anonymous `/api/*` request use `RL_API` (60/min). `/go/*` shares `RL_API`; `/api/invite/:code` and `/api/skills` keep their 10/min and 20/min route limits for every method. Workers bindings (`RL_*` in `wrangler.jsonc`) are keyed per signed-in user or per IP for anonymous requests, so attendees behind one NAT do not share a signed-in bucket; `nuxt dev` uses an in-memory fallback.
 - `/api/live/stream` is SSE: each connection polls Supabase every 5s and only emits on change (Workers isolates share no memory, so there is no server-side broadcast)
 - Admin role: set `role = 'admin'` in the `participants` table to expose `/ops/admin`. This is identity-level and carries across editions; it is unrelated to `registrations.role` (`participant` | `leader`), which is team leadership within one edition.
 - `emailRedirectTo` in `signUp` is `<current origin>/ops/confirm`, so every host the app is served from (production, staging, PR previews) must be in `additional_redirect_urls` in `supabase/config.toml`
@@ -193,7 +193,7 @@ Phase 1 of `docs/superpowers/plans/2026-09-29-team-formation-and-attendance.md`.
   every read re-checks access and no client ever holds a Supabase channel:
   every 3s in an open thread, 10s in the inbox, 15s for the dashboard badge,
   all paused while the tab is hidden (`useVisiblePolling`). An open thread is
-  ~20 requests/minute, inside the 60/minute API limit, which is per user
+  ~20 requests/minute, inside the 300/minute signed-in read limit, which is per user
   for signed-in requests (per IP only for anonymous ones).
   Sends are limited to 10/minute and 200/day per person, 2000 characters,
   rendered as text with only http(s) links (`shared/linkify.ts`).
@@ -305,9 +305,8 @@ Three pieces of config exist only for the test run — do not remove them:
 - `$test` in `nuxt.config.ts`: `node-server` preset (a `cloudflare_module` bundle cannot be started
   by Node), SQLite content, dummy Supabase config for the module **and** for `runtimeConfig`, which
   is what `useSupabaseAdmin()` reads — `createClient()` throws on an empty key, which turns every
-  401 into a 500 in CI, where there is no `.env`. It also lifts `rateLimitMax`: every test request
-  comes from one IP, and the in-memory fallback limiter would otherwise answer 429 once the suite
-  makes more than 60 API calls a minute.
+  401 into a 500 in CI, where there is no `.env`. It also lifts `rateLimitMax` and
+  `rateLimitReadMax`: shared test traffic would otherwise exhaust the in-memory fallback limits.
 - `tests/supabase-stub.ts`, started by `global-setup` and injected as `NUXT_PUBLIC_SUPABASE_URL`.
   Pointing the fixture at a closed port instead costs ~7s per query — supabase-js retries network
   failures — which blows vitest's 5s timeout on any route that reads the database.
