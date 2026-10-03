@@ -8,6 +8,9 @@
 export default defineNuxtRouteMiddleware(async () => {
   const user = useSupabaseUser();
   if (!user.value) return navigateTo("/ops/login");
-  const { data: me } = await useMe();
+  const { data: me, error } = await useMe();
+  // Rate limited with nothing cached: let the page load; every admin API still
+  // runs requireAdmin, so a non-admin sees nothing.
+  if (error.value?.statusCode === 429) return;
   if (me.value?.role !== "admin") return navigateTo("/ops/dashboard");
 });
