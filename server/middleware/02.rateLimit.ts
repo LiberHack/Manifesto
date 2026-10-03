@@ -1,13 +1,7 @@
 import { rateLimitKey } from "#server/utils/rateLimitKey";
+import { rateLimitBucket } from "#server/utils/rateLimitBucket";
 
 const WINDOW_MS = 60_000; // 1 minute
-
-// Tighter limits for unauthenticated/expensive endpoints.
-// The binding name must match `ratelimits[].name` in wrangler.jsonc.
-const ROUTE_LIMITS: [RegExp, number, string][] = [
-  [/^\/api\/invite\/[^/]+$/, 10, "RL_INVITE"],
-  [/^\/api\/skills$/, 20, "RL_SKILLS"],
-];
 
 interface RateLimitBinding {
   limit(options: { key: string }): Promise<{ success: boolean }>;
@@ -36,18 +30,25 @@ function localLimit(key: string, max: number): number | null {
 export default defineEventHandler(async (event) => {
   if (!API_PATTERN.test(event.path)) return;
 
+  const userId = (event.context.user as { sub?: string } | null | undefined)?.sub;
   const key = rateLimitKey(
-    (event.context.user as { sub?: string } | null | undefined)?.sub,
+    userId,
     {
       cfConnectingIp: getHeader(event, "cf-connecting-ip"),
       forwardedFor: getHeader(event, "x-forwarded-for"),
     },
   );
 
-  const maxRequests = Number(useRuntimeConfig(event).rateLimitMax) || 60;
-  const [, routeMax, bindingName] =
-    ROUTE_LIMITS.find(([pattern]) => pattern.test(event.path)) ??
-    [null, maxRequests, "RL_API"];
+  const config = useRuntimeConfig(event);
+  const { binding: bindingName, max: routeMax } = rateLimitBucket(
+    event.path,
+    event.method,
+    Boolean(userId),
+    {
+      apiMax: Number(config.rateLimitMax) || 60,
+      readMax: Number(config.rateLimitReadMax) || 300,
+    },
+  );
 
   const limiter = event.context.cloudflare?.env?.[bindingName] as
     | RateLimitBinding

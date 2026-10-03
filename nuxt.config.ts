@@ -40,9 +40,9 @@ export default defineNuxtConfig({
     // URL with its PostgREST stub via NUXT_PUBLIC_SUPABASE_URL.
     runtimeConfig: {
       supabaseSecretKey: "sb_secret_test",
-      // Every test request comes from one IP; the suite would trip the
-      // fallback limiter once it makes more than 60 API calls a minute.
+      // Shared test traffic would otherwise trip the fallback API and read limits.
       rateLimitMax: 1_000_000,
+      rateLimitReadMax: 1_000_000,
       public: { supabaseUrl: "http://127.0.0.1:1" },
     },
   },
@@ -118,9 +118,10 @@ export default defineNuxtConfig({
     analyticsActivationAllowed: false,
     // Where missed-retention alerts go (NUXT_OPS_ALERT_EMAIL); every admin when empty.
     opsAlertEmail: "",
-    // Per-IP /api limit for the in-memory fallback (runtimes without Workers
-    // rate-limit bindings). Production uses the RL_* bindings instead.
+    // API write/anonymous and signed-in read limits for the in-memory fallback
+    // (runtimes without Workers rate-limit bindings).
     rateLimitMax: 60,
+    rateLimitReadMax: 300,
     // "user:password" gating staging and its PR previews (NUXT_STAGING_BASIC_AUTH,
     // a Worker secret). Empty disables it; production ignores it.
     stagingBasicAuth: "",

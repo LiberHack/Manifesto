@@ -71,9 +71,15 @@ export interface Me {
   experience?: "beginner" | "intermediate" | "experienced" | null;
 }
 
+/** How long a navigation may reuse /api/me before refetching it. */
+const ME_TTL_MS = 30_000;
+
 /**
  * Shared /api/me state. Keyed so the auth middleware and every page or component
  * that needs the current user resolve it once per request rather than refetching.
+ * Across client navigations it is reused for ME_TTL_MS (useSessionCache); code
+ * that changes what /api/me returns calls `refresh()`, which always refetches,
+ * and signing in or out refetches through the `user` watch.
  *
  * Resolves to null without a request when nobody is signed in, so components in
  * the default layout (AppBanners) can call it on public pages unconditionally.
@@ -81,12 +87,36 @@ export interface Me {
 export function useMe() {
   const user = useSupabaseUser();
   const request = useRequestFetch();
+  // Watch the account, not the user object: the Supabase module replaces that
+  // object on navigation, and watching it refetched /api/me on every click.
+  const userId = computed(() => user.value?.sub ?? null);
+  const owner = () => userId.value;
+  const { cache, getCachedData, revalidateIfStale } = useSessionCache<Me | null>(
+    "me",
+    ME_TTL_MS,
+    owner,
+  );
 
-  return useAsyncData<Me | null>(
+  const me = useAsyncData<Me | null>(
     "me",
     // Explicit response type: inferring it from Nitro's route union exceeds the
     // compiler's depth limit now that there are more API routes.
-    () => (user.value ? request<Me>("/api/me") : Promise.resolve(null)),
-    { default: () => null, watch: [user] },
+    () =>
+      user.value
+        ? cache.load(() => request<Me>("/api/me", SHARED_READ_FETCH), owner())
+        : Promise.resolve(null),
+    { default: () => null, watch: [userId], getCachedData },
   );
+  revalidateIfStale(me.refresh);
+  return me;
+}
+
+/**
+ * Whether the shared /api/me is past its TTL or invalidated by a write. The
+ * auth middleware awaits a refresh in that case before deciding a redirect.
+ */
+export function useMeIsStale(): boolean {
+  const user = useSupabaseUser();
+  const owner = () => user.value?.sub ?? null;
+  return useSessionCache<Me | null>("me", ME_TTL_MS, owner).cache.expired(owner());
 }
