@@ -80,6 +80,11 @@
     "NUXT_PUBLIC_SUPABASE_KEY": "sb_publishable_7UffLfznfdm8gMJEF7hfag_sx_UAEis",
     "NUXT_RESEND_FROM_EMAIL": "LiberHack <noreply@liberhack.org>",
     "NUXT_SITE_URL": "https://liberhack.org",
+    // Privacy gates (docs/privacy/README.md §3). They only allow the features:
+    // analytics still needs the edition toggle (Admin → Editions), and sponsor
+    // exports need active recipients and an MFA (aal2) admin session.
+    "NUXT_SPONSOR_EXPORTS_ENABLED": "true",
+    "NUXT_ANALYTICS_ACTIVATION_ALLOWED": "true",
   },
 
   // Staging = the `dev` branch, deployed as the Worker `manifesto-staging`.
