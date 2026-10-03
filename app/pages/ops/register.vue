@@ -34,8 +34,6 @@ const form = reactive({
   name: "",
   email: "",
   password: "",
-  skills: [] as string[],
-  experience: "" as "" | "beginner" | "intermediate" | "experienced",
 });
 const error = ref("");
 const emailTaken = ref(false);
@@ -49,15 +47,13 @@ async function register() {
   emailTaken.value = false;
   loading.value = true;
 
-  const { skills, experience } = form;
-
   const { error: authError } = await supabase.auth.signUp({
     email: form.email,
     password: form.password,
     options: {
-      // Only what pre-fills the edition form. Dietary details and every
-      // consent are collected there, never in auth metadata.
-      data: { name: form.name, skills, experience },
+      // Skills, experience, dietary details and every consent are collected
+      // on the edition form, never in auth metadata.
+      data: { name: form.name },
       emailRedirectTo: inviteCode ? `${confirmUrl}?invite=${inviteCode}` : confirmUrl,
     },
   });
@@ -67,8 +63,6 @@ async function register() {
   if (authError) {
     if (authError.message.includes("registration_closed"))
       error.value = "Registration is closed — the participant limit has been reached.";
-    else if (authError.message.includes("too_many_skills"))
-      error.value = "You can add at most 5 skills.";
     // GoTrue rejects a signup for an address that already has a confirmed
     // account; say so in our own words and point at the login page.
     else if (
@@ -148,30 +142,11 @@ async function register() {
         <input v-model="form.password" type="password" required minlength="8" class="input input-bordered w-full" />
       </label>
 
-      <div class="form-control">
-        <span class="label-text font-bold">Your Skills</span>
-        <SkillPicker v-model="form.skills" allow-create />
-      </div>
-
-      <label class="form-control">
-        <span class="label-text font-bold">Experience Level</span>
-        <span class="label-text text-xs opacity-60 mb-1">
-          Helps us allocate mentors and workshops. Shared with the named sponsors for
-          recruitment — see the
-          <NuxtLink to="/legal/privacy" target="_blank" class="link">Privacy Notice</NuxtLink>.
-        </span>
-        <select v-model="form.experience" required class="select select-bordered w-full">
-          <option value="" disabled>Select your level…</option>
-          <option value="beginner">Beginner — new to hacking / tech events</option>
-          <option value="intermediate">Intermediate — been to a few, comfortable building</option>
-          <option value="experienced">Experienced — seasoned hacker</option>
-        </select>
-      </label>
-
       <p class="text-sm leading-snug opacity-80">
         This creates your account (name, email, password). After you confirm your
-        email you will finish registering for the edition: the rules and Code of
-        Conduct, sponsor sharing, catering and email preferences are asked there.
+        email you will finish registering for the edition: skills, experience,
+        the Code of Conduct, sponsor sharing, catering and email preferences are
+        asked there.
         How we use your data:
         <NuxtLink to="/legal/privacy" target="_blank" class="link font-bold">Privacy Notice</NuxtLink>.
       </p>

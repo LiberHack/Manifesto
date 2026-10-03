@@ -33,7 +33,7 @@ export default defineEventHandler(async (event) => {
   let newSkills: string[] = [];
 
   if (body.skills !== undefined) {
-    const resolved = await resolveSkills(supabase, body.skills);
+    const resolved = await resolveSkills(supabase, body.skills, user.sub);
     update.skills = resolved.skills;
     update.skills_input = resolved.skills_input;
     newSkills = resolved.new_skills;

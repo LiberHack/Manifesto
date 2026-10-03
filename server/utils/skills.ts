@@ -1,10 +1,7 @@
 import { createError } from "h3";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizeSkills } from "#server/utils/skillNormalize";
-
-const MAX_SKILLS = 10;
-const MAX_SKILL_LENGTH = 30;
-const MAX_NEW_SKILLS = 5;
+import { MAX_NEW_SKILLS, MAX_SKILL_LENGTH, MAX_SKILLS } from "#shared/skills";
 
 export interface ResolvedSkills {
   /** Normalised, stored in registrations.skills. */
@@ -18,12 +15,13 @@ export interface ResolvedSkills {
 /**
  * Validate a participant's skill list and normalise it against the catalogue.
  *
- * @throws 400 on a malformed list, 422 when it would add more than
- *   MAX_NEW_SKILLS skills to the catalogue.
+ * @throws 400 on a malformed list, 422 when it would take the skills the
+ *   caller has added to the catalogue over MAX_NEW_SKILLS.
  */
 export async function resolveSkills(
   supabase: SupabaseClient,
   value: unknown,
+  createdBy: string,
 ): Promise<ResolvedSkills> {
   if (value !== undefined && !Array.isArray(value)) {
     throw createError({ statusCode: 400, message: "skills must be an array" });
@@ -49,11 +47,17 @@ export async function resolveSkills(
 
   const knownKeys = new Set(catalogue.map((name) => name.toLowerCase()));
   const newSkills = skills.filter((s) => !knownKeys.has(s.toLowerCase()));
-  if (newSkills.length > MAX_NEW_SKILLS) {
-    throw createError({
-      statusCode: 422,
-      message: `You can only add up to ${MAX_NEW_SKILLS} new skills`,
-    });
+  if (newSkills.length > 0) {
+    const { count } = await supabase
+      .from("skills")
+      .select("id", { count: "exact", head: true })
+      .eq("created_by", createdBy);
+    if ((count ?? 0) + newSkills.length > MAX_NEW_SKILLS) {
+      throw createError({
+        statusCode: 422,
+        message: `You can only add up to ${MAX_NEW_SKILLS} new skills`,
+      });
+    }
   }
 
   return { skills, skills_input: input, new_skills: newSkills };

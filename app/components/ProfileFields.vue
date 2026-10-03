@@ -34,7 +34,7 @@ const languagesText = tagsText("languages");
 <template>
   <div class="flex flex-col gap-4">
     <fieldset class="form-control">
-      <legend class="label-text font-bold mb-1">Team matching</legend>
+      <legend class="label-text font-bold mb-1">Team matching (optional)</legend>
       <span class="label-text text-xs opacity-60 mb-2">
         Only "Looking for a team" makes your profile visible to recruiting team
         leaders. This is separate from the public archive setting.
@@ -55,7 +55,7 @@ const languagesText = tagsText("languages");
     </fieldset>
 
     <label class="form-control">
-      <span class="label-text font-bold">Introduce yourself</span>
+      <span class="label-text font-bold">Introduce yourself (optional)</span>
       <span class="label-text text-xs opacity-60 mb-1">
         What you'd like to work on and what you bring. A beginner intro is great.
         Reused as the starting point for your applications.
@@ -72,7 +72,7 @@ const languagesText = tagsText("languages");
     </label>
 
     <fieldset class="form-control">
-      <legend class="label-text font-bold mb-1">How you'd like to contribute</legend>
+      <legend class="label-text font-bold mb-1">How you'd like to contribute (optional)</legend>
       <div class="flex flex-wrap gap-2">
         <button
           v-for="role in CONTRIBUTION_ROLES"
@@ -89,7 +89,7 @@ const languagesText = tagsText("languages");
     </fieldset>
 
     <fieldset class="form-control">
-      <legend class="label-text font-bold mb-1">Goals</legend>
+      <legend class="label-text font-bold mb-1">Goals (optional)</legend>
       <div class="flex flex-wrap gap-2">
         <button
           v-for="goal in PARTICIPANT_GOALS"
@@ -106,7 +106,7 @@ const languagesText = tagsText("languages");
     </fieldset>
 
     <label class="form-control">
-      <span class="label-text font-bold">Challenge interests</span>
+      <span class="label-text font-bold">Challenge interests (optional)</span>
       <span class="label-text text-xs opacity-60 mb-1">
         Up to {{ MAX_INTERESTS }}, comma-separated. "{{ UNDECIDED_INTEREST }}" is fine.
       </span>

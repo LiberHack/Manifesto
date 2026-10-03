@@ -2,9 +2,8 @@ import { requireRegistration } from "#server/utils/requireRegistration";
 import { requireTeamLeadership } from "#server/utils/registrationContext";
 import { parseTeamRecruitmentFields } from "#server/utils/profileInput";
 import { membershipError } from "#server/utils/joinRequests";
+import { MAX_SKILL_LENGTH, MAX_SKILLS } from "#shared/skills";
 
-const MAX_SKILLS = 10;
-const MAX_SKILL_LENGTH = 30;
 const MAX_DESCRIPTION_LENGTH = 200;
 
 export default defineEventHandler(async (event) => {

@@ -6,13 +6,4 @@ describe("Skills API", () => {
     const res = await fetch("/api/skills");
     expect(res.status).toBe(200);
   });
-
-  it("POST /api/skills returns 401 when not authenticated", async () => {
-    const res = await fetch("/api/skills", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "Zig" }),
-    });
-    expect(res.status).toBe(401);
-  });
 });

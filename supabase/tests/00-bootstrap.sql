@@ -19,6 +19,12 @@ create table auth.users (
   created_at timestamptz not null default now()
 );
 
+-- Like Supabase: GoTrue deletes users as supabase_auth_admin, which has no
+-- privileges in `public`. After-triggers fired by the cascade run as this role.
+create role supabase_auth_admin nologin;
+grant usage on schema auth to supabase_auth_admin;
+grant select, delete on auth.users to supabase_auth_admin;
+
 -- Like Supabase: the caller's id comes from the JWT `sub` claim.
 create or replace function auth.uid() returns uuid
 language sql stable as $$

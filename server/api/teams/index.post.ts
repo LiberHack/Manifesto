@@ -1,7 +1,5 @@
 import { requireRegistration } from "#server/utils/requireRegistration";
-
-const MAX_SKILLS = 10;
-const MAX_SKILL_LENGTH = 30;
+import { MAX_SKILL_LENGTH, MAX_SKILLS } from "#shared/skills";
 
 const validateSkills = (skillsWanted: unknown): string[] => {
   if (!skillsWanted) return [];

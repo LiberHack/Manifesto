@@ -48,7 +48,7 @@ export default defineEventHandler(async (event) => {
   const input = parseRegistrationInput(body);
   const profile = parseProfileFields(body);
   const contact = parseContact(body.contact);
-  const { skills, skills_input, new_skills } = await resolveSkills(supabase, body.skills);
+  const { skills, skills_input, new_skills } = await resolveSkills(supabase, body.skills, user.sub);
 
   const { data: registrationId, error } = await supabase.rpc("register_with_consents", {
     p_participant: user.sub,
