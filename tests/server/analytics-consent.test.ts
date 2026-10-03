@@ -6,6 +6,7 @@ import { createEvent } from "h3";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { parseAnalyticsChoice } from "../../shared/utils/privacy";
 import {
+  isAcquisitionLanding,
   landingToRecordOnConsent,
   readAnalyticsChoice,
   trackIfGranted,
@@ -100,6 +101,15 @@ describe("consent-time landing", () => {
 
   it("records the landing page the visitor is still on when they allow", () => {
     expect(landingToRecordOnConsent(landing, "/")).toEqual(landing);
+  });
+
+  it("does not count the email confirmation hop as a landing", () => {
+    // Clicking the link in Gmail sends referrer mail.google.com; counting it
+    // would replace an Instagram last touch with ref-google.
+    expect(isAcquisitionLanding("/ops/confirm")).toBe(false);
+    expect(isAcquisitionLanding("/ops/reset-password")).toBe(false);
+    expect(isAcquisitionLanding("/")).toBe(true);
+    expect(isAcquisitionLanding("/ops/register")).toBe(true);
   });
 
   it("does not reconstruct the landing after the visitor navigated away", () => {

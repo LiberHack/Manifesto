@@ -27,6 +27,17 @@ export interface LandingContext {
 }
 
 /**
+ * Pages opened from our own emails. Their referrer is the mailbox, not a
+ * source, so a load there would overwrite the real last touch.
+ */
+const EMAIL_LINK_PATHS = ["/ops/confirm", "/ops/reset-password"];
+
+/** Whether a page load on `path` is an acquisition touch worth recording. */
+export function isAcquisitionLanding(path: string): boolean {
+  return !EMAIL_LINK_PATHS.some((prefix) => path.startsWith(prefix));
+}
+
+/**
  * What to record when the visitor clicks "Allow" on this page load.
  *
  * Only the page they are still on: if they have navigated away from the
