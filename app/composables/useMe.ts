@@ -110,3 +110,13 @@ export function useMe() {
   revalidateIfStale(me.refresh);
   return me;
 }
+
+/**
+ * Whether the shared /api/me is past its TTL or invalidated by a write. The
+ * auth middleware awaits a refresh in that case before deciding a redirect.
+ */
+export function useMeIsStale(): boolean {
+  const user = useSupabaseUser();
+  const owner = () => user.value?.sub ?? null;
+  return useSessionCache<Me | null>("me", ME_TTL_MS, owner).cache.expired(owner());
+}

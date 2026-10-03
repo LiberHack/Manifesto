@@ -26,8 +26,10 @@ export default defineNuxtRouteMiddleware(async (to) => {
   // 403 not_registered on every edition-scoped mutation.
   const { data: me, refresh } = await useMe();
   // The cached /api/me may predate this session (fetched signed out before an
-  // email-confirmation login), and a null there would skip the gate.
-  if (me.value?.id !== user.value.sub) await refresh();
+  // email-confirmation login), and a null there would skip the gate. A stale
+  // one (past its TTL, or invalidated by a write such as a new edition going
+  // live) is refreshed before deciding; "defer" joins a revalidation in flight.
+  if (me.value?.id !== user.value.sub || useMeIsStale()) await refresh({ dedupe: "defer" });
   if (me.value && me.value.registration === null) {
     // Carry the intended destination so an invite link survives the detour.
     return navigateTo(

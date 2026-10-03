@@ -47,6 +47,9 @@ function isRateLimited(error: unknown): boolean {
  */
 export function createSessionCache<T>(ttlMs: number, now: () => number = Date.now): SessionCache<T> {
   let entry: Entry<T> | null = null;
+  // Bumped by invalidate(): a read that started before a write keeps its value
+  // only as the 429 fallback, never as fresh.
+  let generation = 0;
 
   const remember = (value: T, owner: string | null) => {
     entry = { at: now(), owner, value };
@@ -58,9 +61,11 @@ export function createSessionCache<T>(ttlMs: number, now: () => number = Date.no
       return now() - entry.at <= ttlMs ? entry.value : undefined;
     },
     async load(fetcher, owner) {
+      const startedAt = generation;
       try {
         const value = await fetcher();
         remember(value, owner);
+        if (generation !== startedAt && entry) entry = { ...entry, at: Number.NEGATIVE_INFINITY };
         return value;
       } catch (error) {
         if (isRateLimited(error) && entry && entry.owner === owner) return entry.value;
@@ -69,6 +74,7 @@ export function createSessionCache<T>(ttlMs: number, now: () => number = Date.no
     },
     remember,
     invalidate() {
+      generation++;
       if (entry) entry = { ...entry, at: Number.NEGATIVE_INFINITY };
     },
     expired(owner) {

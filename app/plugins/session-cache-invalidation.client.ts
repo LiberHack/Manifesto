@@ -1,4 +1,4 @@
-import { invalidateSessionCaches } from "~/composables/useSessionCache";
+import { expiredSessionCacheKeys, invalidateSessionCaches } from "~/composables/useSessionCache";
 
 const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
@@ -25,4 +25,12 @@ export default defineNuxtPlugin((nuxtApp) => {
   }) as typeof original;
   // Keep $fetch.raw / .native / .create working: copy the instance's own members.
   globalThis.$fetch = Object.assign(wrapped, original);
+
+  // Components that stay mounted (the layout's edition state, AppBanners) are
+  // not re-run on navigation, so nothing would revalidate them. After each
+  // navigation, refresh whatever has expired, in the background.
+  useRouter().afterEach(() => {
+    const keys = expiredSessionCacheKeys(nuxtApp);
+    if (keys.length) void refreshNuxtData(keys);
+  });
 });

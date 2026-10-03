@@ -95,4 +95,18 @@ describe("session cache for shared navigation data", () => {
     // Another account's entry is the user watch's job, not revalidation.
     expect(cache.expired("user-2")).toBe(false);
   });
+
+  it("a read that started before a write does not mark its old result fresh", async () => {
+    const cache = createSessionCache<string>(60_000, () => 1_000);
+    await cache.load(async () => "me@1", "user-1");
+
+    let finish!: (v: string) => void;
+    const inFlight = cache.load(() => new Promise<string>((r) => (finish = r)), "user-1");
+    cache.invalidate(); // the write lands while the read is in flight
+    finish("me@stale");
+    await expect(inFlight).resolves.toBe("me@stale");
+
+    expect(cache.cached("initial", "user-1")).toBeUndefined();
+    expect(cache.expired("user-1")).toBe(true);
+  });
 });

@@ -3,7 +3,7 @@ import { createSessionCache, type FetchCause, type SessionCache } from "~/utils/
 
 // One set of caches per Nuxt app: per browser tab on the client, per request
 // during SSR, so nothing is shared between visitors on the server.
-const caches = new WeakMap<object, Map<string, SessionCache<unknown>>>();
+const caches = new WeakMap<object, Map<string, { cache: SessionCache<unknown>; owner: () => string | null }>>();
 
 /**
  * The navigation cache for `key`, plus a `getCachedData` for useAsyncData that
@@ -13,9 +13,9 @@ export function useSessionCache<T>(key: string, ttlMs: number, owner: () => stri
   const nuxtApp = useNuxtApp();
   let byKey = caches.get(nuxtApp);
   if (!byKey) caches.set(nuxtApp, (byKey = new Map()));
-  let cache = byKey.get(key) as SessionCache<T> | undefined;
-  if (!cache) byKey.set(key, (cache = createSessionCache<T>(ttlMs)) as SessionCache<unknown>);
-  const store = cache;
+  let slot = byKey.get(key);
+  if (!slot) byKey.set(key, (slot = { cache: createSessionCache<unknown>(ttlMs), owner }));
+  const store = slot.cache as SessionCache<T>;
 
   return {
     cache: store,
@@ -44,7 +44,14 @@ export function useSessionCache<T>(key: string, ttlMs: number, owner: () => stri
 
 /** Mark every navigation cache of this app stale; the next page mount refetches. */
 export function invalidateSessionCaches(nuxtApp: object): void {
-  for (const cache of caches.get(nuxtApp)?.values() ?? []) cache.invalidate();
+  for (const { cache } of caches.get(nuxtApp)?.values() ?? []) cache.invalidate();
+}
+
+/** Keys whose cached value is past its TTL or invalidated, for a background refresh. */
+export function expiredSessionCacheKeys(nuxtApp: object): string[] {
+  return [...(caches.get(nuxtApp)?.entries() ?? [])]
+    .filter(([, { cache, owner }]) => cache.expired(owner()))
+    .map(([key]) => key);
 }
 
 /**
