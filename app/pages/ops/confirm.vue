@@ -20,9 +20,11 @@ watch(user, () => {
 onMounted(() => {
   if (user.value) return;
 
-  const hasCodeVerifier = Object.keys(localStorage).some((k) =>
-    k.includes("code-verifier")
-  );
+  // @nuxtjs/supabase keeps the PKCE verifier in a cookie (useSsrCookies);
+  // localStorage covers a client configured without SSR cookies.
+  const hasCodeVerifier =
+    document.cookie.includes("code-verifier") ||
+    Object.keys(localStorage).some((k) => k.includes("code-verifier"));
 
   if (!hasCodeVerifier) {
     const loginPath = invite

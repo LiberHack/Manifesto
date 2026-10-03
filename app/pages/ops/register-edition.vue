@@ -56,12 +56,7 @@ const { track } = useAnalyticsConsent();
 onMounted(() => track("registration_started"));
 
 // Only ever an internal path, so a crafted ?next= cannot redirect off-site.
-const nextPath = computed(() => {
-  const next = route.query.next;
-  return typeof next === "string" && /^\/(?!\/)/.test(next)
-    ? next
-    : "/ops/dashboard";
-});
+const nextPath = computed(() => internalPath(route.query.next) ?? "/ops/dashboard");
 const { data: state, refresh: refreshState } =
   await useFetch<RegistrationState>("/api/me/registration");
 

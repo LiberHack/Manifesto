@@ -33,7 +33,11 @@ async function login() {
     await until(user).toBeTruthy();
 
     const inviteCode = route.query.invite as string | undefined;
-    router.push(inviteCode ? `/ops/invite/${inviteCode}` : "/ops/teams");
+    router.push(
+      inviteCode
+        ? `/ops/invite/${inviteCode}`
+        : (internalPath(route.query.next) ?? "/ops/teams"),
+    );
   } finally {
     loading.value = false;
   }

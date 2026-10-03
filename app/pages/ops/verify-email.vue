@@ -6,6 +6,12 @@ const user = useSupabaseUser()
 const router = useRouter()
 const route = useRoute()
 
+// Same destination as the signup email, so a resent link still lands on
+// /ops/confirm on this host (and keeps the invite), not on the site root.
+const rawInvite = route.query.invite as string | undefined
+const invite = rawInvite?.replace(/[^a-zA-Z0-9_-]/g, '') || undefined
+const confirmUrl = `${useRequestURL().origin}/ops/confirm${invite ? `?invite=${invite}` : ''}`
+
 const email = computed(
   () => user.value?.email ?? (route.query.email as string | undefined) ?? ''
 )
@@ -55,7 +61,11 @@ async function resend() {
   resendMessage.value = ''
   resendError.value = false
 
-  const { error } = await supabase.auth.resend({ type: 'signup', email: email.value })
+  const { error } = await supabase.auth.resend({
+    type: 'signup',
+    email: email.value,
+    options: { emailRedirectTo: confirmUrl },
+  })
   resending.value = false
 
   if (error) {

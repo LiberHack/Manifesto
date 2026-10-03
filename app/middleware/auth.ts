@@ -13,7 +13,8 @@ export default defineNuxtRouteMiddleware(async (to) => {
   }
 
   const user = useSupabaseUser();
-  if (!user.value) return navigateTo("/ops/login");
+  if (!user.value)
+    return navigateTo(`/ops/login?next=${encodeURIComponent(to.fullPath)}`);
   if (!user.value.user_metadata?.email_verified)
     return navigateTo("/ops/verify-email");
 

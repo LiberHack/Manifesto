@@ -36,3 +36,11 @@ export const OPS_CLOSED_EXEMPT_PATHS = [
 export function isOpsClosedExempt(path: string): boolean {
   return OPS_CLOSED_EXEMPT_PATHS.some((exempt) => path.startsWith(exempt));
 }
+
+/**
+ * A `?next=` value, if it is a path on this site; otherwise null. Rejects
+ * `//host` and `/\host`, which browsers read as another origin.
+ */
+export function internalPath(value: unknown): string | null {
+  return typeof value === "string" && /^\/(?![/\\])/.test(value) ? value : null;
+}
