@@ -8,8 +8,10 @@ export default defineNuxtRouteMiddleware(async (to) => {
   // sign in to open it. The redirect is UX only — the server answers
   // 403 ops_closed on every edition-scoped route regardless.
   if (!isOpsClosedExempt(to.path)) {
-    const { data: edition } = await useCurrentEdition();
-    if (!edition.value?.ops_open) return navigateTo("/");
+    const { data: edition, error } = await useCurrentEdition();
+    // A rate-limited lookup with nothing cached is not "closed": don't throw the
+    // user out of /ops over it. The server still answers 403 ops_closed.
+    if (!edition.value?.ops_open && error.value?.statusCode !== 429) return navigateTo("/");
   }
 
   const user = useSupabaseUser();

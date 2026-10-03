@@ -18,7 +18,14 @@ interface Edition {
   analytics_enabled: boolean
 }
 
-const { data: editions, refresh: refreshEditions } = await useFetch<Edition[]>("/api/admin/editions")
+const { data: editions, refresh: refreshEditionList } = await useFetch<Edition[]>("/api/admin/editions")
+const { refresh: refreshCurrentEdition } = await useCurrentEdition()
+
+// After an edition change, also refresh the shared current-edition state (the
+// nav, the auth gate), which navigations otherwise reuse for a minute.
+async function refreshEditions() {
+  await Promise.all([refreshEditionList(), refreshCurrentEdition()])
+}
 
 const currentEdition = computed(() => editions.value?.find((e) => e.is_current) ?? null)
 const selectedSlug = ref<string>(currentEdition.value?.slug ?? '')
