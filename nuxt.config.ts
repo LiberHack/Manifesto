@@ -11,6 +11,9 @@ export default defineNuxtConfig({
     // ("Redirected configurations cannot include environments"). Always deploy from
     // the hand-written wrangler.jsonc instead, the same way it works locally.
     cloudflare: { nodeCompat: true, deployConfig: false },
+    // Daily privacy checks, fired by the cron trigger in wrangler.jsonc.
+    experimental: { tasks: true },
+    scheduledTasks: { "0 7 * * *": ["privacy:retention-monitor"] },
   },
 
   // Markdown content is served from a D1 database in production (see wrangler.jsonc).
@@ -37,6 +40,9 @@ export default defineNuxtConfig({
     // URL with its PostgREST stub via NUXT_PUBLIC_SUPABASE_URL.
     runtimeConfig: {
       supabaseSecretKey: "sb_secret_test",
+      // Every test request comes from one IP; the suite would trip the
+      // fallback limiter once it makes more than 60 API calls a minute.
+      rateLimitMax: 1_000_000,
       public: { supabaseUrl: "http://127.0.0.1:1" },
     },
   },
@@ -98,7 +104,26 @@ export default defineNuxtConfig({
     supabaseSecretKey: process.env.NUXT_SUPABASE_SECRET_KEY ?? "",
     resendApiKey: process.env.NUXT_RESEND_API_KEY ?? "",
     resendFromEmail: process.env.NUXT_RESEND_FROM_EMAIL ?? "",
+    // Local development only: send mail to Mailpit (e.g. http://127.0.0.1:54324).
+    mailpitUrl: process.env.NUXT_MAILPIT_URL ?? "",
     siteUrl: "https://liberhack.org",
+    // Smallest group shown in aggregate sponsor reports (NUXT_SPONSOR_REPORT_MIN_GROUP).
+    sponsorReportMinGroup: 5,
+    // Off until the legal basis for sponsor sharing is documented
+    // (docs/privacy/README.md). NUXT_SPONSOR_EXPORTS_ENABLED=true turns it on.
+    sponsorExportsEnabled: false,
+    // Server-controlled gate for optional analytics, separate from the per-edition
+    // admin toggle. Stays off until the age/parental-consent approach is decided
+    // and implemented (docs/privacy/README.md). NUXT_ANALYTICS_ACTIVATION_ALLOWED=true.
+    analyticsActivationAllowed: false,
+    // Where missed-retention alerts go (NUXT_OPS_ALERT_EMAIL); every admin when empty.
+    opsAlertEmail: "",
+    // Per-IP /api limit for the in-memory fallback (runtimes without Workers
+    // rate-limit bindings). Production uses the RL_* bindings instead.
+    rateLimitMax: 60,
+    // "user:password" gating staging and its PR previews (NUXT_STAGING_BASIC_AUTH,
+    // a Worker secret). Empty disables it; production ignores it.
+    stagingBasicAuth: "",
     public: {
       // "production" | "staging" | "development" — anything but production is noindex.
       appEnv: process.env.NUXT_PUBLIC_APP_ENV ?? "development",

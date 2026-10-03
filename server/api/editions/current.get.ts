@@ -1,5 +1,6 @@
 import { useSupabaseAdmin } from "#server/utils/supabase";
-import { getCurrentEdition } from "#server/utils/registrationContext";
+import { getCurrentEdition, isEditionFull } from "#server/utils/registrationContext";
+import { analyticsActivationAllowed } from "#server/utils/analytics";
 
 /**
  * Public view of the edition currently open for registration. Backs the signup
@@ -15,12 +16,7 @@ export default defineEventHandler(async (event) => {
   const supabase = useSupabaseAdmin();
   const edition = await getCurrentEdition(supabase);
 
-  if (!edition) return { edition: null, full: true, ops_open: false };
-
-  const { count } = await supabase
-    .from("registrations")
-    .select("id", { count: "exact", head: true })
-    .eq("edition_slug", edition.slug);
+  if (!edition) return { edition: null, full: true, ops_open: false, analytics_enabled: false };
 
   return {
     edition: {
@@ -29,8 +25,11 @@ export default defineEventHandler(async (event) => {
       starts_at: edition.starts_at,
       ends_at: edition.ends_at,
     },
-    full: (count ?? 0) >= edition.participant_cap,
+    full: await isEditionFull(supabase, edition),
     // An edition can be live and current while registration has not opened.
     ops_open: edition.ops_enabled,
+    // Whether to show the analytics consent banner at all.
+    analytics_enabled:
+      edition.analytics_enabled && analyticsActivationAllowed(useRuntimeConfig()),
   };
 });

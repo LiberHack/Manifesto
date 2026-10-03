@@ -14,7 +14,11 @@ export default defineEventHandler(async (event) => {
   // Cancel pending requests for this team
   await supabase
     .from("join_requests")
-    .update({ status: "rejected" })
+    .update({
+      status: "rejected",
+      close_reason: "team_dissolved",
+      decided_at: new Date().toISOString(),
+    })
     .eq("team_id", id!)
     .eq("status", "pending");
 

@@ -1,14 +1,20 @@
 import { requireRegistration } from "#server/utils/requireRegistration";
+import { teamVacancies } from "#shared/teamFormation";
 
 export default defineEventHandler(async (event) => {
   const { edition, supabase } = await requireRegistration(event);
 
-  const { skills } = getQuery(event) as { skills?: string };
+  const { skills, recruiting } = getQuery(event) as {
+    skills?: string;
+    recruiting?: string;
+  };
 
   let query = supabase
     .from("teams")
     .select(
-      "id, name, leader_id, skills_wanted, description, created_at, members:registrations!registrations_team_id_fkey(id)",
+      "id, name, leader_id, skills_wanted, description, created_at, " +
+        "recruiting, wanted_roles, desired_size, interests, goals, welcomes_beginners, languages, " +
+        "members:registrations!registrations_team_id_fkey(id)",
     )
     .eq("edition_slug", edition.slug)
     .order("created_at", { ascending: false });
@@ -21,11 +27,19 @@ export default defineEventHandler(async (event) => {
     query = query.overlaps("skills_wanted", skillList);
   }
 
+  if (recruiting === "1") query = query.eq("recruiting", true);
+
   const { data, error } = await query;
   if (error) {
     console.error("[teams.get] query failed:", error.message);
     throw createError({ statusCode: 500, message: "Failed to fetch teams" });
   }
 
-  return data ?? [];
+  return ((data ?? []) as unknown as Array<Record<string, unknown> & {
+    desired_size: number;
+    members: unknown[];
+  }>).map((team) => ({
+    ...team,
+    vacancies: teamVacancies(team.desired_size, team.members.length),
+  }));
 });

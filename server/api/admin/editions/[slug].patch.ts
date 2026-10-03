@@ -1,4 +1,6 @@
 import { requireAdmin } from "#server/utils/adminAuth";
+import { analyticsActivationAllowed } from "#server/utils/analytics";
+import { dispatchDueJobs } from "#server/utils/notifications";
 
 const MAX_NAME_LENGTH = 80;
 
@@ -8,6 +10,7 @@ interface Body {
   ends_at?: unknown;
   participant_cap?: unknown;
   ops_enabled?: unknown;
+  analytics_enabled?: unknown;
 }
 
 function readDate(value: unknown, field: string): string | null {
@@ -64,6 +67,21 @@ export default defineEventHandler(async (event) => {
     update.ops_enabled = body.ops_enabled;
   }
 
+  // Turning analytics on is a deliberate decision gated on the launch blockers
+  // in docs/privacy/README.md; nothing enables it automatically.
+  if (body.analytics_enabled !== undefined) {
+    if (typeof body.analytics_enabled !== "boolean") {
+      throw createError({
+        statusCode: 400,
+        message: "analytics_enabled must be a boolean",
+      });
+    }
+    if (body.analytics_enabled && !analyticsActivationAllowed(useRuntimeConfig())) {
+      throw createError({ statusCode: 409, message: "analytics_activation_not_allowed" });
+    }
+    update.analytics_enabled = body.analytics_enabled;
+  }
+
   if (Object.keys(update).length === 0) {
     throw createError({ statusCode: 400, message: "No fields to update" });
   }
@@ -76,8 +94,20 @@ export default defineEventHandler(async (event) => {
     .single();
 
   if (error) {
+    if (error.message?.includes("cap_below_reserved_seats")) {
+      throw createError({
+        statusCode: 409,
+        message: "The cap can't be lower than the seats already accepted or offered",
+      });
+    }
     console.error("[admin/editions.patch] update failed:", error.message);
     throw createError({ statusCode: 500, message: "Failed to update edition" });
+  }
+
+  // A cap raise offers the new seats to the waitlist (DB trigger) with a
+  // deadline; send those offers now rather than waiting for an operations run.
+  if (update.participant_cap !== undefined) {
+    await dispatchDueJobs(supabase, 100).catch(() => {});
   }
 
   return data;

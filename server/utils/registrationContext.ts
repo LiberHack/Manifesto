@@ -10,6 +10,9 @@ export interface Edition {
   participant_cap: number;
   /** Whether the participant area is open for this edition. Admin-controlled. */
   ops_enabled: boolean;
+  /** Consent banner + analytics collection; off until an admin enables it. */
+  analytics_enabled: boolean;
+  unanswered_request_hours: number;
 }
 
 export interface Registration {
@@ -19,7 +22,6 @@ export interface Registration {
   role: "participant" | "leader";
   team_id: string | null;
   skills: string[];
-  dietary: string | null;
   experience: "beginner" | "intermediate" | "experienced" | null;
   public: boolean;
 }
@@ -45,11 +47,46 @@ export async function getCurrentEdition(
 ): Promise<Edition | null> {
   const { data } = await supabase
     .from("editions")
-    .select("slug, name, starts_at, ends_at, status, participant_cap, ops_enabled")
+    .select("slug, name, starts_at, ends_at, status, participant_cap, ops_enabled, analytics_enabled, unanswered_request_hours")
     .eq("is_current", true)
     .maybeSingle();
 
   return (data as Edition | null) ?? null;
+}
+
+/**
+ * Whether every seat is taken. Counts only seat-holding registrations, as the
+ * cap trigger does: cancelled and waitlisted rows hold no seat.
+ */
+export async function isEditionFull(
+  supabase: SupabaseClient,
+  edition: Pick<Edition, "slug" | "participant_cap">,
+): Promise<boolean> {
+  const { count } = await supabase
+    .from("registrations")
+    .select("id", { count: "exact", head: true })
+    .eq("edition_slug", edition.slug)
+    .in("seat_state", ["accepted", "offered"]);
+  return (count ?? 0) >= edition.participant_cap;
+}
+
+/**
+ * The current edition, provided its participant area is open.
+ *
+ * @throws 503 when no edition is live, 403 `ops_closed` when the edition's
+ *   participant area has not opened.
+ */
+export async function requireOpenEdition(
+  supabase: SupabaseClient,
+): Promise<Edition> {
+  const edition = await getCurrentEdition(supabase);
+  if (!edition) {
+    throw createError({ statusCode: 503, message: "no_live_edition" });
+  }
+  if (!edition.ops_enabled) {
+    throw createError({ statusCode: 403, message: "ops_closed" });
+  }
+  return edition;
 }
 
 /**
@@ -68,21 +105,14 @@ export async function resolveRegistrationContext(
 ): Promise<RegistrationContext> {
   if (!user) throw createError({ statusCode: 401, message: "Unauthorized" });
 
-  const edition = await getCurrentEdition(supabase);
-  if (!edition) {
-    throw createError({ statusCode: 503, message: "no_live_edition" });
-  }
-
   // Checked before the registration lookup: while the participant area is
   // closed, whether the caller happens to be registered is not the point.
-  if (!edition.ops_enabled) {
-    throw createError({ statusCode: 403, message: "ops_closed" });
-  }
+  const edition = await requireOpenEdition(supabase);
 
   const { data: registration } = await supabase
     .from("registrations")
     .select(
-      "id, participant_id, edition_slug, role, team_id, skills, dietary, experience, public",
+      "id, participant_id, edition_slug, role, team_id, skills, experience, public",
     )
     .eq("participant_id", user.sub)
     .eq("edition_slug", edition.slug)

@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { resolveRegistrationContext } from "../../server/utils/registrationContext";
+import {
+  requireOpenEdition,
+  resolveRegistrationContext,
+} from "../../server/utils/registrationContext";
 
 const LIVE_EDITION = {
   slug: "2027",
@@ -20,7 +23,6 @@ const REGISTRATION = {
   role: "participant" as const,
   team_id: null,
   skills: ["Rust"],
-  dietary: null,
   experience: "beginner" as const,
   public: true,
 };
@@ -98,5 +100,29 @@ describe("resolveRegistrationContext", () => {
     expect(ctx.edition).toEqual(LIVE_EDITION);
     expect(ctx.registration).toEqual(REGISTRATION);
     expect(ctx.user.sub).toBe("user-1");
+  });
+});
+
+describe("requireOpenEdition", () => {
+  it("throws 503 when no edition is live", async () => {
+    await expect(
+      requireOpenEdition(stubSupabase({ editions: { data: null } }) as never),
+    ).rejects.toMatchObject({ statusCode: 503, message: "no_live_edition" });
+  });
+
+  it("throws 403 ops_closed before registration has opened", async () => {
+    await expect(
+      requireOpenEdition(
+        stubSupabase({ editions: { data: CLOSED_EDITION } }) as never,
+      ),
+    ).rejects.toMatchObject({ statusCode: 403, message: "ops_closed" });
+  });
+
+  it("returns the edition once it is open", async () => {
+    await expect(
+      requireOpenEdition(
+        stubSupabase({ editions: { data: LIVE_EDITION } }) as never,
+      ),
+    ).resolves.toEqual(LIVE_EDITION);
   });
 });

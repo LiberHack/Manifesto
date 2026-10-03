@@ -8,6 +8,7 @@ const { data: currentEdition } = await useCurrentEdition();
 const opsTarget = computed(() =>
   currentEdition.value.ops_open ? "/ops/teams" : "/ops/register",
 );
+const { settingsOpen: analyticsSettingsOpen } = useAnalyticsConsent();
 const discord = appConfig.socials.discord;
 const instagram = appConfig.socials.instagram;
 </script>
@@ -18,11 +19,11 @@ const instagram = appConfig.socials.instagram;
   </ClientOnly>
 
   <div
-    class="shader-container w-full min-h-screen bg-[url('/index.webp')] bg-repeat bg-auto font-cygrotesk"
+    class="shader-container w-full min-w-0 min-h-screen bg-[url('/index.webp')] bg-repeat bg-auto font-cygrotesk"
   >
     <div class="flex flex-col min-h-screen">
       <div
-        class="navbar bg-base-100 shadow-sm border-b-2 border-primary gap-2 px-4"
+        class="navbar min-w-0 flex-wrap bg-base-100 shadow-sm border-b-2 border-primary gap-2 px-4"
       >
         <div class="flex flex-row flex-wrap">
           <div class="">
@@ -108,9 +109,21 @@ const instagram = appConfig.socials.instagram;
       </div>
 
       <AppBanners />
-      <div class="flex flex-col flex-1 w-full">
+      <div class="flex flex-col flex-1 w-full min-w-0 [overflow-wrap:break-word]">
         <slot />
       </div>
+      <nav
+        aria-label="Privacy"
+        class="flex flex-wrap justify-center gap-x-4 gap-y-1 px-4 py-2 text-xs bg-base-100 border-t-2 border-primary"
+      >
+        <NuxtLink to="/legal/privacy" class="link">Privacy Notice</NuxtLink>
+        <NuxtLink to="/legal/privacy-bg" class="link">Политика за поверителност</NuxtLink>
+        <button type="button" class="link" @click="analyticsSettingsOpen = true">
+          Privacy settings
+        </button>
+        <NuxtLink to="/ops/privacy" class="link">My account privacy</NuxtLink>
+      </nav>
     </div>
+    <AnalyticsConsent />
   </div>
 </template>

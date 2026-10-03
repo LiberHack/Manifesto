@@ -9,6 +9,8 @@ export interface CurrentEditionState {
   full: boolean;
   /** Registration and the whole participant area are open. Admin-controlled. */
   ops_open: boolean;
+  /** Analytics consent banner is offered. Admin-controlled, off by default. */
+  analytics_enabled: boolean;
 }
 
 /**
@@ -22,6 +24,6 @@ export interface CurrentEditionState {
 export function useCurrentEdition() {
   return useFetch<CurrentEditionState>("/api/editions/current", {
     key: "edition-current",
-    default: () => ({ edition: null, full: true, ops_open: false }),
+    default: () => ({ edition: null, full: true, ops_open: false, analytics_enabled: false }),
   });
 }

@@ -1,10 +1,21 @@
 <script setup lang="ts">
 import { useId } from "vue";
+import { MAX_NEW_SKILLS, MAX_SKILLS } from "#shared/skills";
 
-const props = defineProps<{ modelValue: string[]; allowCreate?: boolean }>();
+const props = withDefaults(
+  defineProps<{
+    modelValue: string[];
+    allowCreate?: boolean;
+    /**
+     * "personal" spends the account's lifetime allowance of new catalogue
+     * skills; "team" (wanted skills) has its own allowance per list.
+     */
+    budget?: "personal" | "team";
+  }>(),
+  { allowCreate: false, budget: "personal" },
+);
 const emit = defineEmits<{ "update:modelValue": [string[]] }>();
 
-const MAX_CREATED = 5;
 const listboxId = useId();
 const addOptionId = `${listboxId}-add`;
 
@@ -14,16 +25,30 @@ const user = useSupabaseUser();
 const query = ref("");
 const open = ref(false);
 const activeIndex = ref(-1);
-const userCreatedCount = ref(0);
-const addError = ref<string | null>(null);
 const listEl = ref<HTMLUListElement | null>(null);
 
-const sessionCreatedSkills = ref<string[]>([]);
-
-if (props.allowCreate && user.value) {
+// New skills reach the catalogue only when the form is saved, so the ones
+// already added on earlier saves count, plus every selected skill the
+// catalogue does not have yet.
+const savedNewCount = ref(0);
+if (props.allowCreate && props.budget === "personal" && user.value) {
   const { data } = await useFetch<{ count: number }>("/api/me/skills-count");
-  if (data.value) userCreatedCount.value = data.value.count;
+  savedNewCount.value = data.value?.count ?? 0;
 }
+
+const catalogueKeys = computed(
+  () => new Set((allSkills.value ?? []).map((s) => s.name.toLowerCase())),
+);
+const pendingNewCount = computed(
+  () =>
+    props.modelValue.filter((s) => !catalogueKeys.value.has(s.toLowerCase()))
+      .length,
+);
+const createdLeft = computed(() =>
+  Math.max(0, MAX_NEW_SKILLS - savedNewCount.value - pendingNewCount.value),
+);
+const isFull = computed(() => props.modelValue.length >= MAX_SKILLS);
+const overBy = computed(() => props.modelValue.length - MAX_SKILLS);
 
 function isSelected(name: string) {
   return props.modelValue.includes(name);
@@ -50,19 +75,14 @@ const exactMatch = computed(() => {
   );
 });
 
-const canCreateMore = computed(
-  () => props.allowCreate && userCreatedCount.value < MAX_CREATED,
-);
-const createdLeft = computed(() => MAX_CREATED - userCreatedCount.value);
-
-const showAddNew = computed(() => {
-  return (
+const showAddNew = computed(
+  () =>
+    props.allowCreate &&
+    createdLeft.value > 0 &&
     !!query.value.trim() &&
     !exactMatch.value &&
-    !isAlreadySelected.value &&
-    canCreateMore.value
-  );
-});
+    !isAlreadySelected.value,
+);
 
 const itemCount = computed(
   () => filtered.value.length + (showAddNew.value ? 1 : 0),
@@ -70,11 +90,11 @@ const itemCount = computed(
 
 watch([filtered, query], () => {
   activeIndex.value = -1;
-  addError.value = null;
 });
 
 function select(name: string) {
-  if (!isSelected(name)) emit("update:modelValue", [...props.modelValue, name]);
+  if (!isSelected(name) && !isFull.value)
+    emit("update:modelValue", [...props.modelValue, name]);
   query.value = "";
   open.value = false;
   activeIndex.value = -1;
@@ -85,56 +105,10 @@ function remove(name: string) {
     "update:modelValue",
     props.modelValue.filter((s) => s !== name),
   );
-
-  if (sessionCreatedSkills.value.includes(name)) {
-    userCreatedCount.value--;
-    sessionCreatedSkills.value = sessionCreatedSkills.value.filter(
-      (s) => s !== name,
-    );
-  }
 }
 
-async function addNew() {
-  const name = query.value.trim();
-
-  if (!name || !canCreateMore.value || isAlreadySelected.value) return;
-
-  if (user.value) {
-    try {
-      const result = await $fetch<{ name: string }>("/api/skills", {
-        method: "POST",
-        body: { name },
-      });
-
-      userCreatedCount.value++;
-      sessionCreatedSkills.value.push(result.name);
-
-      if (
-        allSkills.value &&
-        !allSkills.value.some(
-          (s) => s.name.toLowerCase() === result.name.toLowerCase(),
-        )
-      ) {
-        allSkills.value.push(result);
-      }
-
-      select(result.name);
-    } catch (e: any) {
-      addError.value = e?.data?.message ?? "Could not add skill";
-      open.value = false;
-    }
-  } else {
-    userCreatedCount.value++;
-    sessionCreatedSkills.value.push(name);
-
-    if (
-      allSkills.value &&
-      !allSkills.value.some((s) => s.name.toLowerCase() === name.toLowerCase())
-    ) {
-      allSkills.value.push({ name });
-    }
-    select(name);
-  }
+function addNew() {
+  if (showAddNew.value) select(query.value.trim());
 }
 
 function onInput() {
@@ -150,7 +124,7 @@ function onBlur() {
 
 function onEnter() {
   if (activeIndex.value >= 0 && activeIndex.value < filtered.value.length) {
-    select(filtered.value[activeIndex.value].name);
+    select(filtered.value[activeIndex.value]!.name);
   } else if (activeIndex.value === filtered.value.length && showAddNew.value) {
     addNew();
   } else if (exactMatch.value && !isAlreadySelected.value) {
@@ -215,7 +189,8 @@ const activeDescendant = computed(() => {
       <input
         v-model="query"
         type="text"
-        placeholder="Search or add a skill…"
+        :placeholder="isFull ? `Maximum of ${MAX_SKILLS} skills reached` : 'Search or add a skill…'"
+        :disabled="isFull"
         maxlength="30"
         class="input input-bordered input-sm w-full"
         autocomplete="off"
@@ -277,10 +252,14 @@ const activeDescendant = computed(() => {
       </ul>
     </div>
 
-    <p v-if="allowCreate" class="text-xs opacity-60">
-      {{ createdLeft }} new skill{{ createdLeft === 1 ? "" : "s" }} left to add
+    <p class="text-xs opacity-60">
+      {{ modelValue.length }}/{{ MAX_SKILLS }} skills<template v-if="allowCreate">
+        · {{ createdLeft }} new skill{{ createdLeft === 1 ? "" : "s" }} left to add</template>
     </p>
 
-    <p v-if="addError" class="text-xs text-error">{{ addError }}</p>
+    <p v-if="overBy > 0" role="alert" class="text-xs text-error">
+      Remove {{ overBy }} skill{{ overBy === 1 ? "" : "s" }} — at most
+      {{ MAX_SKILLS }} are allowed.
+    </p>
   </div>
 </template>

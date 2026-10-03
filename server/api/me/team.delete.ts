@@ -1,25 +1,25 @@
 import { requireRegistration } from "#server/utils/requireRegistration";
-import { releaseTeamLeadership } from "#server/utils/teamMembership";
+import { membershipError } from "#server/utils/joinRequests";
 
 export default defineEventHandler(async (event) => {
   const { registration, edition, supabase } = await requireRegistration(event);
 
-  const teamId = registration.team_id;
-  if (!teamId) {
+  if (!registration.team_id) {
     throw createError({ statusCode: 400, message: "Not in a team" });
   }
 
-  await releaseTeamLeadership(supabase, registration.id, teamId);
+  // Hands leadership over (or dissolves a team of one) in the same transaction.
+  const { error } = await supabase.rpc("leave_team", { p_registration: registration.id });
+  if (error) membershipError(error, "me/team.delete");
 
-  await supabase
-    .from("registrations")
-    .update({ team_id: null, role: "participant" })
-    .eq("id", registration.id);
-
-  // Cancel any pending join requests in this edition
+  // Close anything still open for this person in this edition
   await supabase
     .from("join_requests")
-    .update({ status: "rejected" })
+    .update({
+      status: "withdrawn",
+      close_reason: "left_team",
+      decided_at: new Date().toISOString(),
+    })
     .eq("participant_id", registration.participant_id)
     .eq("edition_slug", edition.slug)
     .eq("status", "pending");

@@ -1,0 +1,156 @@
+<script setup lang="ts">
+interface Recipient {
+  id: string;
+  organisation: string;
+  purpose: string;
+  shared_fields: string[];
+  created_at: string;
+  retired_at: string | null;
+  eligible: number;
+}
+
+interface AuditRow {
+  id: number;
+  export_kind: string;
+  row_count: number;
+  exported_at: string;
+  exporter: { name: string } | null;
+  recipient: { organisation: string } | null;
+}
+
+const props = defineProps<{ editionQuery: { edition?: string }; readOnly: boolean }>();
+const query = computed(() => props.editionQuery);
+
+const { data: sponsorData, refresh } = await useFetch<{ exports_enabled: boolean; recipients: Recipient[] }>(
+  "/api/admin/sponsors",
+  { query },
+);
+const recipients = computed(() => sponsorData.value?.recipients ?? []);
+const exportsEnabled = computed(() => sponsorData.value?.exports_enabled === true);
+const { data: audit, refresh: refreshAudit } = await useFetch<AuditRow[]>("/api/admin/exports", { query });
+
+const form = reactive({ organisation: "", purpose: "" });
+const error = ref("");
+
+async function addRecipient() {
+  error.value = "";
+  try {
+    await $fetch("/api/admin/sponsors", {
+      method: "POST",
+      query: props.editionQuery,
+      body: { organisation: form.organisation, purpose: form.purpose || undefined },
+    });
+    form.organisation = "";
+    form.purpose = "";
+    await refresh();
+  } catch (e: unknown) {
+    error.value = (e as { data?: { message?: string } }).data?.message ?? "Failed to add";
+  }
+}
+
+async function retire(r: Recipient) {
+  if (!confirm(`Stop sharing with ${r.organisation}? This cannot be undone.`)) return;
+  await $fetch(`/api/admin/sponsors/${r.id}/retire`, { method: "POST" });
+  await refresh();
+}
+
+// The download is a plain link; refresh the log once the server has written it.
+function afterExport() {
+  setTimeout(refreshAudit, 1500);
+}
+
+const editionParam = computed(() => props.editionQuery.edition ?? "");
+</script>
+
+<template>
+  <section class="min-w-0 flex flex-col gap-4 [overflow-wrap:break-word]">
+    <h2 class="text-2xl font-bold">Sponsor sharing</h2>
+    <p class="text-sm opacity-70 max-w-3xl">
+      A sponsor export contains only people whose current answer for that
+      organisation is Yes and who said they are 18 or older — never someone who
+      said No, withdrew, has an objection recorded, or only has an older
+      acknowledgment. A sponsor added later starts with nobody. Only name, email,
+      skills and experience are exported. Eligibility is checked when the file is
+      generated; nothing is stored or queued, so there is no stale link to
+      re-download. Every export is written to the log below.
+    </p>
+
+    <p class="text-sm">
+      Exports of participant data need a verified second factor in this session:
+      <NuxtLink to="/ops/admin/mfa" class="link font-bold">set up / verify MFA</NuxtLink>.
+    </p>
+
+    <div v-if="!exportsEnabled" role="note" class="alert alert-warning text-sm">
+      Sponsor exports are switched off until the legal basis for mandatory sharing
+      is documented (docs/privacy/README.md). An operator enables them with
+      NUXT_SPONSOR_EXPORTS_ENABLED=true.
+    </div>
+
+    <div class="min-w-0 max-w-full overflow-x-auto">
+      <table class="table table-sm">
+        <thead>
+          <tr><th>Organisation</th><th>Purpose</th><th>Fields</th><th class="text-right">Eligible now</th><th /></tr>
+        </thead>
+        <tbody>
+          <tr v-if="!recipients?.length"><td colspan="5" class="opacity-60">No sponsor organisations named yet.</td></tr>
+          <tr v-for="r in recipients" :key="r.id" :class="{ 'opacity-50': r.retired_at }">
+            <td class="font-bold">{{ r.organisation }}<span v-if="r.retired_at" class="badge badge-ghost badge-sm ml-2">retired</span></td>
+            <td>{{ r.purpose }}</td>
+            <td>{{ r.shared_fields.join(", ") }}</td>
+            <td class="text-right tabular-nums">{{ r.eligible }}</td>
+            <td class="flex gap-2 justify-end">
+              <a
+                v-if="!r.retired_at && exportsEnabled"
+                :href="`/api/admin/sponsors/${r.id}/export`"
+                download
+                class="btn btn-outline btn-xs"
+                @click="afterExport"
+              >↓ Export</a>
+              <button v-if="!r.retired_at && !readOnly" class="btn btn-ghost btn-xs" @click="retire(r)">Retire</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <form v-if="!readOnly" class="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-2" @submit.prevent="addRecipient">
+      <label class="form-control w-full sm:w-auto min-w-0">
+        <span class="label-text font-bold">Organisation (legal name)</span>
+        <input v-model="form.organisation" required maxlength="120" class="input input-bordered input-sm w-full sm:w-64 max-w-full" />
+      </label>
+      <label class="form-control w-full sm:w-auto min-w-0">
+        <span class="label-text font-bold">Purpose</span>
+        <input v-model="form.purpose" maxlength="300" placeholder="Internship and job recruitment" class="input input-bordered input-sm w-full sm:w-72 max-w-full" />
+      </label>
+      <button type="submit" class="btn btn-primary btn-sm">Add sponsor</button>
+      <span v-if="error" role="alert" class="text-error text-sm">{{ error }}</span>
+    </form>
+
+    <div class="flex flex-wrap gap-2">
+      <a :href="`/api/admin/sponsors/report?edition=${editionParam}`" download class="btn btn-outline btn-sm h-auto min-h-8 w-full sm:w-auto max-w-full whitespace-normal text-left">
+        ↓ Aggregate sponsor report (small groups suppressed)
+      </a>
+      <a :href="`/api/admin/catering/export?edition=${editionParam}`" download class="btn btn-outline btn-sm h-auto min-h-8 w-full sm:w-auto max-w-full whitespace-normal text-left">
+        ↓ Catering list (organisers only)
+      </a>
+    </div>
+
+    <details class="min-w-0">
+      <summary class="cursor-pointer font-bold">Export log ({{ audit?.length ?? 0 }})</summary>
+      <div class="min-w-0 max-w-full overflow-x-auto">
+        <table class="table table-xs mt-2">
+          <thead><tr><th>When</th><th>Who</th><th>Kind</th><th>Recipient</th><th class="text-right">Rows</th></tr></thead>
+          <tbody>
+            <tr v-for="a in audit" :key="a.id">
+              <td>{{ new Date(a.exported_at).toLocaleString("en-GB", { timeZone: "Europe/Sofia" }) }}</td>
+              <td>{{ a.exporter?.name ?? "—" }}</td>
+              <td>{{ a.export_kind }}</td>
+              <td>{{ a.recipient?.organisation ?? "—" }}</td>
+              <td class="text-right tabular-nums">{{ a.row_count }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+  </section>
+</template>

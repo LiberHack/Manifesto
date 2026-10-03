@@ -1,6 +1,13 @@
 import { requireAdmin } from "#server/utils/adminAuth";
 import { sendRequestDecisionNotification } from "#server/utils/email";
+import { membershipError } from "#server/utils/joinRequests";
 
+/**
+ * An organizer approves or rejects an application on the leader's behalf.
+ * Goes through the same decide_join_request path as leaders, so capacity and
+ * single-team rules still hold. Invitations are only ever answered by the
+ * invitee.
+ */
 export default defineEventHandler(async (event) => {
   const { supabase } = await requireAdmin(event);
   const requestId = getRouterParam(event, "id");
@@ -13,16 +20,15 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  const { data, error } = await supabase
-    .from("join_requests")
-    .update({ status: body.status })
-    .eq("id", requestId!)
-    .select()
-    .single();
+  const { data, error } = await supabase.rpc("decide_join_request", {
+    p_request: requestId,
+    p_actor: null,
+    p_action: body.status === "approved" ? "approve" : "reject",
+  });
 
-  if (error) {
-    console.error("[admin/requests.patch] update failed:", error.message);
-    throw createError({ statusCode: 500, message: "Failed to update request" });
+  if (error) membershipError(error, "admin/requests.patch");
+  if (data.status === "expired") {
+    throw createError({ statusCode: 409, message: "This request has expired" });
   }
 
   // Notify requester — fire and forget

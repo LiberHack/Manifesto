@@ -120,25 +120,26 @@ update public.editions set participant_cap = 4 where slug = '2026';
 do $$
 declare
   uid uuid := gen_random_uuid();
+  state text;
 begin
   -- handle_new_user creates the participants row from the auth insert.
   insert into auth.users (id, email) values (uid, 'capped@example.com');
-  begin
-    insert into public.registrations (participant_id, edition_slug) values (uid, '2026');
+  -- Past the cap a registration joins the waitlist instead of failing
+  -- (20261001000200_attendance_dispatch_and_admission).
+  insert into public.registrations (participant_id, edition_slug)
+  values (uid, '2026') returning seat_state into state;
+  if state = 'waitlisted' then
+    raise notice 'PASS  a registration past the cap is waitlisted, not accepted';
+  else
     raise exception 'FAIL  registration past the cap was accepted';
-  exception when others then
-    if sqlerrm like '%registration_closed%' then
-      raise notice 'PASS  enforce_edition_cap raises registration_closed at the cap';
-    else
-      raise;
-    end if;
-  end;
+  end if;
+  delete from public.registrations where participant_id = uid;
 end
 $$;
 
 select assert(
   (select count(*) from public.participants where email = 'capped@example.com') = 1,
-  'the account survives a cap failure (auth user is not rolled back)');
+  'the account exists independently of its registration');
 
 update public.editions set participant_cap = 120 where slug = '2026';
 

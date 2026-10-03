@@ -1,13 +1,35 @@
+import type {
+  ContributionRole,
+  MatchingStatus,
+  ParticipantGoal,
+} from "#shared/teamFormation";
+
 export interface MeRegistration {
   id: string;
   role: "participant" | "leader";
   team_id: string | null;
   skills: string[];
-  dietary: string | null;
   experience: "beginner" | "intermediate" | "experienced" | null;
+  /** Opted into the public archive. */
   public: boolean;
+  public_opted_in_at: string | null;
+  /** Restricted catering answer; null until the person has answered. */
+  catering: { diet: "none" | "vegetarian" | "vegan" | "other"; note: string | null } | null;
   accepted_terms_at: string;
   registered_at: string;
+  matching_status: MatchingStatus | null;
+  intro: string | null;
+  preferred_roles: ContributionRole[];
+  interests: string[];
+  goals: ParticipantGoal[];
+  languages: string[];
+  github_url: string | null;
+  gitlab_url: string | null;
+  codeberg_url: string | null;
+  portfolio_url: string | null;
+  organizer_help_requested_at: string | null;
+  /** Whether a preferred contact is saved; the value itself is never in /api/me. */
+  contact_complete: boolean;
 }
 
 export interface MeEdition {
@@ -37,9 +59,15 @@ export interface Me {
     leader_id: string;
     invite_code: string;
     github_url: string | null;
+    recruiting: boolean;
+    wanted_roles: ContributionRole[];
+    desired_size: number;
+    interests: string[];
+    goals: ParticipantGoal[];
+    welcomes_beginners: boolean;
+    languages: string[];
   } | null;
   skills?: string[];
-  dietary?: string | null;
   experience?: "beginner" | "intermediate" | "experienced" | null;
 }
 
@@ -56,7 +84,9 @@ export function useMe() {
 
   return useAsyncData<Me | null>(
     "me",
-    () => (user.value ? (request("/api/me") as Promise<Me>) : Promise.resolve(null)),
+    // Explicit response type: inferring it from Nitro's route union exceeds the
+    // compiler's depth limit now that there are more API routes.
+    () => (user.value ? request<Me>("/api/me") : Promise.resolve(null)),
     { default: () => null, watch: [user] },
   );
 }
