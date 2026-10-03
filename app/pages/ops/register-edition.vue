@@ -196,7 +196,7 @@ async function submit() {
 </script>
 
 <template>
-  <main class="w-full min-h-screen flex items-center justify-center p-4 py-12">
+  <main class="w-full flex items-start sm:items-center justify-center p-4 pt-6 pb-12 sm:py-12 sm:min-h-screen">
     <div class="w-full max-w-lg bg-base-100 p-8 border-primary border-2 flex flex-col gap-3">
       <template v-if="!state?.edition">
         <h1 class="text-3xl font-black uppercase tracking-tight">Not open yet</h1>
