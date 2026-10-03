@@ -55,6 +55,22 @@ export async function getCurrentEdition(
 }
 
 /**
+ * Whether every seat is taken. Counts only seat-holding registrations, as the
+ * cap trigger does: cancelled and waitlisted rows hold no seat.
+ */
+export async function isEditionFull(
+  supabase: SupabaseClient,
+  edition: Pick<Edition, "slug" | "participant_cap">,
+): Promise<boolean> {
+  const { count } = await supabase
+    .from("registrations")
+    .select("id", { count: "exact", head: true })
+    .eq("edition_slug", edition.slug)
+    .in("seat_state", ["accepted", "offered"]);
+  return (count ?? 0) >= edition.participant_cap;
+}
+
+/**
  * The current edition, provided its participant area is open.
  *
  * @throws 503 when no edition is live, 403 `ops_closed` when the edition's

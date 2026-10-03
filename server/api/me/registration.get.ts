@@ -1,6 +1,6 @@
 import { serverSupabaseUser } from "#supabase/server";
 import { useSupabaseAdmin } from "#server/utils/supabase";
-import { getCurrentEdition } from "#server/utils/registrationContext";
+import { getCurrentEdition, isEditionFull } from "#server/utils/registrationContext";
 import { PRIVACY_NOTICE_VERSION } from "#shared/utils/privacy";
 import { listActiveRecipients } from "#server/utils/sponsors";
 
@@ -59,7 +59,7 @@ export default defineEventHandler(async (event) => {
     };
   }
 
-  const [{ data: current }, { data: prior }, { count }, recipients, notes] = await Promise.all([
+  const [{ data: current }, { data: prior }, full, recipients, notes] = await Promise.all([
     supabase
       .from("registrations")
       .select("id")
@@ -77,10 +77,7 @@ export default defineEventHandler(async (event) => {
       .order("registered_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
-    supabase
-      .from("registrations")
-      .select("id", { count: "exact", head: true })
-      .eq("edition_slug", edition.slug),
+    isEditionFull(supabase, edition),
     listActiveRecipients(supabase, edition.slug),
     // Free-text dietary notes only once a catering retention period is decided.
     supabase.rpc("dietary_notes_enabled"),
@@ -111,7 +108,7 @@ export default defineEventHandler(async (event) => {
     },
     registered: Boolean(current),
     // Boolean only — see /api/editions/current for why no count is exposed.
-    full: (count ?? 0) >= edition.participant_cap,
+    full,
     ops_open: edition.ops_enabled,
     // `experience` is deliberately surfaced as a pre-selected value that the
     // form re-requires, so the user consciously re-answers it each edition.
