@@ -4,7 +4,7 @@
 
 import {
   CONTRIBUTION_ROLE_LABELS,
-  PARTICIPANT_GOAL_LABELS,
+  formatGoals,
   UNDECIDED_INTEREST,
   type ContributionRole,
   type ParticipantGoal,
@@ -124,7 +124,7 @@ export function scoreMatch(person: PersonSignals, team: TeamSignals): Match {
       value: shared.length / Math.min(person.goals.length, team.goals.length),
     });
     if (shared.length > 0) {
-      reasons.push(`Both here for: ${shared.map((g) => PARTICIPANT_GOAL_LABELS[g]).join(", ")}`);
+      reasons.push(`Both here for: ${formatGoals(shared)}`);
     }
   }
 

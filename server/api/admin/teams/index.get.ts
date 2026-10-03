@@ -11,9 +11,9 @@ export default defineEventHandler(async (event) => {
 
   const { data, error } = await supabase
     .from("teams")
+    // One literal, not a concatenation: supabase-js types the result from it.
     .select(
-      "id, name, leader_id, skills_wanted, description, created_at, " +
-        "members:registrations!registrations_team_id_fkey(id, participant:participants(id, name, email))",
+      "id, name, leader_id, skills_wanted, description, created_at, members:registrations!registrations_team_id_fkey(id, participant:participants(id, name, email))",
     )
     .eq("edition_slug", edition.slug)
     .order("created_at", { ascending: false });
